@@ -11,7 +11,7 @@ import UserJobs from "../pages/user/UserJobs";
 import UserAcademy from "../pages/user/UserAcademy";
 import UserReferral from "../pages/user/UserReferral";
 import UserProfile from "../pages/user/UserProfile";
-import ProtectedRoute from "./ProtectedRoute";
+import UserProtectedRoute from "./UserProtectedRoute";
 import UserLogin from "../pages/auth/UserLogin";
 import UserRegister from "../pages/auth/UserRegister";
 
@@ -37,7 +37,7 @@ const AppRouter = () => {
                 <Route path="/user-register" element={<UserRegister />} />
 
                 {/* Protected User Routes */}
-                <Route element={<ProtectedRoute />}>
+                <Route element={<UserProtectedRoute />}>
                     <Route path="/user-dashboard" element={<UserLayout />}>
                         <Route index element={<UserDashboard />} />
                         <Route path="directory" element={<UserDirectory />} />

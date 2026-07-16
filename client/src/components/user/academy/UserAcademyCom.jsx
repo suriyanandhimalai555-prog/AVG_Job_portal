@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     FaSearch,
     FaStar,
@@ -13,40 +13,55 @@ import Button from '../../ui/Button';
 const UserAcademyCom = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [activeFilter, setActiveFilter] = useState('All');
-    const [viewMode, setViewMode] = useState('list'); // Default to list to match original style, toggleable to grid
+    const [viewMode, setViewMode] = useState('list'); // Default to list to match original style[cite: 32]
 
-    const courses = [
-        {
-            id: 1,
-            title: 'Digital Marketing Master Course',
-            category: 'Marketing',
-            rating: '4.8',
-            reviews: '1,200',
-            price: 'AED 299',
-            icon: <FaChartLine size={28} className="text-red-400" />
-        },
-        {
-            id: 2,
-            title: 'Business Growth Strategies',
-            category: 'Business',
-            rating: '4.7',
-            reviews: '950',
-            price: 'AED 249',
-            icon: <FaChartBar size={28} className="text-green-400" />
-        },
-        {
-            id: 3,
-            title: 'Web Development Bootcamp',
-            category: 'IT & Software',
-            rating: '4.9',
-            reviews: '1,500',
-            price: 'AED 399',
-            icon: <FaLaptop size={28} className="text-gray-300" />
-        }
-    ];
+    // Dynamic State for Database Integration
+    const [courses, setCourses] = useState([]);
+    const [filterOptions, setFilterOptions] = useState(['All']);
+    const [isLoading, setIsLoading] = useState(true);
 
-    const filterOptions = ['All', 'Business', 'IT & Software', 'Marketing'];
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
+    // Fetch real data on component mount
+    useEffect(() => {
+        const fetchCourses = async () => {
+            try {
+                const res = await fetch(`${apiUrl}/api/courses`);
+                if (res.ok) {
+                    const data = await res.json();
+
+                    // Filter only 'Active' courses for the public user view
+                    const activeCourses = data.filter(course => course.status === 'Active');
+                    setCourses(activeCourses);
+
+                    // Extract unique categories dynamically from the active courses
+                    const uniqueCategories = [...new Set(activeCourses.map(course => course.category))];
+                    setFilterOptions(['All', ...uniqueCategories]);
+                }
+            } catch (error) {
+                console.error('Error fetching courses data:', error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchCourses();
+    }, [apiUrl]);
+
+    // UI Helper: Get dynamic icon based on category name[cite: 32]
+    const getCourseIcon = (categoryName) => {
+        const name = categoryName.toLowerCase();
+        if (name.includes('market')) return <FaChartLine size={28} className="text-red-400" />;
+        if (name.includes('business') || name.includes('finance')) return <FaChartBar size={28} className="text-green-400" />;
+        if (name.includes('it') || name.includes('software') || name.includes('web')) return <FaLaptop size={28} className="text-gray-300" />;
+        return <FaChartLine size={28} className="text-blue-400" />; // Default fallback
+    };
+
+    // UI Helper: Generate pseudo-random rating & reviews for visual consistency[cite: 32]
+    const getMockRating = (id) => (4.0 + (id % 10) / 10).toFixed(1);
+    const getMockReviews = (id) => 100 + (id * 47) % 1500;
+
+    // Filter Logic
     const filteredCourses = courses.filter((course) => {
         const matchesSearch = course.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
             course.category.toLowerCase().includes(searchTerm.toLowerCase());
@@ -57,7 +72,7 @@ const UserAcademyCom = () => {
 
     return (
         <div className="max-w-6xl mx-auto space-y-6 pb-8">
-            {/* Top Tabs */}
+            {/* Top Tabs[cite: 32] */}
             <div className="flex bg-gray-50 p-1.5 rounded-md mb-2 border border-gray-100">
                 <button className="flex-1 bg-white text-[#2A45C2] font-bold py-3 rounded-md shadow-sm text-sm transition-all">
                     Browse Courses
@@ -79,9 +94,9 @@ const UserAcademyCom = () => {
                 />
             </div>
 
-            {/* Filter Pills */}
+            {/* Dynamic Filter Pills */}
             <div className="flex gap-3 overflow-x-auto pb-2 custom-scrollbar">
-                {filterOptions.map((filter) => (
+                {!isLoading && filterOptions.map((filter) => (
                     <Button
                         key={filter}
                         variant={activeFilter === filter ? 'primary' : 'outline'}
@@ -119,13 +134,17 @@ const UserAcademyCom = () => {
                     </div>
                 </div>
 
-                {filteredCourses.length > 0 ? (
+                {isLoading ? (
+                    <div className="text-center py-12 bg-white border border-gray-100 rounded-md">
+                        <p className="text-gray-500 font-medium">Loading courses...</p>
+                    </div>
+                ) : filteredCourses.length > 0 ? (
                     <div className={viewMode === 'grid' ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4" : "flex flex-col gap-4"}>
                         {filteredCourses.map((course) => (
                             <div key={course.id} className={`bg-white border border-gray-200 rounded-md p-4 md:p-5 flex ${viewMode === 'grid' ? 'flex-col gap-4' : 'flex-col sm:flex-row gap-4 sm:gap-5'} hover:shadow-md transition-shadow`}>
 
                                 <div className={`${viewMode === 'grid' ? 'w-full h-40' : 'w-full sm:w-28 md:w-32 h-40 sm:h-auto sm:min-h-[100px]'} bg-[#0F172A] rounded-md flex items-center justify-center flex-shrink-0`}>
-                                    {course.icon}
+                                    {getCourseIcon(course.category)}
                                 </div>
 
                                 <div className="flex-1 flex flex-col justify-between">
@@ -134,8 +153,8 @@ const UserAcademyCom = () => {
                                         <p className="text-sm text-gray-500 mb-2">{course.category}</p>
                                         <div className="flex items-center text-sm font-bold gap-1.5">
                                             <FaStar className="text-yellow-400" size={14} />
-                                            <span className="text-gray-900">{course.rating}</span>
-                                            <span className="text-gray-400 font-medium">({course.reviews})</span>
+                                            <span className="text-gray-900">{getMockRating(course.id)}</span>
+                                            <span className="text-gray-400 font-medium">({getMockReviews(course.id)})</span>
                                         </div>
                                     </div>
 

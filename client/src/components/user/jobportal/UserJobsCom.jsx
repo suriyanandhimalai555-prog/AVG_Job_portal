@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     FaSearch,
     FaBriefcase,
@@ -15,35 +15,40 @@ const UserJobsCom = () => {
     const [activeFilter, setActiveFilter] = useState('All Jobs');
     const [viewMode, setViewMode] = useState('grid');
 
-    const jobs = [
-        {
-            id: 1,
-            title: 'Marketing Executive',
-            company: 'ABC Marketing',
-            location: 'Dubai, UAE',
-            type: 'Full Time',
-            salary: 'AED 4,000 - 6,000',
-        },
-        {
-            id: 2,
-            title: 'Accountant',
-            company: 'Finance Hub',
-            location: 'Sharjah, UAE',
-            type: 'Full Time',
-            salary: 'AED 3,500 - 5,000',
-        },
-        {
-            id: 3,
-            title: 'Sales Manager',
-            company: 'Global Sales LLC',
-            location: 'Dubai, UAE',
-            type: 'Full Time',
-            salary: 'AED 6,000 - 10,000',
-        }
-    ];
+    // Dynamic State for Database Integration
+    const [jobs, setJobs] = useState([]);
+    const [filterOptions, setFilterOptions] = useState(['All Jobs']);
+    const [isLoading, setIsLoading] = useState(true);
 
-    const filterOptions = ['All Jobs', 'Full Time', 'Part Time', 'Remote'];
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
+    // Fetch real data on component mount
+    useEffect(() => {
+        const fetchJobs = async () => {
+            try {
+                const res = await fetch(`${apiUrl}/api/jobs`);
+                if (res.ok) {
+                    const data = await res.json();
+
+                    // Filter only 'Active' jobs for the public user view
+                    const activeJobs = data.filter(job => job.status === 'Active');
+                    setJobs(activeJobs);
+
+                    // Extract unique job types dynamically from the active jobs (e.g., Full Time, Part Time, Remote)
+                    const uniqueTypes = [...new Set(activeJobs.map(job => job.type))];
+                    setFilterOptions(['All Jobs', ...uniqueTypes]);
+                }
+            } catch (error) {
+                console.error('Error fetching jobs data:', error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchJobs();
+    }, [apiUrl]);
+
+    // Filter Logic
     const filteredJobs = jobs.filter((job) => {
         const matchesSearch = job.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
             job.company.toLowerCase().includes(searchTerm.toLowerCase());
@@ -54,6 +59,8 @@ const UserJobsCom = () => {
 
     return (
         <div className="max-w-6xl mx-auto space-y-6 pb-8">
+
+            {/* Search Bar */}
             <div className="relative">
                 <FaSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
                 <input
@@ -65,8 +72,9 @@ const UserJobsCom = () => {
                 />
             </div>
 
+            {/* Dynamic Filter Pills */}
             <div className="flex gap-3 pb-2 overflow-x-auto custom-scrollbar">
-                {filterOptions.map((filter) => (
+                {!isLoading && filterOptions.map((filter) => (
                     <Button
                         key={filter}
                         variant={activeFilter === filter ? 'primary' : 'outline'}
@@ -78,6 +86,7 @@ const UserJobsCom = () => {
                 ))}
             </div>
 
+            {/* Job Listings Section */}
             <div>
                 <div className="flex justify-between items-center mb-4 px-1">
                     <h2 className="text-xl font-bold text-gray-900">Featured Jobs</h2>
@@ -103,7 +112,11 @@ const UserJobsCom = () => {
                     </div>
                 </div>
 
-                {filteredJobs.length > 0 ? (
+                {isLoading ? (
+                    <div className="text-center py-12 bg-white border border-gray-100 rounded-md">
+                        <p className="text-gray-500 font-medium">Loading jobs...</p>
+                    </div>
+                ) : filteredJobs.length > 0 ? (
                     <div className={viewMode === 'grid' ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" : "flex flex-col gap-4"}>
                         {filteredJobs.map((job) => (
                             <div key={job.id} className={`bg-white border border-gray-200 rounded-md p-5 shadow-sm hover:shadow-md transition-shadow ${viewMode === 'grid' ? 'flex flex-col justify-between h-full' : 'flex flex-col md:flex-row md:items-center justify-between gap-4'}`}>
@@ -118,7 +131,8 @@ const UserJobsCom = () => {
                                             <p className="text-sm text-gray-500 mb-1">{job.company}</p>
                                             <div className="flex items-center text-xs text-gray-400 gap-1.5">
                                                 <FaMapMarkerAlt />
-                                                <span>{job.location}</span>
+                                                {/* Fallback to 'Various Locations' if location data is not provided in Job schema */}
+                                                <span>{job.location || 'Location upon request'}</span>
                                             </div>
                                         </div>
                                     </div>
@@ -140,7 +154,8 @@ const UserJobsCom = () => {
 
                                     <div className="flex items-center gap-1.5 font-bold text-sm">
                                         <FaStar className="text-yellow-400" size={14} />
-                                        <span className="text-[#D97706]">{job.salary}</span>
+                                        {/* Fallback for salary as it was in dummy data but not explicitly in your JobModel schema */}
+                                        <span className="text-[#D97706]">{job.salary || 'Negotiable'}</span>
                                     </div>
 
                                     <Button size="sm" className="rounded-md px-6">
