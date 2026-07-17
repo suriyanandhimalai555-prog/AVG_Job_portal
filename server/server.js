@@ -19,7 +19,7 @@ const app = express();
 
 const allowedOrigins = [
     process.env.FRONTEND_URL,
-    'https://avgmart.com',
+    'https://avgjobportal.avgprimetech.com/',
     'http://localhost:5173'
 ].filter(Boolean);
 
