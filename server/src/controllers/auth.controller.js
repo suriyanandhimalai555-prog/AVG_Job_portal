@@ -136,11 +136,18 @@ export const adminLogin = async (req, res) => {
             return res.status(401).json({ error: 'Invalid admin credentials.' });
         }
 
-        // FIX: Extract role safely and handle undefined cases caused by UserModel limitations
+        // 1. Safe Role Check (defaults to 'user' if undefined)
         const userRole = user.role ? user.role.toLowerCase() : 'user';
-        const isAuthorizedEmail = email.toLowerCase() === 'avgadmin@agilavetri.com';
 
-        // Bypass check if it's the specific super admin email, otherwise check roles
+        // 2. Allow BOTH of your admin emails to bypass strict database role checks
+        const authorizedEmails = ['avgadmin@agilavetri.com', 'admin@agilavetri.com'];
+        const isAuthorizedEmail = authorizedEmails.includes(email.toLowerCase());
+
+        // 3. Safe Status Check: Only trigger 403 if the status explicitly exists and is NOT active
+        if (user.status && user.status.toLowerCase() !== 'active') {
+            return res.status(403).json({ error: 'This administrative account is currently suspended.' });
+        }
+
         if (userRole !== 'admin' && userRole !== 'superadmin' && !isAuthorizedEmail) {
             return res.status(403).json({ error: 'Access denied. Unauthorized personnel accounts.' });
         }
