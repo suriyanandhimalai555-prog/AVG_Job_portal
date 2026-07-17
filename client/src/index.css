@@ -5,8 +5,8 @@
 @theme {
   --font-heading: "Sora", sans-serif;
   --font-body: "DM Sans", sans-serif;
-  --color-primary: #bfdbfe;
-  --color-secondary: #8ce2dd;
+  --color-primary: linear-gradient(135deg, #2B6CF0 0%, #1E40AF 100%);
+  --color-secondary: #F4F8FF;
 }
 
 body {

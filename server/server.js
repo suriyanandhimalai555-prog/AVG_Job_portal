@@ -4,11 +4,14 @@ import dotenv from 'dotenv';
 import authRoutes from './src/routes/auth.routes.js';
 import businessRoutes from './src/routes/business.routes.js';
 import jobRoutes from './src/routes/job.routes.js'; 
-import courseRoutes from './src/routes/course.routes.js';
+import courseRoutes from './src/routes/course.routes.js'; 
+import userRoutes from './src/routes/user.routes.js';
 import { createUserTable } from './src/models/user.model.js';
 import { createBusinessTable } from './src/models/business.model.js';
 import { createJobTable } from './src/models/job.model.js';
 import { createCourseTable } from './src/models/course.model.js';
+import { createJobApplicationTable } from './src/models/jobApplication.model.js';
+import jobApplicationRoutes from './src/routes/jobApplication.routes.js';
 
 dotenv.config();
 
@@ -41,7 +44,9 @@ app.use(express.urlencoded({ limit: '10mb', extended: true }));
 app.use('/api/auth', authRoutes);
 app.use('/api/businesses', businessRoutes);
 app.use('/api/jobs', jobRoutes); 
-app.use('/api/courses', courseRoutes);
+app.use('/api/courses', courseRoutes); 
+app.use('/api/users', userRoutes);
+app.use('/api/applications', jobApplicationRoutes);
 
 // Root path test
 app.get('/', (req, res) => {
@@ -55,6 +60,7 @@ const startServer = async () => {
     await createBusinessTable();
     await createJobTable(); 
     await createCourseTable();
+    await createJobApplicationTable();
 
     const PORT = process.env.PORT || 5000;
     app.listen(PORT, () => {

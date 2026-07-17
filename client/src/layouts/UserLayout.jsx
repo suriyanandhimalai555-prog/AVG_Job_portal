@@ -11,14 +11,14 @@ const UserLayout = () => {
   };
 
   return (
-    <div className="flex h-screen bg-gray-50 overflow-hidden font-sans">
+    <div className="flex h-screen bg-gray-50 overflow-hidden">
       <Sidebar isOpen={isSidebarOpen} toggleSidebar={toggleSidebar} />
       
       <div className="flex flex-col flex-1 w-full min-w-0">
         <Navbar toggleSidebar={toggleSidebar} />
         
         {/* Main content area where nested routes will render */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
+        <main className="flex-1 overflow-y-auto p-4">
           <Outlet />
         </main>
       </div>

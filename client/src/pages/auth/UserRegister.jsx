@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useLocation } from 'react-router-dom'; // 👈 Imported useLocation
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
@@ -10,6 +10,7 @@ const UserRegister = () => {
         email: '',
         phone: '+971',
         password: '',
+        referralCode: '', // 👈 Added referralCode to state
         agreeToTerms: false
     });
 
@@ -17,6 +18,17 @@ const UserRegister = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [errorMsg, setErrorMsg] = useState('');
     const [successMsg, setSuccessMsg] = useState('');
+
+    const location = useLocation();
+
+    // Auto-fill referral code from URL parameters on load
+    useEffect(() => {
+        const queryParams = new URLSearchParams(location.search);
+        const refCode = queryParams.get('ref');
+        if (refCode) {
+            setFormData(prev => ({ ...prev, referralCode: refCode }));
+        }
+    }, [location]);
 
     const handleChange = (e) => {
         const { name, value, type, checked } = e.target;
@@ -26,16 +38,36 @@ const UserRegister = () => {
         });
     };
 
+    const validateForm = () => {
+        if (formData.fullName.trim().length < 2) {
+            setErrorMsg('Please enter a valid full name.');
+            return false;
+        }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+            setErrorMsg('Please enter a valid email address.');
+            return false;
+        }
+        if (formData.phone.trim().length < 7) {
+            setErrorMsg('Please enter a valid phone number.');
+            return false;
+        }
+        if (formData.password.trim().length < 6) {
+            setErrorMsg('Password must be at least 6 characters.');
+            return false;
+        }
+        if (!formData.agreeToTerms) {
+            setErrorMsg('You must agree to the Terms & Conditions.');
+            return false;
+        }
+        return true;
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
-
         setErrorMsg('');
         setSuccessMsg('');
 
-        if (!formData.agreeToTerms) {
-            setErrorMsg('You must agree to the Terms & Conditions.');
-            return;
-        }
+        if (!validateForm()) return;
 
         setIsLoading(true);
 
@@ -50,7 +82,8 @@ const UserRegister = () => {
                     fullName: formData.fullName,
                     email: formData.email,
                     phone: formData.phone,
-                    password: formData.password
+                    password: formData.password,
+                    referralCode: formData.referralCode // 👈 Include referralCode in request
                 }),
             });
 
@@ -63,13 +96,13 @@ const UserRegister = () => {
                     email: '',
                     phone: '+971',
                     password: '',
+                    referralCode: '',
                     agreeToTerms: false
                 });
             } else {
                 setErrorMsg(data.error || 'Registration failed. Please try again.');
             }
         } catch (error) {
-            console.error('Registration error:', error);
             setErrorMsg('Server error. Please try again later.');
         } finally {
             setIsLoading(false);
@@ -77,21 +110,21 @@ const UserRegister = () => {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-white px-4 py-6 md:py-8 font-sans overflow-y-auto">
-            <div className="w-full max-w-md space-y-5 flex flex-col items-center">
+        <div className="min-h-screen flex items-center justify-center bg-[#F4F8FF] px-4 py-6 font-sans overflow-y-auto">
+            <div className="w-full max-w-md bg-white p-6 md:p-8 rounded-2xl shadow-xl shadow-blue-900/5 border border-gray-100 flex flex-col items-center space-y-5 my-4">
 
                 <div className="flex flex-col items-center text-center">
                     <img
                         src="/logo.jpg"
                         alt="Agila Vetri Logo"
-                        className="h-16 md:h-20 w-auto object-contain mb-2"
+                        className="h-14 w-auto object-contain mb-2"
                     />
                     <h1 className="text-xl md:text-2xl font-extrabold text-[#0F172A] tracking-wider uppercase">AGILA VETRI</h1>
-                    <p className="text-[10px] md:text-xs font-bold text-[#2A45C2] tracking-widest mt-0.5 uppercase">BUSINESS ECOSYSTEM</p>
+                    <p className="text-[10px] md:text-xs font-bold text-[#2B6CF0] tracking-widest mt-0.5 uppercase">BUSINESS ECOSYSTEM</p>
                 </div>
 
                 <div className="w-full text-center">
-                    <h2 className="text-xl md:text-2xl font-bold text-gray-900">Create Account</h2>
+                    <h2 className="text-lg md:text-xl font-bold text-gray-800">Create Account</h2>
                 </div>
 
                 <form onSubmit={handleSubmit} className="w-full space-y-3.5">
@@ -102,6 +135,7 @@ const UserRegister = () => {
                         placeholder="Ramesh Kumar"
                         value={formData.fullName}
                         onChange={handleChange}
+                        className="bg-gray-50 focus:bg-white"
                         required
                     />
 
@@ -112,6 +146,7 @@ const UserRegister = () => {
                         placeholder="ramesh@example.com"
                         value={formData.email}
                         onChange={handleChange}
+                        className="bg-gray-50 focus:bg-white"
                         required
                     />
 
@@ -122,6 +157,7 @@ const UserRegister = () => {
                         placeholder="+971"
                         value={formData.phone}
                         onChange={handleChange}
+                        className="bg-gray-50 focus:bg-white"
                         required
                     />
 
@@ -133,11 +169,11 @@ const UserRegister = () => {
                             <input
                                 name="password"
                                 type={showPassword ? 'text' : 'password'}
-                                placeholder="........"
+                                placeholder="••••••••"
                                 value={formData.password}
                                 onChange={handleChange}
                                 required
-                                className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:border-[#2A45C2] focus:ring-2 focus:ring-[#2A45C2]/20 transition-all text-gray-700 pr-12"
+                                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl shadow-sm placeholder-gray-400 focus:bg-white focus:outline-none focus:border-[#2B6CF0] focus:ring-2 focus:ring-[#2B6CF0]/20 transition-all text-gray-700 pr-12"
                             />
                             <button
                                 type="button"
@@ -149,6 +185,16 @@ const UserRegister = () => {
                         </div>
                     </div>
 
+                    <Input
+                        label="Referral Code (Optional)"
+                        name="referralCode"
+                        type="text"
+                        placeholder="e.g. AGILA1234"
+                        value={formData.referralCode}
+                        onChange={handleChange}
+                        className="bg-gray-50 focus:bg-white"
+                    />
+
                     <div className="flex items-center gap-3 pt-1">
                         <input
                             id="agreeToTerms"
@@ -156,24 +202,24 @@ const UserRegister = () => {
                             type="checkbox"
                             checked={formData.agreeToTerms}
                             onChange={handleChange}
-                            className="w-5 h-5 text-[#2A45C2] border-2 border-gray-300 rounded focus:ring-[#2A45C2] accent-[#2A45C2] cursor-pointer"
+                            className="w-5 h-5 text-[#2B6CF0] border-2 border-gray-300 rounded focus:ring-[#2B6CF0] accent-[#2B6CF0] cursor-pointer"
                         />
                         <label htmlFor="agreeToTerms" className="text-sm font-medium text-gray-600 cursor-pointer select-none">
                             I agree to{' '}
-                            <Link to="/terms" className="text-[#2A45C2] font-bold hover:underline">
+                            <Link to="/terms" className="text-[#2B6CF0] font-bold hover:underline">
                                 Terms & Conditions
                             </Link>
                         </label>
                     </div>
 
                     {errorMsg && (
-                        <div className="text-sm font-semibold text-red-500 bg-red-50 p-3 rounded-lg text-center">
+                        <div className="text-sm font-semibold text-red-500 bg-red-50 p-3 rounded-lg text-center border border-red-100">
                             {errorMsg}
                         </div>
                     )}
 
                     {successMsg && (
-                        <div className="text-sm font-semibold text-green-600 bg-green-50 p-3 rounded-lg text-center">
+                        <div className="text-sm font-semibold text-green-600 bg-green-50 p-3 rounded-lg text-center border border-green-100">
                             {successMsg}
                         </div>
                     )}
@@ -181,19 +227,18 @@ const UserRegister = () => {
                     <Button
                         type="submit"
                         disabled={isLoading}
-                        className="w-full py-3.5 text-base bg-[#2A45C2] hover:bg-blue-800 rounded-xl font-bold text-white mt-3 disabled:opacity-70 disabled:cursor-not-allowed"
+                        className="w-full py-3.5 text-base bg-[linear-gradient(135deg,#2B6CF0_0%,#1E40AF_100%)] hover:shadow-lg rounded-xl font-bold text-white mt-2 disabled:opacity-70 disabled:cursor-not-allowed transition-all"
                     >
                         {isLoading ? 'Registering...' : 'Register'}
                     </Button>
                 </form>
 
-                <div className="text-center text-sm text-gray-500 pt-1">
+                <div className="text-center text-sm text-gray-500 pt-2">
                     Already have an account?{' '}
-                    <Link to="/user-login" className="text-[#2A45C2] font-bold hover:underline">
+                    <Link to="/user-login" className="text-[#2B6CF0] font-bold hover:underline">
                         Login
                     </Link>
                 </div>
-
             </div>
         </div>
     );

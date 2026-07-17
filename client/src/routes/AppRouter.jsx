@@ -23,6 +23,7 @@ import AdminDirectory from "../pages/admin/AdminDirectory";
 import AdminAcademy from "../pages/admin/AdminAcademy";
 import AdminLogin from "../pages/auth/AdminLogin";
 import AdminProtectedRoute from "./AdminProtectedRoute";
+import ProfileList from "../pages/admin/ProfileList";
 
 
 const AppRouter = () => {
@@ -55,6 +56,7 @@ const AppRouter = () => {
                         <Route path="jobs" element={<AdminJobs />} />
                         <Route path="directory" element={<AdminDirectory />} />
                         <Route path="academy" element={<AdminAcademy />} />
+                        <Route path="profile-list" element={<ProfileList />} />
                         {/* Add settings route if needed */}
                     </Route>
                 </Route>

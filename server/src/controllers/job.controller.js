@@ -14,7 +14,7 @@ export const createJob = async (req, res) => {
     try {
         const { title, company, type, status } = req.body;
         if (!title || !company || !type) {
-            return res.status(400).json({ error: 'All fields are required.' });
+            return res.status(400).json({ error: 'Title, company, and type fields are required.' });
         }
 
         const newJob = await JobModel.create(req.body);

@@ -4,7 +4,8 @@ import UserModel from '../models/user.model.js';
 
 export const registerUser = async (req, res) => {
     try {
-        const { fullName, email, phone, password } = req.body; 
+        // Now accepting referralCode
+        const { fullName, email, phone, password, referralCode } = req.body; 
 
         if (!fullName || !email || !password) {
             return res.status(400).json({ error: 'Please provide all required fields.' }); 
@@ -22,7 +23,8 @@ export const registerUser = async (req, res) => {
             fullName, 
             email, 
             phone, 
-            passwordHash 
+            passwordHash,
+            referralCode 
         });
 
         res.status(201).json({
@@ -36,7 +38,6 @@ export const registerUser = async (req, res) => {
     }
 };
 
-// Login Logic
 export const loginUser = async (req, res) => {
     try {
         const { email, password } = req.body; 
@@ -55,11 +56,11 @@ export const loginUser = async (req, res) => {
             return res.status(401).json({ error: 'Invalid email or password.' }); 
         }
 
-        // Generate JWT Token
+        // Generate JWT Token - Added fullName so the dashboard can greet the user
         const token = jwt.sign(
-            { id: user.id, email: user.email }, 
+            { id: user.id, email: user.email, fullName: user.full_name }, 
             process.env.JWT_SECRET, 
-            { expiresIn: '1d' } // Token expires in 1 day[cite: 20]
+            { expiresIn: '1d' } 
         );
 
         res.status(200).json({
@@ -74,7 +75,7 @@ export const loginUser = async (req, res) => {
     }
 };
 
-// NEW: Admin Login Logic
+// Admin Login Logic remains unchanged...
 export const adminLogin = async (req, res) => {
     try {
         const { email, password } = req.body;
@@ -83,27 +84,22 @@ export const adminLogin = async (req, res) => {
             return res.status(400).json({ error: 'Please provide email and password.' });
         }
 
-        // 1. STRICT SECURITY GATE
-        // Only allow this specific email to attempt an admin login.
         const authorizedAdminEmail = 'admin@agilavetri.com'; 
         
         if (email.toLowerCase() !== authorizedAdminEmail.toLowerCase()) {
             return res.status(403).json({ error: 'Access denied. Unauthorized personnel.' });
         }
 
-        // 2. Verify existence in database
         const user = await UserModel.findByEmail(email);
         if (!user) {
             return res.status(401).json({ error: 'Invalid admin credentials.' });
         }
 
-        // 3. Verify password hash
         const isMatch = await bcrypt.compare(password, user.password_hash);
         if (!isMatch) {
             return res.status(401).json({ error: 'Invalid admin credentials.' });
         }
 
-        // 4. Generate Admin JWT Token
         const token = jwt.sign(
             { id: user.id, email: user.email, role: 'superadmin' },
             process.env.JWT_SECRET,
