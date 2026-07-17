@@ -1,5 +1,5 @@
 import express from 'express'; 
-import { registerUser, loginUser, adminLogin } from '../controllers/auth.controller.js'; 
+import { registerUser, loginUser, adminLogin, registerAdmin } from '../controllers/auth.controller.js'; 
 
 const router = express.Router(); 
 
@@ -9,7 +9,10 @@ router.post('/register', registerUser);
 // POST /api/auth/login
 router.post('/login', loginUser); 
 
-// POST /api/auth/admin-login (Admin ONLY)
+// POST /api/auth/admin-login (Admin ONLY Verification)
 router.post('/admin-login', adminLogin);
 
-export default router; 
+// POST /api/auth/create-admin (Secure Creation Endpoint for Postman)
+router.post('/create-admin', registerAdmin);
+
+export default router;
