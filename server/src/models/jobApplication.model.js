@@ -33,6 +33,42 @@ const JobApplicationModel = {
         const values = [jobId, userId, applicantName, applicantEmail, resumeLink, coverLetter];
         const { rows } = await pool.query(query, values);
         return rows[0];
+    },
+
+    getByUserId: async (userId) => {
+        const query = `
+            SELECT ja.id AS application_id, ja.status AS application_status, ja.created_at AS applied_date,
+                   j.id AS job_id, j.title, j.company, j.location, j.type
+            FROM job_applications ja
+            JOIN jobs j ON ja.job_id = j.id
+            WHERE ja.user_id = $1
+            ORDER BY ja.created_at DESC;
+        `;
+        const { rows } = await pool.query(query, [userId]);
+        return rows;
+    },
+
+    // NEW: Fetch all applicants for a specific job (For Admin)
+    getByJobId: async (jobId) => {
+        const query = `
+            SELECT * FROM job_applications 
+            WHERE job_id = $1 
+            ORDER BY created_at DESC;
+        `;
+        const { rows } = await pool.query(query, [jobId]);
+        return rows;
+    },
+
+    // NEW: Update application status (For Admin)
+    updateStatus: async (applicationId, status) => {
+        const query = `
+            UPDATE job_applications 
+            SET status = $1 
+            WHERE id = $2 
+            RETURNING *;
+        `;
+        const { rows } = await pool.query(query, [status, applicationId]);
+        return rows[0];
     }
 };
 

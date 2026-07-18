@@ -1,10 +1,14 @@
 import express from 'express';
-import { applyForJob } from '../controllers/jobApplication.controller.js';
-import { verifyToken } from '../middleware/auth.middleware.js'; // Ensure your auth middleware path is correct
+import { applyForJob, getUserApplications, getJobApplicants, updateApplicationStatus } from '../controllers/jobApplication.controller.js';
+import { verifyToken } from '../middleware/auth.middleware.js';
 
 const router = express.Router();
 
-// Protected route: Only logged-in users can apply
 router.post('/apply', verifyToken, applyForJob);
+router.get('/my-applications', verifyToken, getUserApplications);
+
+// Admin routes for managing applications (Secured with verifyToken for now)
+router.get('/job/:jobId', verifyToken, getJobApplicants);
+router.put('/:id/status', verifyToken, updateApplicationStatus);
 
 export default router;

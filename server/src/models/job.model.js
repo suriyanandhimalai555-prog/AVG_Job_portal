@@ -1,6 +1,5 @@
 import pool from '../config/db.js';
 
-// Automated Table Creation Logic
 export const createJobTable = async () => {
     const queryText = `
         CREATE TABLE IF NOT EXISTS jobs (
@@ -14,15 +13,22 @@ export const createJobTable = async () => {
             salary VARCHAR(100) DEFAULT 'Not Disclosed',
             openings INTEGER DEFAULT 1,
             applicants INTEGER DEFAULT 0,
+            description TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
     `;
 
+    // Auto-patch to add the description column to your existing table
+    const alterQueryText = `
+        ALTER TABLE jobs ADD COLUMN IF NOT EXISTS description TEXT;
+    `;
+
     try {
         await pool.query(queryText);
-        console.log('✅ Jobs table is ready.');
+        await pool.query(alterQueryText);
+        console.log('✅ Jobs table is ready and patched with description field.');
     } catch (error) {
-        console.error('❌ Error creating jobs table:', error);
+        console.error('❌ Error creating/updating jobs table:', error);
     }
 };
 
@@ -34,44 +40,44 @@ const JobModel = {
     },
 
     create: async (data) => {
-        const { title, company, location, type, status, experience, salary, openings, applicants } = data;
+        const { title, company, location, type, status, experience, salary, openings, description } = data;
         const query = `
-            INSERT INTO jobs (title, company, location, type, status, experience, salary, openings, applicants)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+            INSERT INTO jobs (title, company, location, type, status, experience, salary, openings, applicants, description)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 0, $9)
             RETURNING *;
         `;
         const { rows } = await pool.query(query, [
-            title, 
-            company, 
+            title,
+            company,
             location || 'Not specified',
-            type, 
-            status, 
-            experience || 'Not specified', 
-            salary || 'Not Disclosed', 
-            openings || 1, 
-            applicants || 0
+            type,
+            status,
+            experience || 'Not specified',
+            salary || 'Not Disclosed',
+            openings || 1,
+            description || ''
         ]);
         return rows[0];
     },
 
     update: async (id, data) => {
-        const { title, company, location, type, status, experience, salary, openings, applicants } = data;
+        const { title, company, location, type, status, experience, salary, openings, description } = data;
         const query = `
             UPDATE jobs 
-            SET title = $1, company = $2, location = $3, type = $4, status = $5, experience = $6, salary = $7, openings = $8, applicants = $9
+            SET title = $1, company = $2, location = $3, type = $4, status = $5, experience = $6, salary = $7, openings = $8, description = $9
             WHERE id = $10 
             RETURNING *;
         `;
         const { rows } = await pool.query(query, [
-            title, 
-            company, 
+            title,
+            company,
             location,
-            type, 
-            status, 
-            experience, 
-            salary, 
-            openings, 
-            applicants, 
+            type,
+            status,
+            experience,
+            salary,
+            openings,
+            description || '',
             id
         ]);
         return rows[0];
@@ -81,6 +87,12 @@ const JobModel = {
         const query = 'DELETE FROM jobs WHERE id = $1';
         await pool.query(query, [id]);
         return true;
+    },
+
+    incrementApplicants: async (id) => {
+        const query = 'UPDATE jobs SET applicants = applicants + 1 WHERE id = $1 RETURNING *';
+        const { rows } = await pool.query(query, [id]);
+        return rows[0];
     }
 };
 

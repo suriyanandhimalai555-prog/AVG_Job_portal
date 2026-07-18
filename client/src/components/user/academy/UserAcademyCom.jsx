@@ -61,7 +61,7 @@ const UserAcademyCom = () => {
     });
 
     return (
-        <div className="max-w-7xl mx-auto space-y-4 p-4 rounded-2xl">
+        <div className="max-w-7xl mx-auto space-y-4 p-4 rounded-2xl shadow-sm bg-[#EEF2FF]">
             <div className="flex bg-white border border-[#EBEBEB] p-1 rounded-xl mb-2 shadow-sm">
                 <button className="flex-1 bg-blue-50 text-[#2A45C2] font-bold py-2.5 rounded-lg shadow-sm text-sm border border-[#2A45C2]/10">
                     Browse Courses

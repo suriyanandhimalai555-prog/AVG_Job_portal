@@ -90,7 +90,7 @@ const UserLogin = () => {
                         placeholder="ramesh@example.com"
                         value={formData.email}
                         onChange={handleChange}
-                        className="text-gray-700 bg-gray-50 focus:bg-white"
+                        className="text-gray-700 focus:bg-white"
                         required
                     />
 

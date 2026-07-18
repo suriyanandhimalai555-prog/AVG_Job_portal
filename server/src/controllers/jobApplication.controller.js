@@ -1,7 +1,7 @@
 import JobApplicationModel from '../models/jobApplication.model.js';
+import JobModel from '../models/job.model.js';
 import nodemailer from 'nodemailer';
 
-// Configure the email transporter
 const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
@@ -13,14 +13,14 @@ const transporter = nodemailer.createTransport({
 export const applyForJob = async (req, res) => {
     try {
         const { jobId, jobTitle, companyName, companyEmail, applicantName, applicantEmail, resumeLink, coverLetter } = req.body;
-        const userId = req.user.id; // From your auth middleware
+        const userId = req.user.id;
 
-        // 1. Save to Database
         const application = await JobApplicationModel.create({
             jobId, userId, applicantName, applicantEmail, resumeLink, coverLetter
         });
 
-        // 2. Email to User (Applicant)
+        await JobModel.incrementApplicants(jobId);
+
         const userMailOptions = {
             from: process.env.EMAIL_USER,
             to: applicantEmail,
@@ -35,8 +35,6 @@ export const applyForJob = async (req, res) => {
             `
         };
 
-        // 3. Email to Company (Employer)
-        // If companyEmail isn't provided in the payload, you can route it to an admin email for now
         const targetCompanyEmail = companyEmail || process.env.EMAIL_USER;
 
         const companyMailOptions = {
@@ -53,15 +51,54 @@ export const applyForJob = async (req, res) => {
             `
         };
 
-        // Send both emails simultaneously
         await Promise.all([
             transporter.sendMail(userMailOptions),
             transporter.sendMail(companyMailOptions)
         ]);
 
-        res.status(201).json({ message: 'Application submitted and emails sent successfully!', application });
+        res.status(201).json({ message: 'Application submitted successfully!', application });
     } catch (error) {
         console.error('Job Application Error:', error);
         res.status(500).json({ message: 'Failed to process application' });
+    }
+};
+
+export const getUserApplications = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const applications = await JobApplicationModel.getByUserId(userId);
+        res.status(200).json(applications);
+    } catch (error) {
+        console.error('Fetch Applications Error:', error);
+        res.status(500).json({ message: 'Failed to fetch your applications.' });
+    }
+};
+
+// NEW: Fetch applicants for a job (Admin)
+export const getJobApplicants = async (req, res) => {
+    try {
+        const { jobId } = req.params;
+        const applicants = await JobApplicationModel.getByJobId(jobId);
+        res.status(200).json(applicants);
+    } catch (error) {
+        console.error('Fetch Applicants Error:', error);
+        res.status(500).json({ message: 'Failed to fetch applicants.' });
+    }
+};
+
+// NEW: Update applicant status (Admin)
+export const updateApplicationStatus = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { status } = req.body;
+
+        const updatedApplication = await JobApplicationModel.updateStatus(id, status);
+        if (!updatedApplication) {
+            return res.status(404).json({ message: 'Application not found.' });
+        }
+        res.status(200).json(updatedApplication);
+    } catch (error) {
+        console.error('Update Status Error:', error);
+        res.status(500).json({ message: 'Failed to update status.' });
     }
 };

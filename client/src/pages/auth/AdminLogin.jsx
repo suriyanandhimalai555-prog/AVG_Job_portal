@@ -65,7 +65,7 @@ const AdminLogin = () => {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-[#EBEBEB] px-4 py-6 font-sans">
+        <div className="min-h-screen flex items-center justify-center bg-[#F4F8FF] px-4 py-6 font-sans">
             <div className="w-full max-w-md bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-[#EBEBEB] flex flex-col items-center space-y-5">
 
                 <div className="flex flex-col items-center text-center">
@@ -77,7 +77,7 @@ const AdminLogin = () => {
                         />
                     </div>
                     <h1 className="text-xl md:text-2xl font-extrabold text-gray-900 tracking-wider uppercase">Admin Portal</h1>
-                    <p className="text-[10px] md:text-xs font-bold text-[#2A45C2] tracking-widest mt-1 uppercase bg-blue-50 px-3 py-1 rounded-full border border-[#EBEBEB]">
+                    <p className="text-[10px] md:text-xs font-bold text-[#2B6CF0] tracking-widest mt-1 uppercase">
                         Authorized Personnel
                     </p>
                 </div>
@@ -90,7 +90,7 @@ const AdminLogin = () => {
                         placeholder="avgadmin@agilavetri.com"
                         value={formData.email}
                         onChange={handleChange}
-                        className="text-gray-700 bg-white border border-[#EBEBEB] focus:ring-[#2A45C2]/20 focus:border-[#2A45C2] rounded-lg"
+                        className="text-gray-700 bg-white focus:ring-[#2A45C2]/20 focus:border-[#2A45C2] rounded-lg"
                         required
                     />
 

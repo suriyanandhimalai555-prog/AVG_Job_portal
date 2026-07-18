@@ -138,7 +138,7 @@ const UserProfileCom = () => {
     }
 
     return (
-        <div className="max-w-7xl mx-auto space-y-4 p-4 rounded-2xl">
+        <div className="max-w-7xl mx-auto space-y-4 p-4 rounded-2xl shadow-sm bg-[#EEF2FF]">
             <Toaster position="top-right" reverseOrder={false} />
 
             <div className="bg-white border border-[#EBEBEB] rounded-2xl p-6 md:p-8 shadow-sm flex flex-col items-center text-center">

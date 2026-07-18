@@ -72,7 +72,7 @@ const UserDashboardCom = () => {
     }, [apiUrl]);
 
     return (
-        <div className="max-w-7xl mx-auto space-y-4 p-4 rounded-2xl">
+        <div className="max-w-7xl mx-auto space-y-4 p-4 rounded-2xl shadow-sm bg-[#EEF2FF]">
 
             {/* Welcome Banner */}
             <div className="bg-[#2A45C2] text-white p-5 md:p-6 rounded-2xl shadow-sm">

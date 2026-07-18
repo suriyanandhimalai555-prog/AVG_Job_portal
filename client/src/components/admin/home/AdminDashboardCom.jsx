@@ -25,7 +25,7 @@ const AdminDashboardCom = () => {
     ];
 
     return (
-        <div className="max-w-7xl mx-auto space-y-4 p-4 rounded-2xl">
+        <div className="max-w-7xl mx-auto space-y-4 p-4 rounded-2xl shadow-sm bg-[#EEF2FF]">
 
             <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-3 mb-1">
                 <div>

@@ -46,7 +46,7 @@ const AdminSidebar = ({ isOpen, toggleSidebar }) => {
                                 className="w-full h-full object-contain rounded-md"
                             />
                         </div>
-                        <h2 className="text-lg font-extrabold text-[#2A45C2] tracking-tight">Agila Vetri</h2>
+                        <h2 className="text-lg font-extrabold text-[#2A45C2] tracking-tight">Agila Vetri Admin</h2>
                     </div>
 
                     <button

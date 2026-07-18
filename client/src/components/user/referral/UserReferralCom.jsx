@@ -65,7 +65,7 @@ const UserReferralCom = () => {
     };
 
     return (
-        <div className="max-w-7xl mx-auto space-y-4 p-4 rounded-2xl">
+        <div className="max-w-7xl mx-auto space-y-4 p-4 rounded-2xl shadow-sm bg-[#EEF2FF]">
             <Toaster position="top-right" />
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
@@ -92,7 +92,7 @@ const UserReferralCom = () => {
                             <Button
                                 onClick={handleCopyCode}
                                 disabled={isStatsLoading || !stats.referral_code}
-                                className="flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-white border border-[#EBEBEB] text-[#2A45C2] hover:bg-blue-50 font-bold w-full sm:w-auto disabled:opacity-50 text-sm shadow-sm"
+                                className="flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-[#2A45C2] text-white border-0 font-bold w-full sm:w-auto flex-shrink-0 disabled:opacity-50 text-sm shadow-sm"
                             >
                                 <FaRegCopy size={14} /> Copy Code
                             </Button>

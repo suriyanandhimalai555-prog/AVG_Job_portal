@@ -14,7 +14,7 @@ import {
 const Sidebar = ({ isOpen, toggleSidebar }) => {
     const menuItems = [
         { name: 'Dashboard', path: '/user-dashboard', icon: <FaHome /> },
-        { name: 'Directory', path: '/user-dashboard/directory', icon: <FaAddressBook /> },
+        { name: 'Business Directory', path: '/user-dashboard/directory', icon: <FaAddressBook /> },
         { name: 'Jobs', path: '/user-dashboard/jobs', icon: <FaBriefcase /> },
         { name: 'Academy', path: '/user-dashboard/academy', icon: <FaGraduationCap /> },
         { name: 'Referrals', path: '/user-dashboard/refer', icon: <FaUserPlus /> },
@@ -49,7 +49,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                                 className="w-full h-full object-contain rounded-md"
                             />
                         </div>
-                        <h2 className="text-lg font-extrabold text-[#2A45C2] tracking-tight">Agila Vetri</h2>
+                        <h2 className="text-lg font-extrabold text-[#2A45C2] tracking-tight">Agila Vetri User</h2>
                     </div>
 
                     <button

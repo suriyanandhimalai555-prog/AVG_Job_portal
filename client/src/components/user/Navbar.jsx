@@ -33,7 +33,7 @@ const Navbar = ({ toggleSidebar }) => {
     const getPageName = () => {
         const path = location.pathname;
         if (path === '/user-dashboard') return 'Dashboard';
-        if (path.includes('/directory')) return 'Directory';
+        if (path.includes('/directory')) return 'Business Directory';
         if (path.includes('/jobs')) return 'Jobs';
         if (path.includes('/academy')) return 'Academy';
         if (path.includes('/refer')) return 'Referrals';

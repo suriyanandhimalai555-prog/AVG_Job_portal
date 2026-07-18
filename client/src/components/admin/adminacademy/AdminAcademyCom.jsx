@@ -125,7 +125,7 @@ const AdminAcademyCom = () => {
     );
 
     return (
-        <div className="max-w-7xl mx-auto space-y-4 p-4 rounded-2xl">
+        <div className="max-w-7xl mx-auto space-y-4 p-4 rounded-2xl shadow-sm bg-[#EEF2FF]">
 
             <Toaster position="top-right" reverseOrder={false} />
 

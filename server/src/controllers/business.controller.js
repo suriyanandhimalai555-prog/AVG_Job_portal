@@ -12,9 +12,9 @@ export const getBusinesses = async (req, res) => {
 
 export const createBusiness = async (req, res) => {
     try {
-        const { name, category, location, status } = req.body;
+        const { name, category, location } = req.body;
         if (!name || !category || !location) {
-            return res.status(400).json({ error: 'All fields are required.' });
+            return res.status(400).json({ error: 'Name, Category, and Location are required.' });
         }
 
         const newBusiness = await BusinessModel.create(req.body);

@@ -22,7 +22,6 @@ const ProfileListCom = () => {
 
     const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
-    // Fallback to whichever token is available (Admin or User)
     const getAuthToken = () => localStorage.getItem('adminToken') || localStorage.getItem('token') || '';
 
     useEffect(() => {
@@ -32,9 +31,7 @@ const ProfileListCom = () => {
     const fetchUsers = async () => {
         setIsLoading(true);
 
-        // 1. Create an AbortController to prevent infinite hanging
         const controller = new AbortController();
-        // 2. Set a 10-second timeout limit
         const timeoutId = setTimeout(() => controller.abort(), 10000);
 
         try {
@@ -50,10 +47,10 @@ const ProfileListCom = () => {
             const res = await fetch(`${apiUrl}/api/users`, {
                 method: 'GET',
                 headers,
-                signal: controller.signal // 👈 Attach the timeout signal
+                signal: controller.signal
             });
 
-            clearTimeout(timeoutId); // Clear the timeout if the request succeeds
+            clearTimeout(timeoutId);
 
             if (!res.ok) {
                 throw new Error(`Server returned status: ${res.status}`);
@@ -78,17 +75,15 @@ const ProfileListCom = () => {
             }
         } catch (error) {
             console.error('Fetch users error:', error);
-
-            // Check if the error was caused by our timeout abort
             if (error.name === 'AbortError') {
                 toast.error('Request timed out. The backend server is not responding.');
             } else {
                 toast.error('Failed to fetch users. Is the server running?');
             }
 
-            setUsers([]); // Reset to empty array on failure
+            setUsers([]);
         } finally {
-            setIsLoading(false); // Guarantees the loading spinner stops
+            setIsLoading(false);
         }
     };
 
@@ -192,7 +187,7 @@ const ProfileListCom = () => {
     );
 
     return (
-        <div className="max-w-7xl mx-auto space-y-4 p-4 rounded-2xl">
+        <div className="max-w-7xl mx-auto space-y-4 p-4 rounded-2xl shadow-sm bg-[#EEF2FF]">
             <Toaster position="top-right" reverseOrder={false} />
 
             <div className="flex flex-col sm:flex-row justify-between items-center gap-3">
