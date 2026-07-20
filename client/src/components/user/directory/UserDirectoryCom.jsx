@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
     FaSearch, FaMapMarkerAlt, FaHeart, FaRegHeart, FaStar, FaTh, FaList,
     FaMap, FaCheckCircle, FaGlobe, FaEnvelope, FaPhone, FaShareAlt,
-    FaDirections, FaTimes, FaImage, FaPaperPlane, FaUserCircle
+    FaDirections, FaTimes, FaImage, FaPaperPlane, FaUserCircle, FaCrown
 } from 'react-icons/fa';
 import { toast, Toaster } from 'react-hot-toast';
 import Button from '../../ui/Button';
@@ -10,11 +10,10 @@ import Badge from '../../ui/Badge';
 import Input from '../../ui/Input';
 
 const UserDirectoryCom = () => {
-    // --- State Management ---
     const [searchTerm, setSearchTerm] = useState('');
     const [locationSearch, setLocationSearch] = useState('');
     const [activeCategory, setActiveCategory] = useState('All Categories');
-    const [viewMode, setViewMode] = useState('grid'); // 'grid', 'list', or 'map'
+    const [viewMode, setViewMode] = useState('grid');
     const [showNearby, setShowNearby] = useState(false);
 
     const [businesses, setBusinesses] = useState([]);
@@ -30,7 +29,6 @@ const UserDirectoryCom = () => {
 
     const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
-    // --- Fetch Data ---
     useEffect(() => {
         const fetchBusinesses = async () => {
             try {
@@ -53,7 +51,6 @@ const UserDirectoryCom = () => {
         fetchBusinesses();
     }, [apiUrl]);
 
-    // --- Utility & Handlers ---
     const getMockRating = (id) => (4.0 + (id % 10) / 10).toFixed(1);
 
     const toggleFavorite = (e, id) => {
@@ -79,16 +76,14 @@ const UserDirectoryCom = () => {
         setSelectedBiz(biz);
         setIsDetailsModalOpen(true);
 
-        // Optional: Trigger a "view" increment to the backend analytics here
         try {
             await fetch(`${apiUrl}/api/businesses/${biz.id}/view`, { method: 'POST' });
-        } catch (e) { /* silent fail for analytics */ }
+        } catch (e) { }
     };
 
     const handleContactSubmit = (e) => {
         e.preventDefault();
         setIsSending(true);
-        // Simulate API call
         setTimeout(() => {
             toast.success(`Message sent to ${selectedBiz.name}!`);
             setContactForm({ name: '', email: '', message: '' });
@@ -96,7 +91,6 @@ const UserDirectoryCom = () => {
         }, 1000);
     };
 
-    // --- Filtering Logic ---
     const filterOptions = ['All Categories', ...categories];
 
     const filteredBusinesses = businesses.filter((biz) => {
@@ -104,57 +98,62 @@ const UserDirectoryCom = () => {
             biz.category.toLowerCase().includes(searchTerm.toLowerCase());
         const matchesLocation = biz.location.toLowerCase().includes(locationSearch.toLowerCase());
         const matchesCategory = activeCategory === 'All Categories' || biz.category === activeCategory;
-
-        // Mock "Nearby" logic (just filters randomly for demonstration if toggled)
         const matchesNearby = showNearby ? (biz.id % 2 === 0) : true;
 
         return matchesSearch && matchesLocation && matchesCategory && matchesNearby;
     });
 
     return (
-        <div className="max-w-7xl mx-auto space-y-4 p-4 rounded-2xl shadow-sm bg-[#EEF2FF] relative">
+        <div className="max-w-7xl mx-auto p-3 md:p-4 rounded-2xl bg-[#F5F6FC] relative">
             <Toaster position="top-right" />
 
-            {/* --- Advanced Search Bar --- */}
-            <div className="bg-white p-3 rounded-xl shadow-sm border border-[#EBEBEB] flex flex-col md:flex-row gap-3">
-                <div className="relative flex-1">
-                    <FaSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-[#2A45C2]" size={16} />
-                    <input
-                        type="text"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        placeholder="Search businesses, services..."
-                        className="w-full pl-11 pr-4 py-2.5 bg-gray-50 border border-transparent rounded-lg focus:outline-none focus:border-[#2A45C2] focus:bg-white transition-colors text-sm"
-                    />
+            <div className="relative overflow-hidden rounded-2xl px-5 py-5 md:px-7 md:py-6 bg-gradient-to-br from-[#141B3C] via-[#2A45C2] to-[#5B4FE0] mb-3">
+                <div className="pointer-events-none absolute inset-0 opacity-40" style={{ backgroundImage: 'radial-gradient(circle at 10% 20%, rgba(255,255,255,0.14), transparent 40%), radial-gradient(circle at 90% 80%, rgba(255,255,255,0.10), transparent 45%)' }} />
+                <div className="pointer-events-none absolute -right-14 -top-14 w-48 h-48 rounded-full bg-white/5 blur-2xl" />
+
+                <div className="relative">
+                    <h1 className="text-xl md:text-2xl font-extrabold text-white tracking-tight mb-3">Business Directory</h1>
+
+                    <div className="bg-white/95 backdrop-blur rounded-xl p-2 flex flex-col md:flex-row gap-2 shadow-[0_8px_30px_rgba(20,27,60,0.25)]">
+                        <div className="relative flex-1">
+                            <FaSearch className="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-[#2A45C2]" size={14} />
+                            <input
+                                type="text"
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                placeholder="Search businesses, services..."
+                                className="w-full pl-10 pr-3 py-2 bg-[#F5F6FC] border border-transparent rounded-lg focus:outline-none focus:border-[#2A45C2] focus:bg-white transition-colors text-sm"
+                            />
+                        </div>
+                        <div className="relative flex-1">
+                            <FaMapMarkerAlt className="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-gray-400" size={14} />
+                            <input
+                                type="text"
+                                value={locationSearch}
+                                onChange={(e) => setLocationSearch(e.target.value)}
+                                placeholder="Location (e.g. City, Area)"
+                                className="w-full pl-10 pr-3 py-2 bg-[#F5F6FC] border border-transparent rounded-lg focus:outline-none focus:border-[#2A45C2] focus:bg-white transition-colors text-sm"
+                            />
+                        </div>
+                        <Button
+                            variant="outline"
+                            onClick={() => setShowNearby(!showNearby)}
+                            className={`py-2 px-4 font-bold rounded-lg whitespace-nowrap border transition-colors flex items-center gap-1.5 text-sm ${showNearby ? 'bg-gradient-to-r from-[#2A45C2] to-[#5B4FE0] text-white border-transparent' : 'bg-white text-gray-600 border-[#E4E7F2] hover:bg-gray-50'}`}
+                        >
+                            <FaDirections className={showNearby ? 'text-white' : 'text-gray-400'} size={13} /> Nearby
+                        </Button>
+                    </div>
                 </div>
-                <div className="relative flex-1">
-                    <FaMapMarkerAlt className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
-                    <input
-                        type="text"
-                        value={locationSearch}
-                        onChange={(e) => setLocationSearch(e.target.value)}
-                        placeholder="Location (e.g. City, Area)"
-                        className="w-full pl-11 pr-4 py-2.5 bg-gray-50 border border-transparent rounded-lg focus:outline-none focus:border-[#2A45C2] focus:bg-white transition-colors text-sm"
-                    />
-                </div>
-                <Button
-                    variant="outline"
-                    onClick={() => setShowNearby(!showNearby)}
-                    className={`py-2.5 px-5 font-bold rounded-lg whitespace-nowrap border transition-colors flex items-center gap-2 text-sm ${showNearby ? 'bg-blue-50 text-[#2A45C2] border-[#2A45C2]/30' : 'bg-white text-gray-600 border-[#EBEBEB] hover:bg-gray-50'}`}
-                >
-                    <FaDirections className={showNearby ? 'text-[#2A45C2]' : 'text-gray-400'} /> Nearby
-                </Button>
             </div>
 
-            {/* --- Category Filters --- */}
-            <div className="flex gap-2 pb-2 overflow-x-auto custom-scrollbar">
+            <div className="flex gap-1.5 py-2.5 overflow-x-auto custom-scrollbar">
                 {!isLoading && filterOptions.map((filter) => (
                     <button
                         key={filter}
                         onClick={() => setActiveCategory(filter)}
-                        className={`whitespace-nowrap rounded-lg px-5 py-2 text-sm font-bold transition-all ${activeCategory === filter
-                            ? 'bg-blue-50 text-[#2A45C2] border border-[#2A45C2]/20'
-                            : 'bg-white border border-[#EBEBEB] text-gray-500 hover:bg-gray-50'
+                        className={`whitespace-nowrap rounded-lg px-3.5 py-1.5 text-xs font-bold transition-all ${activeCategory === filter
+                            ? 'bg-gradient-to-r from-[#2A45C2] to-[#5B4FE0] text-white shadow-[0_4px_12px_rgba(42,69,194,0.25)]'
+                            : 'bg-white border border-[#E4E7F2] text-gray-500 hover:bg-gray-50'
                             }`}
                     >
                         {filter}
@@ -162,231 +161,217 @@ const UserDirectoryCom = () => {
                 ))}
             </div>
 
-            {/* --- Content Area --- */}
             <div>
-                <div className="flex justify-between items-center mb-4 px-1 mt-2">
-                    <div className="flex items-center gap-3">
-                        <h2 className="text-lg font-extrabold text-gray-900">Directory Results</h2>
-                        <Badge variant="primary" className="text-xs px-2.5 py-1 rounded-md bg-blue-50 text-[#2A45C2] border border-[#EBEBEB] font-bold">
+                <div className="flex justify-between items-center mb-2.5 px-0.5">
+                    <div className="flex items-center gap-2">
+                        <h2 className="text-sm font-extrabold text-gray-900 uppercase tracking-wide">Directory Results</h2>
+                        <Badge variant="primary" className="text-[11px] px-2 py-0.5 rounded-md bg-blue-50 text-[#2A45C2] border border-[#E4E7F2] font-bold">
                             {filteredBusinesses.length} found
                         </Badge>
                     </div>
 
-                    <div className="flex items-center gap-1 bg-white border border-[#EBEBEB] p-1 rounded-lg">
+                    <div className="flex items-center gap-0.5 bg-white border border-[#E4E7F2] p-0.5 rounded-lg">
                         <button onClick={() => setViewMode('grid')} className={`p-1.5 rounded-md transition-colors ${viewMode === 'grid' ? 'bg-blue-50 text-[#2A45C2]' : 'text-gray-400'}`} title="Grid View">
-                            <FaTh size={14} />
+                            <FaTh size={13} />
                         </button>
                         <button onClick={() => setViewMode('list')} className={`p-1.5 rounded-md transition-colors ${viewMode === 'list' ? 'bg-blue-50 text-[#2A45C2]' : 'text-gray-400'}`} title="List View">
-                            <FaList size={14} />
+                            <FaList size={13} />
                         </button>
                         <button onClick={() => setViewMode('map')} className={`p-1.5 rounded-md transition-colors ${viewMode === 'map' ? 'bg-blue-50 text-[#2A45C2]' : 'text-gray-400'}`} title="Map View">
-                            <FaMap size={14} />
+                            <FaMap size={13} />
                         </button>
                     </div>
                 </div>
 
                 {isLoading ? (
-                    <div className="text-center py-10 bg-white border border-[#EBEBEB] rounded-xl">
-                        <p className="text-gray-500 font-medium">Loading businesses...</p>
+                    <div className="text-center py-10 bg-white border border-[#E4E7F2] rounded-xl">
+                        <p className="text-gray-500 font-medium text-sm">Loading businesses...</p>
                     </div>
                 ) : filteredBusinesses.length > 0 ? (
 
-                    /* --- MAP VIEW --- */
                     viewMode === 'map' ? (
-                        <div className="bg-white border border-[#EBEBEB] rounded-xl shadow-sm h-[600px] flex overflow-hidden">
-                            <div className="w-1/3 border-r border-[#EBEBEB] overflow-y-auto custom-scrollbar p-3 space-y-3 bg-gray-50">
+                        <div className="bg-white border border-[#E4E7F2] rounded-xl h-[560px] flex overflow-hidden shadow-[0_2px_16px_rgba(30,41,89,0.05)]">
+                            <div className="w-1/3 border-r border-[#E4E7F2] overflow-y-auto custom-scrollbar p-2 space-y-2 bg-[#F7F8FC]">
                                 {filteredBusinesses.map(biz => (
-                                    <div key={biz.id} onClick={() => handleOpenDetails(biz)} className="bg-white p-3 rounded-lg border border-[#EBEBEB] shadow-sm cursor-pointer hover:border-[#2A45C2] transition-colors">
-                                        <h4 className="font-bold text-gray-900 text-sm flex items-center gap-1">
-                                            {biz.name} {biz.is_verified && <FaCheckCircle className="text-blue-500" size={10} />}
+                                    <div key={biz.id} onClick={() => handleOpenDetails(biz)} className="bg-white p-2.5 rounded-lg border border-[#E4E7F2] cursor-pointer hover:border-[#2A45C2] transition-colors">
+                                        <h4 className="font-bold text-gray-900 text-[13px] flex items-center gap-1">
+                                            {biz.name} {biz.is_verified && <FaCheckCircle className="text-[#2A45C2]" size={10} />}
                                         </h4>
-                                        <p className="text-xs text-gray-500 mt-1 flex items-center gap-1"><FaMapMarkerAlt className="text-[#2A45C2]" /> {biz.location}</p>
+                                        <p className="text-[11px] text-gray-500 mt-0.5 flex items-center gap-1"><FaMapMarkerAlt className="text-[#2A45C2]" size={10} /> {biz.location}</p>
                                     </div>
                                 ))}
                             </div>
                             <div className="w-2/3 bg-gray-200 relative flex items-center justify-center">
-                                {/* Mock Map Placeholder */}
                                 <div className="text-center p-6 bg-white/90 backdrop-blur rounded-xl shadow-lg border border-gray-100">
-                                    <FaMap className="text-[#2A45C2] mx-auto mb-3" size={40} />
-                                    <h3 className="font-bold text-gray-900">Interactive Map View</h3>
-                                    <p className="text-sm text-gray-500 mt-1">Displays pins for {filteredBusinesses.length} businesses based on geolocation data.</p>
+                                    <FaMap className="text-[#2A45C2] mx-auto mb-3" size={36} />
+                                    <h3 className="font-bold text-gray-900 text-sm">Interactive Map View</h3>
+                                    <p className="text-xs text-gray-500 mt-1">Displays pins for {filteredBusinesses.length} businesses based on geolocation data.</p>
                                 </div>
                             </div>
                         </div>
-                    ) :
+                    ) : (
+                        <div className={viewMode === 'grid' ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5" : "flex flex-col gap-2"}>
+                            {filteredBusinesses.map((biz) => (
+                                <div
+                                    key={biz.id}
+                                    onClick={() => handleOpenDetails(biz)}
+                                    className={`bg-white border border-[#E7E9F7] p-3.5 rounded-2xl cursor-pointer shadow-[0_2px_16px_rgba(30,41,89,0.05)] hover:shadow-[0_10px_28px_rgba(42,69,194,0.14)] hover:-translate-y-0.5 transition-all duration-200 group ${viewMode === 'list' ? 'flex flex-col sm:flex-row sm:items-center justify-between gap-3' : 'flex flex-col relative'}`}
+                                >
 
-                        /* --- GRID / LIST VIEW --- */
-                        (
-                            <div className={viewMode === 'grid' ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" : "flex flex-col gap-3"}>
-                                {filteredBusinesses.map((biz) => (
-                                    <div
-                                        key={biz.id}
-                                        onClick={() => handleOpenDetails(biz)}
-                                        className={`bg-white border border-[#EBEBEB] p-5 rounded-xl shadow-sm cursor-pointer hover:shadow-md transition-all group ${viewMode === 'list' ? 'flex flex-col sm:flex-row sm:items-center justify-between gap-4' : 'flex flex-col relative'}`}
-                                    >
-
-                                        {/* Featured Badge Absolute (Grid only) */}
-                                        {biz.is_featured && viewMode === 'grid' && (
-                                            <div className="absolute -top-2 -right-2 bg-gradient-to-r from-yellow-400 to-yellow-500 text-white text-[10px] font-bold px-2 py-1 rounded shadow-sm flex items-center gap-1">
-                                                <FaStar size={10} /> Featured
-                                            </div>
-                                        )}
-
-                                        <div className={`flex items-start gap-4 ${viewMode === 'grid' ? 'mb-5' : 'flex-1'}`}>
-                                            <div className="w-14 h-14 bg-gray-50 border border-[#EBEBEB] flex items-center justify-center rounded-xl overflow-hidden flex-shrink-0 shadow-sm group-hover:border-[#2A45C2]/30 transition-colors">
-                                                {biz.logo_url ? (
-                                                    <img src={biz.logo_url} alt="Logo" className="w-full h-full object-cover" />
-                                                ) : (
-                                                    <span className="text-[#2A45C2] text-xl font-black">{biz.name.charAt(0).toUpperCase()}</span>
-                                                )}
-                                            </div>
-                                            <div>
-                                                <h3 className="text-md font-bold text-gray-900 leading-tight mb-1 flex items-center gap-1.5">
-                                                    {biz.name}
-                                                    {biz.is_verified && <FaCheckCircle className="text-blue-500" title="Verified" size={14} />}
-                                                    {biz.is_featured && viewMode === 'list' && <FaStar className="text-yellow-500" title="Featured" size={14} />}
-                                                </h3>
-                                                <p className="text-xs font-bold text-[#2A45C2] bg-blue-50 inline-block px-2 py-0.5 rounded border border-blue-100">{biz.category}</p>
-                                            </div>
+                                    {biz.is_featured && viewMode === 'grid' && (
+                                        <div className="absolute -top-2 -right-2 bg-gradient-to-r from-[#D4A017] to-[#F2C14E] text-white text-[10px] font-bold px-2 py-1 rounded-lg shadow-[0_4px_12px_rgba(212,160,23,0.35)] flex items-center gap-1">
+                                            <FaStar size={10} /> Featured
                                         </div>
+                                    )}
 
-                                        <div className={`${viewMode === 'grid' ? 'mt-auto pt-4 border-t border-[#EBEBEB]' : 'sm:w-auto w-full border-t sm:border-t-0 border-[#EBEBEB] pt-3 sm:pt-0'} flex flex-col sm:flex-row items-center justify-between gap-4`}>
-                                            <div className="flex flex-col gap-1.5 w-full sm:w-auto">
-                                                <div className="flex items-center text-xs font-medium text-gray-500 gap-1.5">
-                                                    <FaMapMarkerAlt className="text-[#2A45C2]" size={12} />
-                                                    <span className="truncate max-w-[150px]">{biz.location}</span>
-                                                </div>
-                                                <div className="flex items-center gap-1 font-bold text-sm">
-                                                    <FaStar className="text-yellow-400" size={14} />
-                                                    <span className="text-gray-900">{getMockRating(biz.id)}</span>
-                                                    <span className="text-[10px] text-gray-400 font-normal ml-1">(42 Reviews)</span>
-                                                </div>
-                                            </div>
-
-                                            <div className="flex gap-2">
-                                                <button onClick={(e) => handleShare(e, biz.name)} className="text-gray-400 p-2 bg-gray-50 hover:bg-gray-100 rounded-full border border-[#EBEBEB] transition-colors">
-                                                    <FaShareAlt size={14} />
-                                                </button>
-                                                <button onClick={(e) => toggleFavorite(e, biz.id)} className={`${favorites.has(biz.id) ? 'text-red-500 bg-red-50' : 'text-gray-400 bg-gray-50 hover:bg-gray-100'} p-2 rounded-full border border-[#EBEBEB] transition-colors`}>
-                                                    {favorites.has(biz.id) ? <FaHeart size={14} /> : <FaRegHeart size={14} />}
-                                                </button>
-                                            </div>
+                                    <div className={`flex items-start gap-3 ${viewMode === 'grid' ? 'mb-3.5' : 'flex-1'}`}>
+                                        <div className="w-11 h-11 bg-gradient-to-br from-[#2A45C2] to-[#5B4FE0] flex items-center justify-center rounded-xl overflow-hidden flex-shrink-0 shadow-[0_4px_10px_rgba(42,69,194,0.25)] group-hover:scale-105 transition-transform">
+                                            {biz.logo_url ? (
+                                                <img src={biz.logo_url} alt="Logo" className="w-full h-full object-cover" />
+                                            ) : (
+                                                <span className="text-white text-base font-black">{biz.name.charAt(0).toUpperCase()}</span>
+                                            )}
+                                        </div>
+                                        <div className="min-w-0">
+                                            <h3 className="text-[13px] font-bold text-gray-900 leading-tight mb-1 flex items-center gap-1.5 truncate">
+                                                {biz.name}
+                                                {biz.is_verified && <FaCheckCircle className="text-[#2A45C2] shrink-0" title="Verified" size={12} />}
+                                                {biz.is_featured && viewMode === 'list' && <FaStar className="text-[#D4A017] shrink-0" title="Featured" size={12} />}
+                                            </h3>
+                                            <p className="text-[10px] font-bold text-[#2A45C2] bg-blue-50 inline-block px-1.5 py-0.5 rounded border border-blue-100">{biz.category}</p>
                                         </div>
                                     </div>
-                                ))}
-                            </div>
-                        )
+
+                                    <div className={`${viewMode === 'grid' ? 'mt-auto pt-3 border-t border-[#EDEFF7]' : 'sm:w-auto w-full border-t sm:border-t-0 border-[#EDEFF7] pt-2.5 sm:pt-0'} flex flex-col sm:flex-row items-center justify-between gap-3`}>
+                                        <div className="flex flex-col gap-1 w-full sm:w-auto">
+                                            <div className="flex items-center text-[11px] font-medium text-gray-500 gap-1.5">
+                                                <FaMapMarkerAlt className="text-[#2A45C2]" size={11} />
+                                                <span className="truncate max-w-[150px]">{biz.location}</span>
+                                            </div>
+                                            <div className="flex items-center gap-1 font-bold text-xs">
+                                                <FaStar className="text-[#F2C14E]" size={12} />
+                                                <span className="text-gray-900">{getMockRating(biz.id)}</span>
+                                                <span className="text-[10px] text-gray-400 font-normal ml-1">(42 Reviews)</span>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex gap-1.5">
+                                            <button onClick={(e) => handleShare(e, biz.name)} className="text-gray-400 p-1.5 bg-[#F7F8FC] hover:bg-gray-100 rounded-full border border-[#E4E7F2] transition-colors">
+                                                <FaShareAlt size={12} />
+                                            </button>
+                                            <button onClick={(e) => toggleFavorite(e, biz.id)} className={`${favorites.has(biz.id) ? 'text-red-500 bg-red-50' : 'text-gray-400 bg-[#F7F8FC] hover:bg-gray-100'} p-1.5 rounded-full border border-[#E4E7F2] transition-colors`}>
+                                                {favorites.has(biz.id) ? <FaHeart size={12} /> : <FaRegHeart size={12} />}
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )
                 ) : (
-                    <div className="text-center py-10 bg-white border border-[#EBEBEB] rounded-xl">
-                        <p className="text-gray-500 font-medium">No businesses found matching your criteria.</p>
-                        <Button variant="outline" className="mt-3 rounded-lg border-[#EBEBEB] text-gray-700 text-sm" onClick={() => { setSearchTerm(''); setLocationSearch(''); setActiveCategory('All Categories'); setShowNearby(false); }}>
+                    <div className="text-center py-10 bg-white border border-[#E4E7F2] rounded-xl">
+                        <p className="text-gray-500 font-medium text-sm">No businesses found matching your criteria.</p>
+                        <Button variant="outline" className="mt-3 rounded-lg border-[#E4E7F2] text-gray-700 text-sm" onClick={() => { setSearchTerm(''); setLocationSearch(''); setActiveCategory('All Categories'); setShowNearby(false); }}>
                             Clear All Filters
                         </Button>
                     </div>
                 )}
             </div>
 
-            {/* --- Advanced Business Details Modal --- */}
             {isDetailsModalOpen && selectedBiz && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-gray-900/60 backdrop-blur-sm">
-                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl h-[95vh] sm:max-h-[90vh] overflow-hidden border border-[#EBEBEB] flex flex-col relative">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl h-[95vh] sm:max-h-[90vh] overflow-hidden border border-[#E4E7F2] flex flex-col relative">
 
-                        {/* Header Banner */}
-                        <div className="h-18 relative flex-shrink-0">
-                            <button onClick={() => setIsDetailsModalOpen(false)} className="absolute top-4 right-4 bg-[#2a45c2] backdrop-blur text-white p-1 rounded-full transition-colors z-10">
+                        <div className="h-16 relative flex-shrink-0 bg-gradient-to-br from-[#141B3C] via-[#2A45C2] to-[#5B4FE0] overflow-hidden">
+                            <div className="pointer-events-none absolute inset-0 opacity-40" style={{ backgroundImage: 'radial-gradient(circle at 15% 30%, rgba(255,255,255,0.16), transparent 45%)' }} />
+                            <button onClick={() => setIsDetailsModalOpen(false)} className="absolute top-3 right-3 bg-white/15 hover:bg-white/25 backdrop-blur text-white p-1.5 rounded-full transition-colors z-10">
                                 <FaTimes size={12} />
                             </button>
                         </div>
 
-                        {/* Profile Header Content */}
-                        <div className="px-6 sm:px-8 relative pb-4 border-b border-[#EBEBEB] bg-white flex-shrink-0">
-                            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 -mt-12 sm:-mt-16 mb-2">
-                                <div className="flex items-end gap-4">
-                                    <div className="w-24 h-24 sm:w-32 sm:h-32 bg-white rounded-2xl p-1 shadow-lg border border-[#EBEBEB] z-10 relative">
+                        <div className="px-5 sm:px-7 relative pb-3.5 border-b border-[#E4E7F2] bg-white flex-shrink-0">
+                            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 -mt-9 sm:-mt-11 mb-1.5">
+                                <div className="flex items-end gap-3.5">
+                                    <div className="w-20 h-20 sm:w-24 sm:h-24 bg-white rounded-2xl p-1 shadow-[0_8px_24px_rgba(20,27,60,0.2)] border border-[#E4E7F2] z-10 relative">
                                         {selectedBiz.logo_url ? (
                                             <img src={selectedBiz.logo_url} alt="Logo" className="w-full h-full object-cover rounded-xl" />
                                         ) : (
-                                            <div className="w-full h-full bg-blue-50 rounded-xl flex items-center justify-center text-4xl font-black text-[#2A45C2]">
+                                            <div className="w-full h-full bg-gradient-to-br from-[#2A45C2] to-[#5B4FE0] rounded-xl flex items-center justify-center text-3xl font-black text-white">
                                                 {selectedBiz.name.charAt(0)}
                                             </div>
                                         )}
                                         {selectedBiz.is_verified && (
-                                            <div className="absolute -bottom-2 -right-2 bg-white p-0.5 rounded-full shadow-sm">
-                                                <FaCheckCircle className="text-blue-500 text-2xl" title="Verified Business" />
+                                            <div className="absolute -bottom-1.5 -right-1.5 bg-white p-0.5 rounded-full shadow-sm">
+                                                <FaCheckCircle className="text-[#2A45C2] text-xl" title="Verified Business" />
                                             </div>
                                         )}
                                     </div>
-                                    <div className="mb-2">
-                                        <h2 className="text-2xl sm:text-3xl font-black text-gray-900 flex items-center gap-2">
+                                    <div className="mb-1.5">
+                                        <h2 className="text-xl sm:text-2xl font-black text-gray-900 flex items-center gap-2">
                                             {selectedBiz.name}
                                         </h2>
-                                        <div className="flex items-center gap-3 mt-1">
-                                            <Badge variant="primary" className="bg-blue-50 text-[#2A45C2] border border-blue-100 text-xs font-bold px-2 py-0.5">{selectedBiz.category}</Badge>
-                                            <span className="flex items-center gap-1 font-bold text-sm text-gray-700">
-                                                <FaStar className="text-yellow-400" /> {getMockRating(selectedBiz.id)} <span className="font-medium text-gray-400 text-xs underline cursor-pointer">(42 Reviews)</span>
+                                        <div className="flex items-center gap-2.5 mt-1">
+                                            <Badge variant="primary" className="bg-blue-50 text-[#2A45C2] border border-blue-100 text-[11px] font-bold px-2 py-0.5">{selectedBiz.category}</Badge>
+                                            <span className="flex items-center gap-1 font-bold text-xs text-gray-700">
+                                                <FaStar className="text-[#F2C14E]" size={12} /> {getMockRating(selectedBiz.id)} <span className="font-medium text-gray-400 text-[11px] underline cursor-pointer">(42 Reviews)</span>
                                             </span>
                                         </div>
                                     </div>
                                 </div>
 
-                                <div className="flex gap-2 sm:mb-2 w-full sm:w-auto">
-                                    <Button onClick={(e) => handleShare(e, selectedBiz.name)} variant="outline" className="flex-1 sm:flex-none border-[#EBEBEB] text-gray-700 font-bold shadow-sm py-2">
-                                        <FaShareAlt /> Share
+                                <div className="flex gap-2 sm:mb-1.5 w-full sm:w-auto">
+                                    <Button onClick={(e) => handleShare(e, selectedBiz.name)} variant="outline" className="flex-1 sm:flex-none border-[#E4E7F2] text-gray-700 font-bold py-1.5 text-sm">
+                                        <FaShareAlt size={13} /> Share
                                     </Button>
-                                    <Button onClick={(e) => toggleFavorite(e, selectedBiz.id)} className={`flex-1 sm:flex-none py-2 font-bold shadow-sm ${favorites.has(selectedBiz.id) ? 'bg-red-50 text-red-600 border-red-200' : 'bg-[#2A45C2] text-white border-0'}`}>
-                                        {favorites.has(selectedBiz.id) ? <><FaHeart /> Saved</> : <><FaRegHeart /> Save</>}
+                                    <Button onClick={(e) => toggleFavorite(e, selectedBiz.id)} className={`flex-1 sm:flex-none py-1.5 font-bold text-sm ${favorites.has(selectedBiz.id) ? 'bg-red-50 text-red-600 border-red-200' : 'bg-gradient-to-r from-[#2A45C2] to-[#5B4FE0] text-white border-0'}`}>
+                                        {favorites.has(selectedBiz.id) ? <><FaHeart size={13} /> Saved</> : <><FaRegHeart size={13} /> Save</>}
                                     </Button>
                                 </div>
                             </div>
                         </div>
 
-                        {/* Scrollable Body - Grid Layout */}
-                        <div className="flex-1 overflow-y-auto custom-scrollbar bg-gray-50 flex flex-col md:flex-row">
+                        <div className="flex-1 overflow-y-auto custom-scrollbar bg-[#F7F8FC] flex flex-col md:flex-row">
 
-                            {/* Main Content Column */}
-                            <div className="w-full md:w-2/3 p-6 sm:p-8 space-y-8">
+                            <div className="w-full md:w-2/3 p-5 sm:p-6 space-y-5">
 
-                                {/* About Section */}
                                 <section>
-                                    <h3 className="text-sm font-extrabold text-gray-900 uppercase tracking-wider mb-3">About the Business</h3>
-                                    <p className="text-sm text-gray-700 leading-relaxed bg-white p-5 rounded-xl border border-[#EBEBEB] shadow-sm">
+                                    <h3 className="text-xs font-extrabold text-gray-900 uppercase tracking-wider mb-2">About the Business</h3>
+                                    <p className="text-sm text-gray-700 leading-relaxed bg-white p-4 rounded-xl border border-[#E4E7F2]">
                                         {selectedBiz.description || "No description provided for this business yet. Please contact them directly for more information regarding their services."}
                                     </p>
                                 </section>
 
-                                {/* Mock Gallery */}
                                 <section>
-                                    <h3 className="text-sm font-extrabold text-gray-900 uppercase tracking-wider mb-3 flex items-center gap-2"><FaImage className="text-[#2A45C2]" /> Business Gallery</h3>
-                                    <div className="grid grid-cols-3 gap-2 sm:gap-4">
+                                    <h3 className="text-xs font-extrabold text-gray-900 uppercase tracking-wider mb-2 flex items-center gap-1.5"><FaImage className="text-[#2A45C2]" size={12} /> Business Gallery</h3>
+                                    <div className="grid grid-cols-3 gap-2">
                                         {[1, 2, 3].map(i => (
-                                            <div key={i} className="aspect-video bg-gray-200 rounded-lg border border-[#EBEBEB] flex items-center justify-center overflow-hidden hover:opacity-90 cursor-pointer transition-opacity">
+                                            <div key={i} className="aspect-video bg-gray-200 rounded-lg border border-[#E4E7F2] flex items-center justify-center overflow-hidden hover:opacity-90 cursor-pointer transition-opacity">
                                                 <img src={`https://picsum.photos/seed/${selectedBiz.id}${i}/400/300`} alt="Gallery placeholder" className="w-full h-full object-cover" />
                                             </div>
                                         ))}
                                     </div>
                                 </section>
 
-                                {/* Mock Reviews */}
                                 <section>
-                                    <div className="flex justify-between items-end mb-4">
-                                        <h3 className="text-sm font-extrabold text-gray-900 uppercase tracking-wider">Ratings & Reviews</h3>
-                                        <Button className="text-xs py-1.5 px-3 bg-white text-[#2A45C2] border border-[#2A45C2]/30 font-bold">Write a Review</Button>
+                                    <div className="flex justify-between items-end mb-2.5">
+                                        <h3 className="text-xs font-extrabold text-gray-900 uppercase tracking-wider">Ratings & Reviews</h3>
+                                        <Button className="text-[11px] py-1.5 px-3 bg-white text-[#2A45C2] border border-[#2A45C2]/30 font-bold">Write a Review</Button>
                                     </div>
-                                    <div className="space-y-3">
+                                    <div className="space-y-2">
                                         {[
                                             { name: "Alice M.", rating: 5, date: "2 weeks ago", text: "Excellent service! Very professional and timely." },
                                             { name: "John D.", rating: 4, date: "1 month ago", text: "Great experience overall. Would recommend to others in the area." }
                                         ].map((review, idx) => (
-                                            <div key={idx} className="bg-white p-4 rounded-xl border border-[#EBEBEB] shadow-sm">
-                                                <div className="flex justify-between items-start mb-2">
+                                            <div key={idx} className="bg-white p-3.5 rounded-xl border border-[#E4E7F2]">
+                                                <div className="flex justify-between items-start mb-1.5">
                                                     <div className="flex items-center gap-2">
-                                                        <FaUserCircle className="text-gray-300 text-2xl" />
+                                                        <FaUserCircle className="text-gray-300 text-xl" />
                                                         <div>
-                                                            <p className="text-sm font-bold text-gray-900 leading-none">{review.name}</p>
+                                                            <p className="text-[13px] font-bold text-gray-900 leading-none">{review.name}</p>
                                                             <p className="text-[10px] text-gray-400 mt-0.5">{review.date}</p>
                                                         </div>
                                                     </div>
-                                                    <div className="flex text-yellow-400 text-xs">
+                                                    <div className="flex text-[#F2C14E] text-[11px]">
                                                         {[...Array(5)].map((_, i) => <FaStar key={i} className={i < review.rating ? '' : 'text-gray-200'} />)}
                                                     </div>
                                                 </div>
@@ -398,73 +383,70 @@ const UserDirectoryCom = () => {
 
                             </div>
 
-                            {/* Sidebar Column */}
-                            <div className="w-full md:w-1/3 bg-white border-l border-[#EBEBEB] p-6 sm:p-8 space-y-6">
+                            <div className="w-full md:w-1/3 bg-white border-l border-[#E4E7F2] p-5 sm:p-6 space-y-5">
 
-                                {/* Contact Info */}
                                 <div>
-                                    <h3 className="text-sm font-extrabold text-gray-900 uppercase tracking-wider mb-4 border-b border-[#EBEBEB] pb-2">Contact Details</h3>
-                                    <ul className="space-y-4">
-                                        <li className="flex items-start gap-3 text-sm">
-                                            <div className="mt-0.5 p-2 bg-blue-50 text-[#2A45C2] rounded-lg"><FaMapMarkerAlt /></div>
+                                    <h3 className="text-xs font-extrabold text-gray-900 uppercase tracking-wider mb-3 border-b border-[#E4E7F2] pb-2">Contact Details</h3>
+                                    <ul className="space-y-3">
+                                        <li className="flex items-start gap-2.5 text-sm">
+                                            <div className="mt-0.5 p-1.5 bg-blue-50 text-[#2A45C2] rounded-lg"><FaMapMarkerAlt size={13} /></div>
                                             <div>
-                                                <span className="block font-bold text-gray-900 text-xs mb-0.5">Address</span>
-                                                <span className="text-gray-600">{selectedBiz.location}</span>
+                                                <span className="block font-bold text-gray-900 text-[11px] mb-0.5">Address</span>
+                                                <span className="text-gray-600 text-[13px]">{selectedBiz.location}</span>
                                                 {selectedBiz.google_maps_url && (
-                                                    <a href={selectedBiz.google_maps_url} target="_blank" rel="noreferrer" className="block text-[#2A45C2] text-[10px] font-bold mt-1 hover:underline flex items-center gap-1">
-                                                        <FaDirections /> Get Directions
+                                                    <a href={selectedBiz.google_maps_url} target="_blank" rel="noreferrer" className="text-[#2A45C2] text-[10px] font-bold mt-1 hover:underline flex items-center gap-1">
+                                                        <FaDirections size={10} /> Get Directions
                                                     </a>
                                                 )}
                                             </div>
                                         </li>
-                                        <li className="flex items-start gap-3 text-sm">
-                                            <div className="mt-0.5 p-2 bg-blue-50 text-[#2A45C2] rounded-lg"><FaPhone /></div>
+                                        <li className="flex items-start gap-2.5 text-sm">
+                                            <div className="mt-0.5 p-1.5 bg-blue-50 text-[#2A45C2] rounded-lg"><FaPhone size={13} /></div>
                                             <div>
-                                                <span className="block font-bold text-gray-900 text-xs mb-0.5">Phone</span>
-                                                <span className="text-gray-600">{selectedBiz.phone || 'Not provided'}</span>
+                                                <span className="block font-bold text-gray-900 text-[11px] mb-0.5">Phone</span>
+                                                <span className="text-gray-600 text-[13px]">{selectedBiz.phone || 'Not provided'}</span>
                                             </div>
                                         </li>
-                                        <li className="flex items-start gap-3 text-sm">
-                                            <div className="mt-0.5 p-2 bg-blue-50 text-[#2A45C2] rounded-lg"><FaEnvelope /></div>
+                                        <li className="flex items-start gap-2.5 text-sm">
+                                            <div className="mt-0.5 p-1.5 bg-blue-50 text-[#2A45C2] rounded-lg"><FaEnvelope size={13} /></div>
                                             <div>
-                                                <span className="block font-bold text-gray-900 text-xs mb-0.5">Email</span>
+                                                <span className="block font-bold text-gray-900 text-[11px] mb-0.5">Email</span>
                                                 {selectedBiz.email ? (
-                                                    <a href={`mailto:${selectedBiz.email}`} className="text-[#2A45C2] hover:underline">{selectedBiz.email}</a>
-                                                ) : <span className="text-gray-500">Not provided</span>}
+                                                    <a href={`mailto:${selectedBiz.email}`} className="text-[#2A45C2] hover:underline text-[13px]">{selectedBiz.email}</a>
+                                                ) : <span className="text-gray-500 text-[13px]">Not provided</span>}
                                             </div>
                                         </li>
-                                        <li className="flex items-start gap-3 text-sm">
-                                            <div className="mt-0.5 p-2 bg-blue-50 text-[#2A45C2] rounded-lg"><FaGlobe /></div>
+                                        <li className="flex items-start gap-2.5 text-sm">
+                                            <div className="mt-0.5 p-1.5 bg-blue-50 text-[#2A45C2] rounded-lg"><FaGlobe size={13} /></div>
                                             <div>
-                                                <span className="block font-bold text-gray-900 text-xs mb-0.5">Website</span>
+                                                <span className="block font-bold text-gray-900 text-[11px] mb-0.5">Website</span>
                                                 {selectedBiz.website ? (
-                                                    <a href={selectedBiz.website} target="_blank" rel="noreferrer" className="text-[#2A45C2] hover:underline truncate max-w-[150px] block">{selectedBiz.website}</a>
-                                                ) : <span className="text-gray-500">Not provided</span>}
+                                                    <a href={selectedBiz.website} target="_blank" rel="noreferrer" className="text-[#2A45C2] hover:underline truncate max-w-[150px] block text-[13px]">{selectedBiz.website}</a>
+                                                ) : <span className="text-gray-500 text-[13px]">Not provided</span>}
                                             </div>
                                         </li>
                                     </ul>
                                 </div>
 
-                                {/* Direct Message Form */}
-                                <div className="bg-gray-50 p-5 rounded-xl border border-[#EBEBEB]">
-                                    <h3 className="text-sm font-extrabold text-gray-900 flex items-center gap-2 mb-3"><FaPaperPlane className="text-[#2A45C2]" /> Message Business</h3>
-                                    <form onSubmit={handleContactSubmit} className="space-y-3">
+                                <div className="bg-[#F7F8FC] p-4 rounded-xl border border-[#E4E7F2]">
+                                    <h3 className="text-xs font-extrabold text-gray-900 flex items-center gap-1.5 mb-2.5"><FaPaperPlane className="text-[#2A45C2]" size={12} /> Message Business</h3>
+                                    <form onSubmit={handleContactSubmit} className="space-y-2.5">
                                         <Input
                                             name="name" type="text" placeholder="Your Name" required
                                             value={contactForm.name} onChange={e => setContactForm({ ...contactForm, name: e.target.value })}
-                                            className="bg-white border-[#EBEBEB] text-xs py-2"
+                                            className="bg-white border-[#E4E7F2] text-xs py-2"
                                         />
                                         <Input
                                             name="email" type="email" placeholder="Your Email" required
                                             value={contactForm.email} onChange={e => setContactForm({ ...contactForm, email: e.target.value })}
-                                            className="bg-white border-[#EBEBEB] text-xs py-2"
+                                            className="bg-white border-[#E4E7F2] text-xs py-2"
                                         />
                                         <textarea
                                             name="message" rows="3" placeholder="How can they help you?" required
                                             value={contactForm.message} onChange={e => setContactForm({ ...contactForm, message: e.target.value })}
-                                            className="w-full px-3 py-2 bg-white border border-[#EBEBEB] rounded-lg focus:outline-none focus:border-[#2A45C2] text-xs resize-none"
+                                            className="w-full px-3 py-2 bg-white border border-[#E4E7F2] rounded-lg focus:outline-none focus:border-[#2A45C2] text-xs resize-none"
                                         ></textarea>
-                                        <Button type="submit" disabled={isSending} className="w-full bg-[#2A45C2] text-white py-2 text-sm font-bold border-0">
+                                        <Button type="submit" disabled={isSending} className="w-full bg-gradient-to-r from-[#2A45C2] to-[#5B4FE0] text-white py-2 text-sm font-bold border-0">
                                             {isSending ? 'Sending...' : 'Send Message'}
                                         </Button>
                                     </form>

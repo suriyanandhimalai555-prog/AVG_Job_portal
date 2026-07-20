@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FaCheck, FaSignOutAlt } from 'react-icons/fa';
+import { FaCheck, FaSignOutAlt, FaUserEdit } from 'react-icons/fa';
 import { toast, Toaster } from 'react-hot-toast';
 import Button from '../../ui/Button';
 import Input from '../../ui/Input';
@@ -31,18 +31,14 @@ const UserProfileCom = () => {
         setIsLoading(true);
         try {
             const token = getAuthToken();
-            if (!token) {
-                throw new Error("No authentication token found.");
-            }
+            if (!token) throw new Error("No authentication token found.");
 
             const payloadBase64 = token.split('.')[1];
             const decodedPayload = JSON.parse(atob(payloadBase64));
             const userId = decodedPayload.id;
 
             const res = await fetch(`${apiUrl}/api/users`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
+                headers: { 'Authorization': `Bearer ${token}` }
             });
 
             if (!res.ok) throw new Error("Failed to fetch user data.");
@@ -121,103 +117,104 @@ const UserProfileCom = () => {
         localStorage.removeItem('token');
         localStorage.removeItem('adminToken');
         localStorage.removeItem('user');
-
         toast.success('Logged out successfully!');
-
-        setTimeout(() => {
-            navigate('/user-login');
-        }, 800);
+        setTimeout(() => navigate('/user-login'), 800);
     };
 
     if (isLoading) {
         return (
-            <div className="flex justify-center items-center h-64 text-gray-500 font-medium">
+            <div className="flex justify-center items-center h-64 text-gray-500 font-medium animate-pulse">
                 Loading profile details...
             </div>
         );
     }
 
     return (
-        <div className="max-w-7xl mx-auto space-y-4 p-4 rounded-2xl shadow-sm bg-[#EEF2FF]">
+        <div className="max-w-7xl mx-auto space-y-4 p-3 md:p-4 rounded-2xl bg-[#F5F6FC]">
             <Toaster position="top-right" reverseOrder={false} />
 
-            <div className="bg-white border border-[#EBEBEB] rounded-2xl p-6 md:p-8 shadow-sm flex flex-col items-center text-center">
-                <div className="w-20 h-20 md:w-24 md:h-24 bg-[#2A45C2] text-white rounded-2xl flex items-center justify-center text-3xl font-extrabold mb-4 shadow-sm border border-[#EBEBEB]">
-                    {profile.name ? profile.name.charAt(0).toUpperCase() : 'U'}
-                </div>
+            <div className="bg-white border border-[#E7E9F7] rounded-2xl p-6 md:p-10 shadow-[0_2px_16px_rgba(30,41,89,0.05)] relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-br from-[#141B3C] via-[#2A45C2] to-[#5B4FE0]"></div>
 
-                {!isEditing ? (
-                    <>
-                        <h2 className="text-xl md:text-2xl font-extrabold text-gray-900 mb-1">{profile.name}</h2>
-                        <p className="text-sm text-gray-500 font-medium mb-1">{profile.email}</p>
-                        <p className="text-sm text-gray-400 font-medium mb-4">{profile.phone}</p>
-                        <Badge variant="success" className="px-3 py-1.5 text-xs font-bold gap-1.5 bg-blue-50 text-[#2A45C2] border border-[#EBEBEB]">
-                            <FaCheck size={10} /> Profile {profile.status}
-                        </Badge>
-                    </>
-                ) : (
-                    <div className="w-full max-w-sm space-y-4 text-left mt-3">
-                        <Input
-                            label="Full Name"
-                            name="name"
-                            value={profile.name}
-                            onChange={handleChange}
-                            className="bg-white border-[#EBEBEB] rounded-lg focus:ring-[#2A45C2]/20 focus:border-[#2A45C2] text-sm py-2.5"
-                        />
-                        <Input
-                            label="Email Address"
-                            name="email"
-                            type="email"
-                            value={profile.email}
-                            onChange={handleChange}
-                            className="bg-white border-[#EBEBEB] rounded-lg focus:ring-[#2A45C2]/20 focus:border-[#2A45C2] text-sm py-2.5"
-                        />
-                        <Input
-                            label="Phone Number"
-                            name="phone"
-                            value={profile.phone}
-                            onChange={handleChange}
-                            className="bg-white border-[#EBEBEB] rounded-lg focus:ring-[#2A45C2]/20 focus:border-[#2A45C2] text-sm py-2.5"
-                        />
-                        <div className="flex gap-2 pt-2">
-                            <Button className="flex-1 rounded-lg bg-[#2A45C2] text-white border-0 font-bold text-sm" onClick={handleSave}>
-                                Save Changes
-                            </Button>
-                            <Button variant="outline" className="flex-1 rounded-lg border-[#EBEBEB] text-gray-700 hover:bg-gray-50 text-sm font-bold" onClick={() => setIsEditing(false)}>
-                                Cancel
-                            </Button>
+                <div className="relative flex flex-col items-center text-center pt-12">
+                    <div className="w-24 h-24 md:w-28 md:h-28 bg-white p-1.5 rounded-full shadow-xl mb-5 border border-white">
+                        <div className="w-full h-full rounded-full bg-gradient-to-tr from-[#2A45C2] to-[#8B5CF6] flex items-center justify-center text-4xl font-extrabold text-white">
+                            {profile.name ? profile.name.charAt(0).toUpperCase() : 'U'}
                         </div>
                     </div>
-                )}
+
+                    {!isEditing ? (
+                        <>
+                            <h2 className="text-2xl md:text-3xl font-extrabold text-gray-900 mb-1">{profile.name}</h2>
+                            <p className="text-sm text-gray-500 font-medium mb-1">{profile.email}</p>
+                            <p className="text-sm text-gray-400 font-medium mb-5">{profile.phone}</p>
+                            <Badge variant="success" className="px-4 py-2 text-xs font-bold gap-2 bg-[#EEF1FE] text-[#2A45C2] border-0 rounded-full shadow-sm">
+                                <FaCheck size={12} /> Profile {profile.status}
+                            </Badge>
+                        </>
+                    ) : (
+                        <div className="w-full max-w-md space-y-4 text-left mt-3 bg-gray-50/50 p-6 rounded-2xl border border-[#E7E9F7]">
+                            <Input
+                                label="Full Name"
+                                name="name"
+                                value={profile.name}
+                                onChange={handleChange}
+                                className="bg-white border-[#EBEBEB] rounded-xl focus:ring-[#2A45C2]/20 focus:border-[#2A45C2] py-3 shadow-sm transition-all"
+                            />
+                            <Input
+                                label="Email Address"
+                                name="email"
+                                type="email"
+                                value={profile.email}
+                                onChange={handleChange}
+                                className="bg-white border-[#EBEBEB] rounded-xl focus:ring-[#2A45C2]/20 focus:border-[#2A45C2] py-3 shadow-sm transition-all"
+                            />
+                            <Input
+                                label="Phone Number"
+                                name="phone"
+                                value={profile.phone}
+                                onChange={handleChange}
+                                className="bg-white border-[#EBEBEB] rounded-xl focus:ring-[#2A45C2]/20 focus:border-[#2A45C2] py-3 shadow-sm transition-all"
+                            />
+                            <div className="flex gap-3 pt-4">
+                                <Button className="flex-1 rounded-xl bg-gradient-to-r from-[#2A45C2] to-[#5B4FE0] text-white border-0 font-bold py-3 shadow-md hover:shadow-lg transition-all" onClick={handleSave}>
+                                    Save Changes
+                                </Button>
+                                <Button variant="outline" className="flex-1 rounded-xl border-[#E7E9F7] text-gray-700 bg-white hover:bg-gray-50 font-bold py-3 transition-all" onClick={() => setIsEditing(false)}>
+                                    Cancel
+                                </Button>
+                            </div>
+                        </div>
+                    )}
+                </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-white border border-[#EBEBEB] rounded-2xl p-5 text-center shadow-sm">
-                    <h3 className="text-3xl font-extrabold text-gray-900 mb-1">0</h3>
-                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Applied</p>
-                </div>
-                <div className="bg-white border border-[#EBEBEB] rounded-2xl p-5 text-center shadow-sm">
-                    <h3 className="text-3xl font-extrabold text-gray-900 mb-1">0</h3>
-                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Courses</p>
-                </div>
-                <div className="bg-white border border-[#EBEBEB] rounded-2xl p-5 text-center shadow-sm">
-                    <h3 className="text-3xl font-extrabold text-gray-900 mb-1">0</h3>
-                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Saved</p>
-                </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {[
+                    { label: 'Applied', value: '0', bar: 'from-[#2A45C2] to-[#5B4FE0]' },
+                    { label: 'Courses', value: '0', bar: 'from-[#5B4FE0] to-[#8B5CF6]' },
+                    { label: 'Saved', value: '0', bar: 'from-[#D4A017] to-[#F2C14E]' }
+                ].map((stat, idx) => (
+                    <div key={idx} className="relative bg-white border border-[#E7E9F7] rounded-2xl p-6 text-center shadow-[0_2px_16px_rgba(30,41,89,0.05)] overflow-hidden group hover:shadow-[0_6px_24px_rgba(30,41,89,0.1)] transition-all">
+                        <div className={`absolute top-0 left-0 h-1 w-full bg-gradient-to-r ${stat.bar} opacity-0 group-hover:opacity-100 transition-opacity`} />
+                        <h3 className="text-3xl font-black text-gray-900 mb-1">{stat.value}</h3>
+                        <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">{stat.label}</p>
+                    </div>
+                ))}
             </div>
 
             {!isEditing && (
-                <div className="space-y-3 pt-3 max-w-xs mx-auto">
+                <div className="flex flex-col sm:flex-row gap-3 pt-3 max-w-lg mx-auto">
                     <Button
-                        className="w-full py-3.5 text-sm font-bold rounded-xl bg-[#2A45C2] text-white border-0 shadow-sm"
+                        className="flex-1 py-3.5 text-sm font-bold rounded-xl border border-[#E7E9F7] text-gray-800 shadow-sm hover:border-[#2A45C2] hover:text-[#2A45C2] transition-all flex items-center justify-center gap-2"
                         onClick={() => setIsEditing(true)}
                     >
-                        Edit Profile
+                        <FaUserEdit /> Edit Profile
                     </Button>
                     <Button
                         variant="outline"
                         onClick={handleLogout}
-                        className="w-full py-3.5 text-sm font-bold rounded-xl text-red-500 border-[#EBEBEB] bg-white hover:bg-red-50 hover:border-red-100 flex items-center justify-center gap-2"
+                        className="flex-1 py-3.5 text-sm font-bold rounded-xl text-red-500 border-[#E7E9F7] bg-white hover:bg-red-50 hover:border-red-200 transition-all flex items-center justify-center gap-2 shadow-sm"
                     >
                         <FaSignOutAlt /> Log out
                     </Button>
