@@ -118,7 +118,7 @@ const UserProfileCom = () => {
         localStorage.removeItem('adminToken');
         localStorage.removeItem('user');
         toast.success('Logged out successfully!');
-        setTimeout(() => navigate('/user-login'), 800);
+        setTimeout(() => navigate('/login'), 800);
     };
 
     if (isLoading) {

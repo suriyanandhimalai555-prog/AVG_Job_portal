@@ -34,8 +34,8 @@ const AppRouter = () => {
                 <Route path="/" element={<Index />} />
 
                 <Route path="/admin-login" element={<AdminLogin />} />
-                <Route path="/user-login" element={<UserLogin />} />
-                <Route path="/user-register" element={<UserRegister />} />
+                <Route path="/login" element={<UserLogin />} />
+                <Route path="/register" element={<UserRegister />} />
 
                 {/* Protected User Routes */}
                 <Route element={<UserProtectedRoute />}>

@@ -135,7 +135,7 @@ const UserLogin = () => {
 
                 <div className="text-center text-sm text-gray-500 pt-2">
                     New to Agila Vetri?{' '}
-                    <Link to="/user-register" className="text-[#2B6CF0] font-bold hover:underline">
+                    <Link to="/register" className="text-[#2B6CF0] font-bold hover:underline">
                         Register
                     </Link>
                 </div>

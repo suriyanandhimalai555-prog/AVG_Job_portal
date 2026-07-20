@@ -54,7 +54,7 @@ const Navbar = ({ toggleSidebar }) => {
     const handleLogout = () => {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
-        navigate('/user-login');
+        navigate('/login');
     };
 
     return (

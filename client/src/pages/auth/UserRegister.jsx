@@ -235,7 +235,7 @@ const UserRegister = () => {
 
                 <div className="text-center text-sm text-gray-500 pt-2">
                     Already have an account?{' '}
-                    <Link to="/user-login" className="text-[#2B6CF0] font-bold hover:underline">
+                    <Link to="/login" className="text-[#2B6CF0] font-bold hover:underline">
                         Login
                     </Link>
                 </div>

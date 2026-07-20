@@ -13,7 +13,7 @@ const UserReferralCom = () => {
     const [isStatsLoading, setIsStatsLoading] = useState(true);
     const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
-    const shareLink = stats.referral_code ? `${window.location.origin}/user-register?ref=${stats.referral_code}` : 'Generating link...';
+    const shareLink = stats.referral_code ? `${window.location.origin}/register?ref=${stats.referral_code}` : 'Generating link...';
 
     useEffect(() => { fetchUserStats(); }, []);
 

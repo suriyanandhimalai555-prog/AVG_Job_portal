@@ -6,7 +6,7 @@ const ProtectedRoute = () => {
     const token = localStorage.getItem('token');
 
     // If there is no token, redirect to login page. Otherwise, render the child routes (Outlet).
-    return token ? <Outlet /> : <Navigate to="/user-login" replace />;
+    return token ? <Outlet /> : <Navigate to="/login" replace />;
 };
 
 export default ProtectedRoute;

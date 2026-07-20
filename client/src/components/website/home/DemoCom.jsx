@@ -26,14 +26,14 @@ const DemoCom = () => {
 
                 <div className="flex flex-col sm:flex-row gap-4 w-full">
                     <Link 
-                        to="/user-register" 
+                        to="/register" 
                         className="flex-1 flex items-center justify-center px-6 py-4 rounded-xl bg-[linear-gradient(135deg,#2B6CF0_0%,#1E40AF_100%)] text-white font-bold text-base transition-all hover:opacity-90 shadow-sm"
                     >
                         User Login
                     </Link>
                     
                     <Link 
-                        to="/admin-login" 
+                        to="/login" 
                         className="flex-1 flex items-center justify-center px-6 py-4 rounded-xl bg-[#F4F8FF] text-[#2B6CF0] font-bold text-base transition-all hover:bg-blue-50 border border-blue-50"
                     >
                         Admin Login

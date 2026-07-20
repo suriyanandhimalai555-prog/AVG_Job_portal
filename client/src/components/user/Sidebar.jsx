@@ -24,7 +24,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
     const handleLogout = () => {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
-        window.location.href = '/user-login';
+        window.location.href = '/login';
     };
 
     return (
