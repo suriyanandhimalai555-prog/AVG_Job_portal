@@ -8,6 +8,7 @@ import { toast, Toaster } from 'react-hot-toast';
 import Button from '../../ui/Button';
 import Badge from '../../ui/Badge';
 import Input from '../../ui/Input';
+import Shimmer from '../../ui/Shimmer';
 
 const UserDirectoryCom = () => {
     const [searchTerm, setSearchTerm] = useState('');
@@ -147,18 +148,24 @@ const UserDirectoryCom = () => {
             </div>
 
             <div className="flex gap-1.5 py-2.5 overflow-x-auto custom-scrollbar">
-                {!isLoading && filterOptions.map((filter) => (
-                    <button
-                        key={filter}
-                        onClick={() => setActiveCategory(filter)}
-                        className={`whitespace-nowrap rounded-lg px-3.5 py-1.5 text-xs font-bold transition-all ${activeCategory === filter
-                            ? 'bg-gradient-to-r from-[#2A45C2] to-[#5B4FE0] text-white shadow-[0_4px_12px_rgba(42,69,194,0.25)]'
-                            : 'bg-white border border-[#E4E7F2] text-gray-500 hover:bg-gray-50'
-                            }`}
-                    >
-                        {filter}
-                    </button>
-                ))}
+                {!isLoading ? (
+                    filterOptions.map((filter) => (
+                        <button
+                            key={filter}
+                            onClick={() => setActiveCategory(filter)}
+                            className={`whitespace-nowrap rounded-lg px-3.5 py-1.5 text-xs font-bold transition-all ${activeCategory === filter
+                                ? 'bg-gradient-to-r from-[#2A45C2] to-[#5B4FE0] text-white shadow-[0_4px_12px_rgba(42,69,194,0.25)]'
+                                : 'bg-white border border-[#E4E7F2] text-gray-500 hover:bg-gray-50'
+                                }`}
+                        >
+                            {filter}
+                        </button>
+                    ))
+                ) : (
+                    Array(5).fill(0).map((_, idx) => (
+                        <Shimmer key={idx} className="w-24 h-8 rounded-lg shrink-0" />
+                    ))
+                )}
             </div>
 
             <div>
@@ -166,7 +173,7 @@ const UserDirectoryCom = () => {
                     <div className="flex items-center gap-2">
                         <h2 className="text-sm font-extrabold text-gray-900 uppercase tracking-wide">Directory Results</h2>
                         <Badge variant="primary" className="text-[11px] px-2 py-0.5 rounded-md bg-blue-50 text-[#2A45C2] border border-[#E4E7F2] font-bold">
-                            {filteredBusinesses.length} found
+                            {isLoading ? '...' : filteredBusinesses.length} found
                         </Badge>
                     </div>
 
@@ -184,11 +191,14 @@ const UserDirectoryCom = () => {
                 </div>
 
                 {isLoading ? (
-                    <div className="text-center py-10 bg-white border border-[#E4E7F2] rounded-xl">
-                        <p className="text-gray-500 font-medium text-sm">Loading businesses...</p>
+                    <div className={viewMode === 'grid' ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5" : "flex flex-col gap-2"}>
+                        {Array(6).fill(0).map((_, idx) => (
+                            <div key={idx} className="bg-white border border-[#E4E7F2] p-3.5 rounded-2xl h-[120px] shadow-[0_2px_16px_rgba(30,41,89,0.02)]">
+                                <Shimmer className="w-full h-full rounded-xl" />
+                            </div>
+                        ))}
                     </div>
                 ) : filteredBusinesses.length > 0 ? (
-
                     viewMode === 'map' ? (
                         <div className="bg-white border border-[#E4E7F2] rounded-xl h-[560px] flex overflow-hidden shadow-[0_2px_16px_rgba(30,41,89,0.05)]">
                             <div className="w-1/3 border-r border-[#E4E7F2] overflow-y-auto custom-scrollbar p-2 space-y-2 bg-[#F7F8FC]">

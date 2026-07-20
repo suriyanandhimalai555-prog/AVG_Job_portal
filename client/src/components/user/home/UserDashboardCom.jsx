@@ -25,6 +25,8 @@ const UserDashboardCom = () => {
     const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
     useEffect(() => {
+        let isMounted = true;
+
         const fetchDashboardData = async () => {
             setIsLoading(true);
             const token = localStorage.getItem('token');
@@ -51,7 +53,7 @@ const UserDashboardCom = () => {
             }
 
             if (!token || !userId) {
-                setIsLoading(false);
+                if (isMounted) setIsLoading(false);
                 return;
             }
 
@@ -97,20 +99,31 @@ const UserDashboardCom = () => {
                     } catch (e) { console.error('Failed to parse referral data', e); }
                 }
 
-                setMetrics({
-                    jobsApplied: jobsAppliedCount,
-                    coursesTaken: coursesEnrolledCount,
-                    referralEarnings: refEarnings
-                });
+                if (isMounted) {
+                    setMetrics({
+                        jobsApplied: jobsAppliedCount,
+                        coursesTaken: coursesEnrolledCount,
+                        referralEarnings: refEarnings
+                    });
+                }
 
             } catch (error) {
                 console.error('Failed to fetch live user data for dashboard:', error);
             } finally {
-                setIsLoading(false);
+                // Applied the same 500ms delay to match Navbar and Sidebar loading time
+                setTimeout(() => {
+                    if (isMounted) {
+                        setIsLoading(false);
+                    }
+                }, 500);
             }
         };
 
         fetchDashboardData();
+
+        return () => {
+            isMounted = false;
+        };
     }, [apiUrl]);
 
     const statCards = [
@@ -206,7 +219,7 @@ const UserDashboardCom = () => {
                             {userName} <span className="text-2xl md:text-3xl">👋</span>
                         </h1>
                         <p className="text-xs md:text-sm text-blue-100/70 font-medium tracking-wide mt-2">
-                            One App · Many Opportunities — Connect · Learn · Grow · Earn
+                            One App · Many Opportunities Connect · Learn · Grow · Earn
                         </p>
                     </div>
                     <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/15 bg-white/10 backdrop-blur-sm shrink-0">

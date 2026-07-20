@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
 import {
     FaHome,
@@ -10,8 +10,11 @@ import {
     FaTimes,
     FaSignOutAlt
 } from 'react-icons/fa';
+import Shimmer from '../ui/Shimmer';
 
 const Sidebar = ({ isOpen, toggleSidebar }) => {
+    const [isLoading, setIsLoading] = useState(true);
+
     const menuItems = [
         { name: 'Dashboard', path: '/user-dashboard', icon: <FaHome /> },
         { name: 'Business Directory', path: '/user-dashboard/directory', icon: <FaAddressBook /> },
@@ -20,6 +23,14 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
         { name: 'Referrals', path: '/user-dashboard/refer', icon: <FaUserPlus /> },
         { name: 'My Profile', path: '/user-dashboard/profile', icon: <FaUser /> },
     ];
+
+    useEffect(() => {
+        // Simulate a brief load to match the Navbar Shimmer rendering
+        const timer = setTimeout(() => {
+            setIsLoading(false);
+        }, 500);
+        return () => clearTimeout(timer);
+    }, []);
 
     const handleLogout = () => {
         localStorage.removeItem('token');
@@ -42,13 +53,21 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                 <div className="flex items-center justify-between h-[72px] px-6 border-b border-[#E7E9F7] bg-white shrink-0">
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 bg-gradient-to-br from-[#2A45C2] to-[#5B4FE0] rounded-xl flex items-center justify-center p-1 shadow-md">
-                            <img
-                                src="/logo.jpg"
-                                alt="Logo"
-                                className="w-full h-full object-contain rounded-lg bg-white"
-                            />
+                            {isLoading ? (
+                                <Shimmer className="w-full h-full rounded-lg" />
+                            ) : (
+                                <img
+                                    src="/logo.jpg"
+                                    alt="Logo"
+                                    className="w-full h-full object-contain rounded-lg bg-white"
+                                />
+                            )}
                         </div>
-                        <h2 className="text-lg font-black text-[#0B0F19] tracking-tight">Agila Vetri</h2>
+                        {isLoading ? (
+                            <Shimmer className="w-24 h-5 rounded" />
+                        ) : (
+                            <h2 className="text-lg font-black text-[#0B0F19] tracking-tight">Agila Vetri</h2>
+                        )}
                     </div>
 
                     <button
@@ -61,35 +80,49 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
 
                 <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto custom-scrollbar bg-[#FDFDFE]">
                     <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4 px-2">Main Menu</p>
-                    {menuItems.map((item) => (
-                        <NavLink
-                            key={item.name}
-                            to={item.path}
-                            end={item.path === '/user-dashboard'}
-                            onClick={() => toggleSidebar(false)}
-                            className={({ isActive }) =>
-                                `flex items-center gap-3.5 px-4 py-3 rounded-xl transition-all duration-200 group ${isActive
-                                    ? 'bg-gradient-to-r from-[#141B3C] to-[#2A45C2] text-white font-bold shadow-md'
-                                    : 'text-gray-500 hover:bg-[#EEF1FE] hover:text-[#2A45C2] font-semibold'
-                                }`
-                            }
-                        >
-                            <span className={`text-[1.1rem] transition-colors ${window.location.pathname === item.path ? 'text-blue-200' : 'text-gray-400 group-hover:text-[#2A45C2]'}`}>
-                                {item.icon}
-                            </span>
-                            <span className="text-sm tracking-wide">{item.name}</span>
-                        </NavLink>
-                    ))}
+
+                    {isLoading ? (
+                        Array(6).fill(0).map((_, idx) => (
+                            <div key={idx} className="flex items-center gap-3.5 px-4 py-3 mb-1">
+                                <Shimmer className="w-5 h-5 rounded-md" />
+                                <Shimmer className="w-32 h-4 rounded-md" />
+                            </div>
+                        ))
+                    ) : (
+                        menuItems.map((item) => (
+                            <NavLink
+                                key={item.name}
+                                to={item.path}
+                                end={item.path === '/user-dashboard'}
+                                onClick={() => toggleSidebar(false)}
+                                className={({ isActive }) =>
+                                    `flex items-center gap-3.5 px-4 py-3 rounded-xl transition-all duration-200 group ${isActive
+                                        ? 'bg-gradient-to-r from-[#141B3C] to-[#2A45C2] text-white font-bold shadow-md'
+                                        : 'text-gray-500 hover:bg-[#EEF1FE] hover:text-[#2A45C2] font-semibold'
+                                    }`
+                                }
+                            >
+                                <span className={`text-[1.1rem] transition-colors ${window.location.pathname === item.path ? 'text-blue-200' : 'text-gray-400 group-hover:text-[#2A45C2]'}`}>
+                                    {item.icon}
+                                </span>
+                                <span className="text-sm tracking-wide">{item.name}</span>
+                            </NavLink>
+                        ))
+                    )}
                 </nav>
 
                 <div className="p-5 border-t border-[#E7E9F7] bg-white shrink-0">
-                    <button
-                        onClick={handleLogout}
-                        className="flex items-center justify-center gap-2.5 w-full px-4 py-3 text-sm font-bold text-red-500 bg-red-50/50 hover:bg-red-50 border border-red-100 hover:border-red-200 rounded-xl transition-all"
-                    >
-                        <FaSignOutAlt size={16} />
-                        Sign Out
-                    </button>
+                    {isLoading ? (
+                        <Shimmer className="w-full h-11 rounded-xl" />
+                    ) : (
+                        <button
+                            onClick={handleLogout}
+                            className="flex items-center justify-center gap-2.5 w-full px-4 py-3 text-sm font-bold text-red-500 bg-red-50/50 hover:bg-red-50 border border-red-100 hover:border-red-200 rounded-xl transition-all"
+                        >
+                            <FaSignOutAlt size={16} />
+                            Sign Out
+                        </button>
+                    )}
                 </div>
             </div>
         </>

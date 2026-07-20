@@ -3,6 +3,7 @@ import { FaGift, FaRegCopy, FaShareAlt, FaChartLine, FaCoins, FaStar } from 'rea
 import { toast, Toaster } from 'react-hot-toast';
 import Button from '../../ui/Button';
 import Input from '../../ui/Input';
+import Shimmer from '../../ui/Shimmer';
 
 const UserReferralCom = () => {
     const [stats, setStats] = useState({
@@ -85,7 +86,7 @@ const UserReferralCom = () => {
                                     <FaStar size={16} />
                                 </div>
                                 <span className="block w-full pl-12 pr-4 py-4 text-xl md:text-2xl font-black text-gray-900 tracking-widest bg-gray-50 border border-[#E7E9F7] rounded-xl text-center sm:text-left shadow-inner">
-                                    {isStatsLoading ? 'Loading...' : stats.referral_code || 'N/A'}
+                                    {isStatsLoading ? <Shimmer className="w-40 h-8 rounded mx-auto sm:mx-0" /> : stats.referral_code || 'N/A'}
                                 </span>
                             </div>
                             <Button onClick={handleCopyCode} disabled={isStatsLoading || !stats.referral_code} className="flex items-center justify-center gap-2 px-8 py-4 rounded-xl bg-[#141B3C] hover:bg-[#2A45C2] text-white border-0 font-bold w-full sm:w-auto flex-shrink-0 disabled:opacity-50 text-sm shadow-md transition-colors">
@@ -96,8 +97,13 @@ const UserReferralCom = () => {
 
                     <div className="bg-white border border-[#E7E9F7] p-6 md:p-8 rounded-2xl shadow-[0_2px_16px_rgba(30,41,89,0.05)] transition-all hover:shadow-lg">
                         <p className="text-xs font-black text-gray-500 tracking-widest mb-4 uppercase">Share Direct Link</p>
-                        <div className="flex flex-col sm:flex-row items-center gap-4">
-                            <Input readOnly value={isStatsLoading ? 'Loading link...' : shareLink} className="w-full bg-gray-50 text-gray-600 border-[#E7E9F7] rounded-xl font-bold focus:ring-0 cursor-text py-4 text-sm shadow-inner" />
+                        <div className="flex flex-col sm:flex-row items-center gap-4 relative">
+                            {isStatsLoading && (
+                                <div className="absolute left-0 top-0 w-full sm:w-[calc(100%-150px)] h-full z-10 bg-gray-50 border border-[#E7E9F7] rounded-xl flex items-center px-4">
+                                    <Shimmer className="w-3/4 h-5 rounded" />
+                                </div>
+                            )}
+                            <Input readOnly value={isStatsLoading ? '' : shareLink} className="w-full bg-gray-50 text-gray-600 border-[#E7E9F7] rounded-xl font-bold focus:ring-0 cursor-text py-4 text-sm shadow-inner" />
                             <Button onClick={handleShareLink} disabled={isStatsLoading || !stats.referral_code} className="flex items-center justify-center gap-2 px-8 py-4 rounded-xl bg-gradient-to-r from-[#2A45C2] to-[#5B4FE0] text-white border-0 font-bold w-full sm:w-auto flex-shrink-0 disabled:opacity-50 text-sm shadow-md hover:shadow-lg transition-transform hover:-translate-y-0.5">
                                 <FaShareAlt size={16} /> Copy Link
                             </Button>
@@ -109,17 +115,23 @@ const UserReferralCom = () => {
                     <div className="bg-white border border-[#E7E9F7] p-8 rounded-2xl shadow-[0_2px_16px_rgba(30,41,89,0.05)] relative overflow-hidden group">
                         <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity group-hover:scale-110 duration-500"><FaCoins size={80} className="text-[#D4A017]" /></div>
                         <p className="text-xs font-black text-gray-500 tracking-widest mb-2 uppercase relative z-10">Total Earnings</p>
-                        <h2 className="text-5xl font-black bg-clip-text text-transparent bg-gradient-to-r from-[#D4A017] to-[#F2C14E] drop-shadow-sm mb-2 relative z-10">AED {stats.referral_earnings}</h2>
+                        <h2 className="text-5xl font-black bg-clip-text text-transparent bg-gradient-to-r from-[#D4A017] to-[#F2C14E] drop-shadow-sm mb-2 relative z-10">
+                            {isStatsLoading ? <Shimmer className="w-48 h-12 rounded mt-2 mb-2" /> : `AED ${stats.referral_earnings}`}
+                        </h2>
                         <p className="text-sm font-bold text-gray-400 relative z-10">Ready to withdraw soon</p>
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
-                        <div className="bg-white border border-[#E7E9F7] p-6 rounded-2xl shadow-sm text-center">
-                            <h3 className="text-4xl font-black text-gray-900 mb-2">{stats.total_referrals}</h3>
+                        <div className="bg-white border border-[#E7E9F7] p-6 rounded-2xl shadow-sm text-center flex flex-col items-center">
+                            <h3 className="text-4xl font-black text-gray-900 mb-2">
+                                {isStatsLoading ? <Shimmer className="w-16 h-10 rounded" /> : stats.total_referrals}
+                            </h3>
                             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Total Invites</p>
                         </div>
-                        <div className="bg-[#EEF1FE] border border-[#2A45C2]/10 p-6 rounded-2xl shadow-sm text-center">
-                            <h3 className="text-4xl font-black text-[#2A45C2] mb-2">{stats.total_referrals}</h3>
+                        <div className="bg-[#EEF1FE] border border-[#2A45C2]/10 p-6 rounded-2xl shadow-sm text-center flex flex-col items-center">
+                            <h3 className="text-4xl font-black text-[#2A45C2] mb-2">
+                                {isStatsLoading ? <Shimmer className="w-16 h-10 rounded" /> : stats.total_referrals}
+                            </h3>
                             <p className="text-[10px] font-bold text-[#2A45C2]/60 uppercase tracking-widest">Successful</p>
                         </div>
                     </div>

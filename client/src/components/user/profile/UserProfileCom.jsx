@@ -5,6 +5,7 @@ import { toast, Toaster } from 'react-hot-toast';
 import Button from '../../ui/Button';
 import Input from '../../ui/Input';
 import Badge from '../../ui/Badge';
+import Shimmer from '../../ui/Shimmer';
 
 const UserProfileCom = () => {
     const navigate = useNavigate();
@@ -123,8 +124,13 @@ const UserProfileCom = () => {
 
     if (isLoading) {
         return (
-            <div className="flex justify-center items-center h-64 text-gray-500 font-medium animate-pulse">
-                Loading profile details...
+            <div className="max-w-7xl mx-auto space-y-4 p-3 md:p-4 rounded-2xl bg-[#F5F6FC]">
+                <Shimmer className="w-full h-80 rounded-2xl bg-gray-300" />
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <Shimmer className="h-32 rounded-2xl" />
+                    <Shimmer className="h-32 rounded-2xl" />
+                    <Shimmer className="h-32 rounded-2xl" />
+                </div>
             </div>
         );
     }

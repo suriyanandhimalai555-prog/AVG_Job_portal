@@ -7,14 +7,12 @@ import {
 import { toast, Toaster } from 'react-hot-toast';
 import Button from '../../ui/Button';
 import Badge from '../../ui/Badge';
+import Shimmer from '../../ui/Shimmer';
 
 const UserAcademyCom = () => {
-    // Simulated logged-in user session ID (Replace with actual Auth context ID in production)
     const SIMULATED_USER_ID = 1;
 
-    // --- State Management ---
     const [activeTab, setActiveTab] = useState('browse');
-
     const [searchTerm, setSearchTerm] = useState('');
     const [activeCategory, setActiveCategory] = useState('All');
     const [activeLevel, setActiveLevel] = useState('All');
@@ -33,11 +31,9 @@ const UserAcademyCom = () => {
 
     const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
-    // --- Fetch Initial Data from DB ---
     useEffect(() => {
         const fetchAcademyData = async () => {
             try {
-                // 1. Fetch all active courses
                 const resCourses = await fetch(`${apiUrl}/api/courses`);
                 if (resCourses.ok) {
                     const data = await resCourses.json();
@@ -47,14 +43,12 @@ const UserAcademyCom = () => {
                     setCategories(['All', ...uniqueCategories]);
                 }
 
-                // 2. Fetch User's DB Enrollments
                 const resEnrollments = await fetch(`${apiUrl}/api/courses/user/enrollments?userId=${SIMULATED_USER_ID}`);
                 if (resEnrollments.ok) {
                     const enrolledIds = await resEnrollments.json();
                     setEnrolledCourses(new Set(enrolledIds));
                 }
 
-                // 3. Fetch User's DB Wishlist
                 const resWishlist = await fetch(`${apiUrl}/api/courses/user/wishlist?userId=${SIMULATED_USER_ID}`);
                 if (resWishlist.ok) {
                     const wishlistIds = await resWishlist.json();
@@ -71,11 +65,9 @@ const UserAcademyCom = () => {
         fetchAcademyData();
     }, [apiUrl]);
 
-    // --- Handlers with DB Persistence ---
     const toggleFavorite = async (e, courseId) => {
         e.stopPropagation();
 
-        // Optimistic UI Update
         const newFavs = new Set(favorites);
         const isCurrentlySaved = newFavs.has(courseId);
 
@@ -86,7 +78,6 @@ const UserAcademyCom = () => {
         }
         setFavorites(newFavs);
 
-        // API Call to Database
         try {
             const res = await fetch(`${apiUrl}/api/courses/${courseId}/wishlist`, {
                 method: 'POST',
@@ -103,7 +94,6 @@ const UserAcademyCom = () => {
             }
         } catch (error) {
             toast.error('Failed to update wishlist.');
-            // Revert optimistic update if API fails
             const revertFavs = new Set(favorites);
             setFavorites(revertFavs);
         }
@@ -149,7 +139,6 @@ const UserAcademyCom = () => {
         toast.success('Downloading course brochure PDF...');
     };
 
-    // --- Helpers ---
     const getMockRating = (id) => (4.0 + (id % 10) / 10).toFixed(1);
     const getMockReviews = (id) => 40 + (id * 47) % 1500;
     const parsePrice = (priceStr) => {
@@ -158,7 +147,6 @@ const UserAcademyCom = () => {
         return isNaN(parsed) ? 0 : parsed;
     };
 
-    // --- Filtering Logic ---
     const filteredCourses = courses.filter((course) => {
         if (activeTab === 'wishlist' && !favorites.has(course.id)) return false;
         if (activeTab === 'learning' && !enrolledCourses.has(course.id)) return false;
@@ -246,18 +234,24 @@ const UserAcademyCom = () => {
                 </div>
 
                 <div className="flex gap-2 overflow-x-auto pt-1 custom-scrollbar">
-                    {!isLoading && categories.map((filter) => (
-                        <button
-                            key={filter}
-                            onClick={() => setActiveCategory(filter)}
-                            className={`whitespace-nowrap rounded-lg px-4 py-1.5 text-xs font-bold transition-all ${activeCategory === filter
-                                ? 'bg-blue-50 text-[#2A45C2] border border-[#2A45C2]/20'
-                                : 'bg-white border border-[#EBEBEB] text-gray-500 hover:bg-gray-50'
-                                }`}
-                        >
-                            {filter}
-                        </button>
-                    ))}
+                    {!isLoading ? (
+                        categories.map((filter) => (
+                            <button
+                                key={filter}
+                                onClick={() => setActiveCategory(filter)}
+                                className={`whitespace-nowrap rounded-lg px-4 py-1.5 text-xs font-bold transition-all ${activeCategory === filter
+                                    ? 'bg-blue-50 text-[#2A45C2] border border-[#2A45C2]/20'
+                                    : 'bg-white border border-[#EBEBEB] text-gray-500 hover:bg-gray-50'
+                                    }`}
+                            >
+                                {filter}
+                            </button>
+                        ))
+                    ) : (
+                        Array(5).fill(0).map((_, idx) => (
+                            <Shimmer key={idx} className="w-20 h-8 rounded-lg shrink-0" />
+                        ))
+                    )}
                 </div>
             </div>
 
@@ -267,7 +261,7 @@ const UserAcademyCom = () => {
 
                     <div className="flex items-center gap-3">
                         <span className="text-[#2A45C2] font-bold text-xs hidden sm:block bg-blue-50 border border-[#EBEBEB] px-2.5 py-1 rounded-md">
-                            {filteredCourses.length} results
+                            {isLoading ? '...' : filteredCourses.length} results
                         </span>
                         <div className="flex bg-white border border-[#EBEBEB] p-1 rounded-lg">
                             <button onClick={() => setViewMode('grid')} className={`p-1.5 rounded-md transition-colors ${viewMode === 'grid' ? 'bg-blue-50 text-[#2A45C2]' : 'text-gray-400'}`}>
@@ -281,8 +275,12 @@ const UserAcademyCom = () => {
                 </div>
 
                 {isLoading ? (
-                    <div className="text-center py-10 bg-white border border-[#EBEBEB] rounded-xl">
-                        <p className="text-gray-500 font-medium">Loading database records...</p>
+                    <div className={viewMode === 'grid' ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5" : "flex flex-col gap-4"}>
+                        {Array(6).fill(0).map((_, idx) => (
+                            <div key={idx} className="bg-white border border-[#EBEBEB] rounded-xl h-72 shadow-[0_2px_16px_rgba(30,41,89,0.02)]">
+                                <Shimmer className="w-full h-full rounded-xl" />
+                            </div>
+                        ))}
                     </div>
                 ) : filteredCourses.length > 0 ? (
                     <div className={viewMode === 'grid' ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5" : "flex flex-col gap-4"}>

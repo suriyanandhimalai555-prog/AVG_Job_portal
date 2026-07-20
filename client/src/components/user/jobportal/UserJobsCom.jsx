@@ -5,6 +5,7 @@ import {
 import { toast, Toaster } from 'react-hot-toast';
 import Button from '../../ui/Button';
 import Badge from '../../ui/Badge';
+import Shimmer from '../../ui/Shimmer';
 
 const UserJobsCom = () => {
     const [searchTerm, setSearchTerm] = useState('');
@@ -192,18 +193,24 @@ const UserJobsCom = () => {
             </div>
 
             <div className="flex gap-2 pb-1 overflow-x-auto custom-scrollbar">
-                {!isLoading && filterOptions.map((filter) => (
-                    <button
-                        key={filter}
-                        onClick={() => setActiveFilter(filter)}
-                        className={`whitespace-nowrap rounded-xl px-5 py-2.5 text-sm font-bold transition-all shadow-sm ${activeFilter === filter
-                            ? 'bg-gradient-to-r from-[#2A45C2] to-[#5B4FE0] text-white border-0'
-                            : 'bg-white border border-[#E7E9F7] text-gray-600 hover:border-[#2A45C2]/30 hover:bg-[#F8F9FE]'
-                            }`}
-                    >
-                        {filter}
-                    </button>
-                ))}
+                {!isLoading ? (
+                    filterOptions.map((filter) => (
+                        <button
+                            key={filter}
+                            onClick={() => setActiveFilter(filter)}
+                            className={`whitespace-nowrap rounded-xl px-5 py-2.5 text-sm font-bold transition-all shadow-sm ${activeFilter === filter
+                                ? 'bg-gradient-to-r from-[#2A45C2] to-[#5B4FE0] text-white border-0'
+                                : 'bg-white border border-[#E7E9F7] text-gray-600 hover:border-[#2A45C2]/30 hover:bg-[#F8F9FE]'
+                                }`}
+                        >
+                            {filter}
+                        </button>
+                    ))
+                ) : (
+                    Array(4).fill(0).map((_, idx) => (
+                        <Shimmer key={idx} className="w-28 h-10 rounded-xl shrink-0" />
+                    ))
+                )}
             </div>
 
             <div>
@@ -212,7 +219,7 @@ const UserJobsCom = () => {
 
                     <div className="flex items-center gap-3">
                         <span className="text-[#2A45C2] font-bold text-xs hidden sm:block bg-[#EEF1FE] border border-[#2A45C2]/10 px-3 py-1.5 rounded-lg">
-                            {filteredJobs.length} open roles
+                            {isLoading ? '...' : filteredJobs.length} open roles
                         </span>
                         <div className="flex bg-white border border-[#E7E9F7] p-1 rounded-xl shadow-sm">
                             <button
@@ -232,12 +239,12 @@ const UserJobsCom = () => {
                 </div>
 
                 {isLoading ? (
-                    <div className="text-center py-16 bg-white border border-[#E7E9F7] rounded-2xl shadow-sm">
-                        <div className="animate-pulse flex flex-col items-center">
-                            <div className="h-10 w-10 bg-gray-200 rounded-full mb-4"></div>
-                            <div className="h-4 w-32 bg-gray-200 rounded mb-2"></div>
-                            <div className="h-3 w-24 bg-gray-200 rounded"></div>
-                        </div>
+                    <div className={viewMode === 'grid' ? "grid grid-cols-1 md:grid-cols-2 gap-4" : "flex flex-col gap-4"}>
+                        {Array(4).fill(0).map((_, idx) => (
+                            <div key={idx} className="bg-white border border-[#E7E9F7] rounded-2xl p-5 h-44 shadow-[0_2px_16px_rgba(30,41,89,0.02)]">
+                                <Shimmer className="w-full h-full rounded-xl" />
+                            </div>
+                        ))}
                     </div>
                 ) : filteredJobs.length > 0 ? (
                     <div className={viewMode === 'grid' ? "grid grid-cols-1 md:grid-cols-2 gap-4" : "flex flex-col gap-4"}>
@@ -320,7 +327,6 @@ const UserJobsCom = () => {
                 )}
             </div>
 
-            {/* Modals remain structurally similar but get rounded-2xl, better shadows, and padding updates */}
             {isDetailsModalOpen && selectedJob && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#141B3C]/40 backdrop-blur-md">
                     <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl overflow-hidden border border-white/20 flex flex-col max-h-[90vh]">
