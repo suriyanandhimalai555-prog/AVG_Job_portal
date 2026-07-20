@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { FaBars, FaSignOutAlt, FaChevronDown } from 'react-icons/fa';
+import { FaBars, FaSignOutAlt, FaChevronDown, FaUserShield } from 'react-icons/fa';
 
 const AdminNavbar = ({ toggleSidebar }) => {
     const location = useLocation();
@@ -11,12 +11,11 @@ const AdminNavbar = ({ toggleSidebar }) => {
     const getPageName = () => {
         const path = location.pathname;
         if (path === '/admin-dashboard') return 'Dashboard';
-        if (path.includes('/directory')) return 'Directory';
-        if (path.includes('/jobs')) return 'Jobs';
-        if (path.includes('/academy')) return 'Academy';
-        if (path.includes('/settings')) return 'Settings';
-        if (path.includes('/profile-list')) return 'Profile List';
-        return 'Dashboard';
+        if (path.includes('/directory')) return 'Business Directory';
+        if (path.includes('/jobs')) return 'Career Portal';
+        if (path.includes('/academy')) return 'Training Academy';
+        if (path.includes('/profile-list')) return 'User Directory';
+        return 'System Management';
     };
 
     useEffect(() => {
@@ -35,57 +34,31 @@ const AdminNavbar = ({ toggleSidebar }) => {
     };
 
     return (
-        <header className="bg-white border-b border-[#EBEBEB] sticky top-0 z-30 h-16 shadow-sm transition-all">
-            <div className="flex items-center justify-between h-full px-4 md:px-6">
-
-                <div className="flex items-center gap-3 flex-1">
-                    <button
-                        onClick={() => toggleSidebar(true)}
-                        className="md:hidden p-2 text-gray-600 hover:text-[#2A45C2] hover:bg-blue-50 rounded-lg transition-colors focus:outline-none"
-                    >
+        <header className="bg-white/80 backdrop-blur-md border-b border-[#E7E9F7] sticky top-0 z-30 h-[72px] shadow-[0_2px_16px_rgba(30,41,89,0.03)] transition-all">
+            <div className="flex items-center justify-between h-full px-4 md:px-8">
+                <div className="flex items-center gap-4 flex-1">
+                    <button onClick={() => toggleSidebar(true)} className="md:hidden p-2 text-gray-500 hover:text-[#0B0F19] hover:bg-gray-50 rounded-xl transition-colors">
                         <FaBars size={20} />
                     </button>
-
-                    <div className="hidden sm:flex items-center">
-                        <h1 className="text-lg font-bold text-gray-900 tracking-tight">
-                            {getPageName()}
-                        </h1>
-                    </div>
+                    <h1 className="text-xl font-black text-[#0B0F19] tracking-tight">{getPageName()}</h1>
                 </div>
 
-                <div className="flex items-center gap-4">
-
-                    <div className="hidden md:flex px-3 py-1.5 rounded-full bg-blue-50 items-center gap-2 border border-[#EBEBEB]">
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#2A45C2] animate-pulse"></span>
-                        <span className="text-[11px] font-bold text-[#2A45C2] tracking-wider uppercase">Admin</span>
+                <div className="flex items-center gap-6">
+                    <div className="hidden md:flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#EEF1FE] border border-[#2A45C2]/10 shadow-sm">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#4353FF] animate-pulse"></span>
+                        <span className="text-[10px] font-black text-[#2A45C2] tracking-widest uppercase">Super Admin</span>
                     </div>
 
                     <div className="relative" ref={dropdownRef}>
-                        <button
-                            onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                            className="flex items-center gap-3 p-1 pr-2 rounded-full hover:bg-gray-50 border border-transparent hover:border-[#EBEBEB] transition-all focus:outline-none"
-                        >
-                            <div className="w-9 h-9 rounded-full bg-[#2A45C2] text-white flex items-center justify-center font-bold shadow-sm text-sm tracking-wider">
-                                SA
-                            </div>
-                            <div className="hidden md:flex flex-col items-start">
-                                <span className="text-sm font-bold text-gray-800 leading-none">Super Admin</span>
-                                <span className="text-[10px] text-gray-500 font-medium mt-1">Master Account</span>
-                            </div>
-                            <FaChevronDown className="hidden md:block text-gray-400 text-xs ml-1" />
+                        <button onClick={() => setIsDropdownOpen(!isDropdownOpen)} className="flex items-center gap-3 p-1.5 pr-3 rounded-full hover:bg-[#F8F9FE] transition-all focus:outline-none">
+                            <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-[#141B3C] to-[#2A45C2] text-white flex items-center justify-center font-black shadow-md text-sm uppercase tracking-wider">SA</div>
+                            <FaChevronDown className="text-gray-400 text-[10px]" />
                         </button>
 
                         {isDropdownOpen && (
-                            <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-lg border border-[#EBEBEB] py-2 z-50 animate-fade-in-up">
-                                <div className="px-4 py-3 border-b border-[#EBEBEB] mb-1 md:hidden">
-                                    <p className="text-sm font-bold text-gray-800">Super Admin</p>
-                                    <p className="text-xs text-gray-500 mt-0.5">Master Account</p>
-                                </div>
-                                <button
-                                    onClick={handleLogout}
-                                    className="flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors w-full text-left"
-                                >
-                                    <FaSignOutAlt className="text-red-500" /> Logout
+                            <div className="absolute right-0 mt-3 w-56 bg-white rounded-2xl shadow-[0_8px_30px_rgba(0,0,0,0.08)] border border-[#E7E9F7] py-2 z-50">
+                                <button onClick={handleLogout} className="flex items-center gap-3 px-5 py-3 text-sm font-black text-red-500 hover:bg-red-50 w-full transition-all">
+                                    <FaSignOutAlt /> Sign Out
                                 </button>
                             </div>
                         )}

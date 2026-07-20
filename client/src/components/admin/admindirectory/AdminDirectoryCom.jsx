@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FaPlus, FaEdit, FaTrash, FaSearch, FaTimes, FaStar, FaCheckCircle, FaEye, FaMousePointer, FaMapMarkerAlt, FaGlobe, FaEnvelope, FaPhone } from 'react-icons/fa';
+import { FaPlus, FaEdit, FaTrash, FaSearch, FaTimes, FaStar, FaCheckCircle, FaEye, FaMousePointer, FaMapMarkerAlt, FaGlobe, FaEnvelope, FaPhone, FaBuilding } from 'react-icons/fa';
 import { toast, Toaster } from 'react-hot-toast';
 import Button from '../../ui/Button';
 import Badge from '../../ui/Badge';
@@ -118,7 +118,7 @@ const AdminDirectoryCom = () => {
     };
 
     const handleDelete = async (id) => {
-        if (window.confirm('Are you sure you want to delete this business?')) {
+        if (window.confirm('Are you sure you want to permanently delete this business?')) {
             const loadingToast = toast.loading('Deleting business...');
             try {
                 const res = await fetch(`${apiUrl}/api/businesses/${id}`, {
@@ -139,116 +139,139 @@ const AdminDirectoryCom = () => {
 
     const filteredBusinesses = businesses.filter((biz) =>
         biz.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        biz.category.toLowerCase().includes(searchTerm.toLowerCase())
+        biz.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (biz.location && biz.location.toLowerCase().includes(searchTerm.toLowerCase()))
     );
 
     return (
-        <div className="max-w-7xl mx-auto space-y-4 p-4 rounded-2xl shadow-sm bg-[#EEF2FF]">
+        <div className="max-w-7xl mx-auto space-y-6 p-4 sm:p-6 lg:p-8 rounded-[32px] bg-[#F5F6FC] min-h-screen">
             <Toaster position="top-right" reverseOrder={false} />
 
-            <div className="flex flex-col sm:flex-row justify-between items-center gap-3">
-                <div className="relative w-full sm:max-w-sm">
-                    <FaSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-[#2A45C2]" size={14} />
+            {/* Dashboard Header */}
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 mb-2">
+                <div>
+                    <h2 className="text-3xl sm:text-4xl font-black text-[#0B0F19] tracking-tight">Business Directory</h2>
+                    <p className="text-gray-500 mt-1.5 text-sm font-medium">Manage and monitor ecosystem business profiles</p>
+                </div>
+            </div>
+
+            {/* Control Bar */}
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+                <div className="relative w-full sm:max-w-md">
+                    <FaSearch className="absolute left-5 top-1/2 transform -translate-y-1/2 text-[#4353FF]" size={16} />
                     <input
                         type="text"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        placeholder="Search businesses or categories..."
-                        className="w-full pl-10 pr-4 py-2.5 bg-white border border-[#EBEBEB] rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-[#2A45C2]/20 focus:border-[#2A45C2] text-sm text-gray-700"
+                        placeholder="Search by name, category, or location..."
+                        className="w-full pl-12 pr-4 py-3.5 bg-white border-0 rounded-2xl shadow-[0_4px_20px_rgba(0,0,0,0.03)] focus:outline-none focus:ring-2 focus:ring-[#4353FF]/20 text-sm font-medium text-gray-700 transition-shadow"
                     />
                 </div>
                 <Button
                     onClick={handleOpenAdd}
-                    className="flex items-center justify-center gap-2 rounded-lg bg-[#2A45C2] text-white px-5 py-2.5 border-0 hover:opacity-90 w-full sm:w-auto text-sm font-bold shadow-sm"
+                    className="flex items-center justify-center gap-2.5 rounded-2xl bg-[#0B0F19] text-white px-6 py-3.5 border-0 hover:bg-gray-800 hover:-translate-y-0.5 transition-all w-full sm:w-auto text-sm font-bold shadow-lg"
                 >
-                    <FaPlus size={12} /> Add New Business
+                    <FaPlus size={14} /> Add New Business
                 </Button>
             </div>
 
-            <div className="bg-white border border-[#EBEBEB] rounded-xl shadow-sm overflow-hidden p-2 md:p-4">
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left text-sm text-gray-600">
-                        <thead className="text-[10px] font-bold text-gray-400 uppercase tracking-wider border-b border-[#EBEBEB]">
+            {/* Data Table Container */}
+            <div className="bg-white rounded-3xl border border-gray-100 shadow-[0_4px_20px_rgba(0,0,0,0.03)] overflow-hidden">
+                <div className="overflow-x-auto custom-scrollbar">
+                    <table className="w-full text-left text-sm text-gray-600 min-w-[800px]">
+                        <thead className="bg-[#F8F9FA] border-b border-gray-100">
                             <tr>
-                                <th className="px-4 py-3">Business Identity</th>
-                                <th className="px-4 py-3">Contact & Links</th>
-                                <th className="px-4 py-3">Analytics</th>
-                                <th className="px-4 py-3">Status</th>
-                                <th className="px-4 py-3 text-right">Actions</th>
+                                <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest rounded-tl-3xl">Business Identity</th>
+                                <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Contact & Links</th>
+                                <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Analytics</th>
+                                <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Status</th>
+                                <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right rounded-tr-3xl">Actions</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-[#EBEBEB]">
+                        <tbody className="divide-y divide-gray-50">
                             {isLoading ? (
                                 <tr>
-                                    <td colSpan="5" className="px-4 py-10 text-center text-gray-500 font-medium">
-                                        Loading businesses...
+                                    <td colSpan="5" className="px-6 py-16 text-center text-gray-400 font-bold animate-pulse">
+                                        Loading directory data...
                                     </td>
                                 </tr>
                             ) : filteredBusinesses.length > 0 ? (
                                 filteredBusinesses.map((biz) => (
-                                    <tr key={biz.id} className="hover:bg-blue-50 transition-colors">
-
-                                        <td className="px-4 py-3">
-                                            <div className="flex items-center gap-3">
+                                    <tr key={biz.id} className="hover:bg-[#F8F9FE] transition-colors group">
+                                        <td className="px-6 py-4">
+                                            <div className="flex items-center gap-4">
                                                 {biz.logo_url ? (
-                                                    <img src={biz.logo_url} alt="logo" className="w-10 h-10 rounded-lg object-cover border border-[#EBEBEB]" />
+                                                    <img src={biz.logo_url} alt="logo" className="w-14 h-14 rounded-2xl object-cover border border-gray-100 shadow-sm shrink-0" />
                                                 ) : (
-                                                    <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center text-gray-400 font-bold border border-[#EBEBEB]">
+                                                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#4353FF] to-[#8B5CF6] flex items-center justify-center text-white font-black text-xl shadow-sm shrink-0">
                                                         {biz.name.charAt(0)}
                                                     </div>
                                                 )}
-                                                <div>
-                                                    <p className="font-bold text-gray-900 flex items-center gap-1.5">
+                                                <div className="flex flex-col min-w-[200px]">
+                                                    <p className="font-black text-[#0B0F19] text-base flex items-center gap-2 group-hover:text-[#4353FF] transition-colors">
                                                         {biz.name}
-                                                        {biz.is_verified && <FaCheckCircle className="text-blue-500" title="Verified Business" size={12} />}
-                                                        {biz.is_featured && <FaStar className="text-yellow-400" title="Featured Business" size={12} />}
+                                                        {biz.is_verified && <FaCheckCircle className="text-[#4353FF]" title="Verified Business" size={14} />}
+                                                        {biz.is_featured && <FaStar className="text-yellow-400" title="Featured Business" size={14} />}
                                                     </p>
-                                                    <p className="text-xs text-[#2A45C2] font-medium">{biz.category}</p>
-                                                    <p className="text-[10px] text-gray-500 flex items-center gap-1 mt-0.5"><FaMapMarkerAlt size={9} /> {biz.location}</p>
+                                                    <p className="text-xs font-bold text-gray-500 mt-1 uppercase tracking-wider">{biz.category}</p>
+                                                    <p className="text-[11px] font-medium text-gray-400 flex items-center gap-1 mt-1.5">
+                                                        <FaMapMarkerAlt size={10} className="text-gray-300" /> {biz.location || 'Location Pending'}
+                                                    </p>
                                                 </div>
                                             </div>
                                         </td>
 
-                                        <td className="px-4 py-3 text-xs space-y-1 text-gray-500">
-                                            {biz.contact_person && <div className="font-medium text-gray-700">{biz.contact_person}</div>}
-                                            {biz.phone && <div className="flex items-center gap-1.5"><FaPhone size={10} /> {biz.phone}</div>}
-                                            {biz.website && <div className="flex items-center gap-1.5 text-blue-600 hover:underline cursor-pointer"><FaGlobe size={10} /> Website</div>}
-                                            {biz.email && <div className="flex items-center gap-1.5"><FaEnvelope size={10} /> {biz.email}</div>}
+                                        <td className="px-6 py-4 text-xs space-y-1.5 text-gray-500 min-w-[200px]">
+                                            {biz.contact_person && <div className="font-bold text-[#0B0F19]">{biz.contact_person}</div>}
+                                            {biz.phone && <div className="flex items-center gap-2 font-medium"><FaPhone size={10} className="text-gray-400" /> {biz.phone}</div>}
+                                            {biz.email && <div className="flex items-center gap-2 font-medium"><FaEnvelope size={10} className="text-gray-400" /> {biz.email}</div>}
+                                            {biz.website && <a href={biz.website} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-[#4353FF] font-bold hover:underline w-max"><FaGlobe size={10} /> View Website</a>}
                                         </td>
 
-                                        <td className="px-4 py-3">
-                                            <div className="flex items-center gap-3 text-xs font-medium text-gray-600">
-                                                <div className="flex flex-col items-center p-1.5 bg-gray-50 rounded-lg border border-[#EBEBEB] min-w-[50px]">
-                                                    <FaEye className="text-blue-500 mb-0.5" size={12} />
-                                                    <span className="text-[10px] text-gray-900 font-bold">{biz.views}</span>
+                                        <td className="px-6 py-4">
+                                            <div className="flex items-center justify-center gap-3 text-xs font-medium text-gray-600">
+                                                <div className="flex flex-col items-center p-2 bg-white rounded-xl border border-gray-100 shadow-sm min-w-[60px]">
+                                                    <FaEye className="text-[#4353FF] mb-1" size={14} />
+                                                    <span className="text-[11px] text-[#0B0F19] font-black">{biz.views}</span>
                                                 </div>
-                                                <div className="flex flex-col items-center p-1.5 bg-gray-50 rounded-lg border border-[#EBEBEB] min-w-[50px]">
-                                                    <FaMousePointer className="text-green-500 mb-0.5" size={10} />
-                                                    <span className="text-[10px] text-gray-900 font-bold">{biz.clicks}</span>
+                                                <div className="flex flex-col items-center p-2 bg-white rounded-xl border border-gray-100 shadow-sm min-w-[60px]">
+                                                    <FaMousePointer className="text-emerald-500 mb-1" size={12} />
+                                                    <span className="text-[11px] text-[#0B0F19] font-black">{biz.clicks}</span>
                                                 </div>
                                             </div>
                                         </td>
 
-                                        <td className="px-4 py-3">
-                                            <Badge variant={biz.status === 'Active' ? 'success' : biz.status === 'Pending' ? 'default' : 'default'} className={`rounded border text-[10px] ${biz.status === 'Pending' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' : 'bg-white border-[#EBEBEB]'}`}>
+                                        <td className="px-6 py-4">
+                                            <Badge variant="outline" className={`rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-widest border-2 ${biz.status === 'Active' ? 'border-emerald-100 bg-emerald-50 text-emerald-600' :
+                                                    biz.status === 'Pending' ? 'border-yellow-100 bg-yellow-50 text-yellow-600' :
+                                                        'border-gray-200 bg-gray-50 text-gray-500'
+                                                }`}>
                                                 {biz.status}
                                             </Badge>
                                         </td>
 
-                                        <td className="px-4 py-3 flex justify-end gap-3 mt-1.5">
-                                            <button onClick={() => handleOpenEdit(biz)} className="text-[#2A45C2] hover:bg-blue-50 p-1.5 rounded" title="Edit">
-                                                <FaEdit size={14} />
-                                            </button>
-                                            <button onClick={() => handleDelete(biz.id)} className="text-red-500 hover:bg-red-50 p-1.5 rounded" title="Delete">
-                                                <FaTrash size={14} />
-                                            </button>
+                                        <td className="px-6 py-4 text-right">
+                                            <div className="flex justify-end gap-2">
+                                                <button onClick={() => handleOpenEdit(biz)} className="w-9 h-9 bg-white border border-gray-100 text-[#0B0F19] rounded-xl flex items-center justify-center hover:bg-[#4353FF] hover:text-white hover:border-[#4353FF] transition-all shadow-sm" title="Edit">
+                                                    <FaEdit size={14} />
+                                                </button>
+                                                <button onClick={() => handleDelete(biz.id)} className="w-9 h-9 bg-white border border-gray-100 text-red-500 rounded-xl flex items-center justify-center hover:bg-red-500 hover:text-white hover:border-red-500 transition-all shadow-sm" title="Delete">
+                                                    <FaTrash size={14} />
+                                                </button>
+                                            </div>
                                         </td>
                                     </tr>
                                 ))
                             ) : (
                                 <tr>
-                                    <td colSpan="5" className="px-4 py-10 text-center text-gray-500 font-medium">
-                                        No businesses found matching your search.
+                                    <td colSpan="5" className="px-6 py-16 text-center">
+                                        <div className="flex flex-col items-center justify-center">
+                                            <div className="w-16 h-16 bg-[#F8F9FE] rounded-2xl flex items-center justify-center text-[#4353FF] mb-4">
+                                                <FaBuilding size={24} />
+                                            </div>
+                                            <p className="text-base font-black text-[#0B0F19]">No businesses found</p>
+                                            <p className="text-sm font-medium text-gray-500 mt-1">Adjust your search or add a new directory listing.</p>
+                                        </div>
                                     </td>
                                 </tr>
                             )}
@@ -257,104 +280,154 @@ const AdminDirectoryCom = () => {
                 </div>
             </div>
 
+            {/* Slide-out Drawer */}
             {isPanelOpen && (
                 <div
-                    className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-40 transition-opacity"
+                    className="fixed inset-0 bg-[#0B101E]/60 backdrop-blur-sm z-40 transition-opacity"
                     onClick={handleClosePanel}
                 ></div>
             )}
 
             <div
-                className={`fixed inset-y-0 right-0 z-50 w-full max-w-xl bg-white shadow-2xl transform transition-transform duration-300 ease-in-out flex flex-col border-l border-[#EBEBEB] ${isPanelOpen ? 'translate-x-0' : 'translate-x-full'}`}
+                className={`fixed inset-y-0 right-0 z-50 w-full max-w-xl bg-white shadow-2xl transform transition-transform duration-300 ease-in-out flex flex-col rounded-l-[32px] overflow-hidden ${isPanelOpen ? 'translate-x-0' : 'translate-x-full'}`}
             >
-                <div className="flex items-center justify-between px-6 py-4 border-b border-[#EBEBEB] bg-gray-50 shrink-0">
-                    <h3 className="text-lg font-extrabold text-gray-900">
-                        {editingId ? 'Edit Business Details' : 'Add New Business'}
-                    </h3>
-                    <button onClick={handleClosePanel} className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-[#EBEBEB]">
+                {/* Drawer Header */}
+                <div className="flex items-center justify-between px-8 py-6 border-b border-gray-100 bg-white shrink-0 z-10">
+                    <div>
+                        <h3 className="text-2xl font-black text-[#0B0F19] tracking-tight">
+                            {editingId ? 'Edit Business Details' : 'Add New Business'}
+                        </h3>
+                        <p className="text-xs text-gray-500 mt-1 font-medium uppercase tracking-widest">Update Ecosystem Directory</p>
+                    </div>
+                    <button onClick={handleClosePanel} className="w-10 h-10 bg-[#F8F9FA] hover:bg-gray-100 text-[#0B0F19] rounded-full flex items-center justify-center transition-all shadow-sm">
                         <FaTimes size={16} />
                     </button>
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-6 custom-scrollbar bg-white">
-                    <form id="businessForm" onSubmit={handleSubmit} className="space-y-5">
+                {/* Drawer Content */}
+                <div className="flex-1 overflow-y-auto p-8 custom-scrollbar bg-white relative">
+                    <form id="businessForm" onSubmit={handleSubmit} className="space-y-6">
 
                         {/* Highlights Toggle Group */}
-                        <div className="flex gap-4 p-3 bg-blue-50/50 rounded-xl border border-blue-100">
-                            <label className="flex items-center gap-2 cursor-pointer">
-                                <input type="checkbox" name="is_featured" checked={formData.is_featured} onChange={handleChange} className="w-4 h-4 text-[#2A45C2] rounded focus:ring-[#2A45C2]" />
-                                <span className="text-sm font-bold text-gray-700 flex items-center gap-1.5"><FaStar className="text-yellow-500" /> Featured Business</span>
+                        <div className="flex gap-6 p-5 bg-[#F8F9FE] rounded-2xl border border-blue-50/50">
+                            <label className="flex items-center gap-3 cursor-pointer group">
+                                <div className="relative flex items-center justify-center">
+                                    <input type="checkbox" name="is_featured" checked={formData.is_featured} onChange={handleChange} className="peer sr-only" />
+                                    <div className="w-5 h-5 bg-white border-2 border-gray-200 rounded-md peer-checked:bg-[#4353FF] peer-checked:border-[#4353FF] transition-colors"></div>
+                                    <svg className="absolute w-3 h-3 text-white hidden peer-checked:block pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"></path></svg>
+                                </div>
+                                <span className="text-sm font-bold text-[#0B0F19] flex items-center gap-2 group-hover:text-[#4353FF] transition-colors"><FaStar className="text-yellow-400" /> Featured</span>
                             </label>
-                            <label className="flex items-center gap-2 cursor-pointer ml-4">
-                                <input type="checkbox" name="is_verified" checked={formData.is_verified} onChange={handleChange} className="w-4 h-4 text-[#2A45C2] rounded focus:ring-[#2A45C2]" />
-                                <span className="text-sm font-bold text-gray-700 flex items-center gap-1.5"><FaCheckCircle className="text-blue-500" /> Verified Badge</span>
+
+                            <label className="flex items-center gap-3 cursor-pointer group">
+                                <div className="relative flex items-center justify-center">
+                                    <input type="checkbox" name="is_verified" checked={formData.is_verified} onChange={handleChange} className="peer sr-only" />
+                                    <div className="w-5 h-5 bg-white border-2 border-gray-200 rounded-md peer-checked:bg-[#4353FF] peer-checked:border-[#4353FF] transition-colors"></div>
+                                    <svg className="absolute w-3 h-3 text-white hidden peer-checked:block pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"></path></svg>
+                                </div>
+                                <span className="text-sm font-bold text-[#0B0F19] flex items-center gap-2 group-hover:text-[#4353FF] transition-colors"><FaCheckCircle className="text-[#4353FF]" /> Verified</span>
                             </label>
                         </div>
 
                         {/* Basic Info */}
-                        <div className="grid grid-cols-2 gap-4">
-                            <Input label="Business Name *" name="name" type="text" placeholder="e.g. ABC IT Solutions" value={formData.name} onChange={handleChange} className="bg-white border-[#EBEBEB] text-sm py-2" required />
-                            <Input label="Category *" name="category" type="text" placeholder="e.g. IT Services" value={formData.category} onChange={handleChange} className="bg-white border-[#EBEBEB] text-sm py-2" required />
+                        <div className="grid grid-cols-2 gap-5">
+                            <div className="flex flex-col w-full relative">
+                                <label className="mb-2 text-[10px] font-black text-gray-400 uppercase tracking-widest">Business Name *</label>
+                                <input name="name" type="text" placeholder="e.g. ABC IT Solutions" value={formData.name} onChange={handleChange} className="w-full px-4 py-3 bg-[#F8F9FA] border-2 border-transparent rounded-xl focus:bg-white focus:outline-none focus:border-[#4353FF] transition-all text-sm font-bold text-[#0B0F19]" required />
+                            </div>
+                            <div className="flex flex-col w-full relative">
+                                <label className="mb-2 text-[10px] font-black text-gray-400 uppercase tracking-widest">Category *</label>
+                                <input name="category" type="text" placeholder="e.g. IT Services" value={formData.category} onChange={handleChange} className="w-full px-4 py-3 bg-[#F8F9FA] border-2 border-transparent rounded-xl focus:bg-white focus:outline-none focus:border-[#4353FF] transition-all text-sm font-bold text-[#0B0F19]" required />
+                            </div>
                         </div>
 
                         <div className="flex flex-col w-full relative">
-                            <label className="mb-1.5 text-xs font-bold text-gray-700">Logo Image URL</label>
-                            <input name="logo_url" type="url" placeholder="https://example.com/logo.png" value={formData.logo_url} onChange={handleChange} className="w-full px-3 py-2 bg-white border border-[#EBEBEB] rounded-lg shadow-sm focus:outline-none focus:border-[#2A45C2] focus:ring-2 focus:ring-[#2A45C2]/20 transition-all text-gray-700 text-sm" />
+                            <label className="mb-2 text-[10px] font-black text-gray-400 uppercase tracking-widest">Logo Image URL</label>
+                            <input name="logo_url" type="url" placeholder="https://example.com/logo.png" value={formData.logo_url} onChange={handleChange} className="w-full px-4 py-3 bg-[#F8F9FA] border-2 border-transparent rounded-xl focus:bg-white focus:outline-none focus:border-[#4353FF] transition-all text-sm font-bold text-[#0B0F19]" />
                         </div>
 
                         <div className="flex flex-col w-full relative">
-                            <label className="mb-1.5 text-xs font-bold text-gray-700">Business Description</label>
-                            <textarea name="description" rows="3" placeholder="Describe the business services..." value={formData.description} onChange={handleChange} className="w-full px-3 py-2 bg-white border border-[#EBEBEB] rounded-lg shadow-sm focus:outline-none focus:border-[#2A45C2] focus:ring-2 focus:ring-[#2A45C2]/20 transition-all text-gray-700 text-sm resize-y"></textarea>
+                            <label className="mb-2 text-[10px] font-black text-gray-400 uppercase tracking-widest">Business Description</label>
+                            <textarea name="description" rows="4" placeholder="Describe the business services..." value={formData.description} onChange={handleChange} className="w-full px-4 py-3 bg-[#F8F9FA] border-2 border-transparent rounded-xl focus:bg-white focus:outline-none focus:border-[#4353FF] transition-all text-sm font-bold text-[#0B0F19] resize-y"></textarea>
                         </div>
 
                         {/* Contact & Location Info */}
-                        <h4 className="text-xs font-extrabold text-gray-900 border-b border-[#EBEBEB] pb-2 uppercase tracking-wider">Contact & Location</h4>
-
-                        <div className="grid grid-cols-2 gap-4">
-                            <Input label="Contact Person" name="contact_person" type="text" placeholder="e.g. Jane Doe" value={formData.contact_person} onChange={handleChange} className="bg-white border-[#EBEBEB] text-sm py-2" />
-                            <Input label="Phone Number" name="phone" type="text" placeholder="e.g. +1 234 567 8900" value={formData.phone} onChange={handleChange} className="bg-white border-[#EBEBEB] text-sm py-2" />
+                        <div className="pt-4 mt-2 border-t border-gray-100">
+                            <h4 className="text-sm font-black text-[#0B0F19] mb-5">Contact & Location Information</h4>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-4">
-                            <Input label="Email Address" name="email" type="email" placeholder="e.g. contact@business.com" value={formData.email} onChange={handleChange} className="bg-white border-[#EBEBEB] text-sm py-2" />
-                            <Input label="Website URL" name="website" type="url" placeholder="https://www.business.com" value={formData.website} onChange={handleChange} className="bg-white border-[#EBEBEB] text-sm py-2" />
+                        <div className="grid grid-cols-2 gap-5">
+                            <div className="flex flex-col w-full relative">
+                                <label className="mb-2 text-[10px] font-black text-gray-400 uppercase tracking-widest">Contact Person</label>
+                                <input name="contact_person" type="text" placeholder="e.g. Jane Doe" value={formData.contact_person} onChange={handleChange} className="w-full px-4 py-3 bg-[#F8F9FA] border-2 border-transparent rounded-xl focus:bg-white focus:outline-none focus:border-[#4353FF] transition-all text-sm font-bold text-[#0B0F19]" />
+                            </div>
+                            <div className="flex flex-col w-full relative">
+                                <label className="mb-2 text-[10px] font-black text-gray-400 uppercase tracking-widest">Phone Number</label>
+                                <input name="phone" type="text" placeholder="e.g. +1 234 567 8900" value={formData.phone} onChange={handleChange} className="w-full px-4 py-3 bg-[#F8F9FA] border-2 border-transparent rounded-xl focus:bg-white focus:outline-none focus:border-[#4353FF] transition-all text-sm font-bold text-[#0B0F19]" />
+                            </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-4">
-                            <Input label="Location Address *" name="location" type="text" placeholder="e.g. Dubai, UAE" value={formData.location} onChange={handleChange} className="bg-white border-[#EBEBEB] text-sm py-2" required />
-                            <Input label="Google Maps Link" name="google_maps_url" type="url" placeholder="https://maps.google.com/..." value={formData.google_maps_url} onChange={handleChange} className="bg-white border-[#EBEBEB] text-sm py-2" />
+                        <div className="grid grid-cols-2 gap-5">
+                            <div className="flex flex-col w-full relative">
+                                <label className="mb-2 text-[10px] font-black text-gray-400 uppercase tracking-widest">Email Address</label>
+                                <input name="email" type="email" placeholder="e.g. contact@business.com" value={formData.email} onChange={handleChange} className="w-full px-4 py-3 bg-[#F8F9FA] border-2 border-transparent rounded-xl focus:bg-white focus:outline-none focus:border-[#4353FF] transition-all text-sm font-bold text-[#0B0F19]" />
+                            </div>
+                            <div className="flex flex-col w-full relative">
+                                <label className="mb-2 text-[10px] font-black text-gray-400 uppercase tracking-widest">Website URL</label>
+                                <input name="website" type="url" placeholder="https://www.business.com" value={formData.website} onChange={handleChange} className="w-full px-4 py-3 bg-[#F8F9FA] border-2 border-transparent rounded-xl focus:bg-white focus:outline-none focus:border-[#4353FF] transition-all text-sm font-bold text-[#0B0F19]" />
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-5">
+                            <div className="flex flex-col w-full relative">
+                                <label className="mb-2 text-[10px] font-black text-gray-400 uppercase tracking-widest">Location Address *</label>
+                                <input name="location" type="text" placeholder="e.g. Dubai, UAE" value={formData.location} onChange={handleChange} className="w-full px-4 py-3 bg-[#F8F9FA] border-2 border-transparent rounded-xl focus:bg-white focus:outline-none focus:border-[#4353FF] transition-all text-sm font-bold text-[#0B0F19]" required />
+                            </div>
+                            <div className="flex flex-col w-full relative">
+                                <label className="mb-2 text-[10px] font-black text-gray-400 uppercase tracking-widest">Google Maps Link</label>
+                                <input name="google_maps_url" type="url" placeholder="https://maps.google.com/..." value={formData.google_maps_url} onChange={handleChange} className="w-full px-4 py-3 bg-[#F8F9FA] border-2 border-transparent rounded-xl focus:bg-white focus:outline-none focus:border-[#4353FF] transition-all text-sm font-bold text-[#0B0F19]" />
+                            </div>
                         </div>
 
                         <div className="flex flex-col w-full relative">
-                            <label className="mb-1.5 text-xs font-bold text-gray-700">Social Media Links (Comma separated)</label>
-                            <input name="social_links" type="text" placeholder="LinkedIn, Twitter, Facebook" value={formData.social_links} onChange={handleChange} className="w-full px-3 py-2 bg-white border border-[#EBEBEB] rounded-lg shadow-sm focus:outline-none focus:border-[#2A45C2] focus:ring-2 focus:ring-[#2A45C2]/20 transition-all text-gray-700 text-sm" />
+                            <label className="mb-2 text-[10px] font-black text-gray-400 uppercase tracking-widest">Social Media Links (Comma separated)</label>
+                            <input name="social_links" type="text" placeholder="LinkedIn, Twitter, Facebook" value={formData.social_links} onChange={handleChange} className="w-full px-4 py-3 bg-[#F8F9FA] border-2 border-transparent rounded-xl focus:bg-white focus:outline-none focus:border-[#4353FF] transition-all text-sm font-bold text-[#0B0F19]" />
                         </div>
 
                         {/* Admin Config */}
-                        <h4 className="text-xs font-extrabold text-gray-900 border-b border-[#EBEBEB] pb-2 uppercase tracking-wider">Admin Configurations</h4>
+                        <div className="pt-4 mt-2 border-t border-gray-100">
+                            <h4 className="text-sm font-black text-[#0B0F19] mb-5">Admin Configurations</h4>
+                        </div>
 
-                        <div className="grid grid-cols-3 gap-4 items-end">
+                        <div className="grid grid-cols-3 gap-5 items-start">
                             <div className="flex flex-col w-full relative">
-                                <label className="mb-1.5 text-xs font-bold text-gray-700">Status *</label>
-                                <select name="status" value={formData.status} onChange={handleChange} className="w-full px-3 py-2 bg-white border border-[#EBEBEB] rounded-lg shadow-sm focus:outline-none focus:border-[#2A45C2] focus:ring-2 focus:ring-[#2A45C2]/20 transition-all text-gray-700 text-sm" required>
+                                <label className="mb-2 text-[10px] font-black text-gray-400 uppercase tracking-widest">Status *</label>
+                                <select name="status" value={formData.status} onChange={handleChange} className="w-full px-4 py-3 bg-[#F8F9FA] border-2 border-transparent rounded-xl focus:bg-white focus:outline-none focus:border-[#4353FF] transition-all text-sm font-bold text-[#0B0F19] appearance-none" required>
                                     <option value="Active">Active</option>
                                     <option value="Pending">Pending</option>
                                     <option value="Draft">Draft</option>
                                 </select>
                             </div>
-                            <Input label="Manual Views" name="views" type="number" min="0" value={formData.views} onChange={handleChange} className="bg-white border-[#EBEBEB] text-sm py-2" />
-                            <Input label="Manual Clicks" name="clicks" type="number" min="0" value={formData.clicks} onChange={handleChange} className="bg-white border-[#EBEBEB] text-sm py-2" />
+                            <div className="flex flex-col w-full relative">
+                                <label className="mb-2 text-[10px] font-black text-gray-400 uppercase tracking-widest">Manual Views</label>
+                                <input name="views" type="number" min="0" value={formData.views} onChange={handleChange} className="w-full px-4 py-3 bg-[#F8F9FA] border-2 border-transparent rounded-xl focus:bg-white focus:outline-none focus:border-[#4353FF] transition-all text-sm font-bold text-[#0B0F19]" />
+                            </div>
+                            <div className="flex flex-col w-full relative">
+                                <label className="mb-2 text-[10px] font-black text-gray-400 uppercase tracking-widest">Manual Clicks</label>
+                                <input name="clicks" type="number" min="0" value={formData.clicks} onChange={handleChange} className="w-full px-4 py-3 bg-[#F8F9FA] border-2 border-transparent rounded-xl focus:bg-white focus:outline-none focus:border-[#4353FF] transition-all text-sm font-bold text-[#0B0F19]" />
+                            </div>
                         </div>
 
                     </form>
                 </div>
 
-                <div className="p-5 border-t border-[#EBEBEB] bg-gray-50 flex items-center justify-end gap-3 shrink-0">
-                    <Button variant="outline" onClick={handleClosePanel} type="button" className="rounded-lg px-5 py-2.5 bg-white border-[#EBEBEB] text-gray-700 hover:bg-gray-100 text-sm font-bold">
+                {/* Drawer Footer */}
+                <div className="px-8 py-5 border-t border-gray-100 bg-white flex items-center justify-end gap-4 shrink-0 z-10">
+                    <Button variant="outline" onClick={handleClosePanel} type="button" className="rounded-xl px-6 py-3.5 bg-white border-2 border-gray-200 text-[#0B0F19] hover:bg-gray-50 text-sm font-black transition-all">
                         Cancel
                     </Button>
-                    <Button type="submit" form="businessForm" className="rounded-lg px-5 py-2.5 bg-[#2A45C2] text-white border-0 hover:opacity-90 text-sm font-bold shadow-sm">
-                        {editingId ? 'Save Details' : 'Add Business'}
+                    <Button type="submit" form="businessForm" className="rounded-xl px-6 py-3.5 bg-[#0B0F19] text-white border-0 hover:bg-gray-800 text-sm font-black shadow-lg transition-all">
+                        {editingId ? 'Save Details' : 'Publish Business'}
                     </Button>
                 </div>
             </div>

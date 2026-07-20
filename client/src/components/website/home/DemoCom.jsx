@@ -33,7 +33,7 @@ const DemoCom = () => {
                     </Link>
                     
                     <Link 
-                        to="/login" 
+                        to="/admin-login" 
                         className="flex-1 flex items-center justify-center px-6 py-4 rounded-xl bg-[#F4F8FF] text-[#2B6CF0] font-bold text-base transition-all hover:bg-blue-50 border border-blue-50"
                     >
                         Admin Login
