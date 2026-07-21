@@ -1,27 +1,16 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Outlet } from 'react-router-dom';
 import Navbar from '../components/user/Navbar';
-import Sidebar from '../components/user/Sidebar';
 
 const UserLayout = () => {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-
-  const toggleSidebar = (state) => {
-    setIsSidebarOpen(state);
-  };
-
   return (
-    <div className="flex h-screen bg-gray-50 overflow-hidden">
-      <Sidebar isOpen={isSidebarOpen} toggleSidebar={toggleSidebar} />
-      
-      <div className="flex flex-col flex-1 w-full min-w-0">
-        <Navbar toggleSidebar={toggleSidebar} />
-        
-        {/* Main content area where nested routes will render */}
-        <main className="flex-1 overflow-y-auto p-4">
+    <div className="flex flex-col h-screen bg-[#F8F9FA] overflow-hidden">
+      <Navbar />
+      <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+        <div className="max-w-[1600px] mx-auto w-full">
           <Outlet />
-        </main>
-      </div>
+        </div>
+      </main>
     </div>
   );
 };

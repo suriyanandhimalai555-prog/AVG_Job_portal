@@ -105,17 +105,23 @@ const UserDirectoryCom = () => {
     });
 
     return (
-        <div className="max-w-7xl mx-auto p-3 md:p-4 rounded-2xl bg-[#F5F6FC] relative">
+        <div className="max-w-7xl mx-auto p-2 md:p-3 rounded-2xl bg-[#F5F6FC] relative">
             <Toaster position="top-right" />
 
-            <div className="relative overflow-hidden rounded-2xl px-5 py-5 md:px-7 md:py-6 bg-gradient-to-br from-[#141B3C] via-[#2A45C2] to-[#5B4FE0] mb-3">
+            <div className="relative overflow-hidden rounded-2xl px-4 py-4 md:px-6 md:py-4 bg-gradient-to-br from-[#141B3C] via-[#2A45C2] to-[#5B4FE0] mb-2.5">
                 <div className="pointer-events-none absolute inset-0 opacity-40" style={{ backgroundImage: 'radial-gradient(circle at 10% 20%, rgba(255,255,255,0.14), transparent 40%), radial-gradient(circle at 90% 80%, rgba(255,255,255,0.10), transparent 45%)' }} />
+                <div className="pointer-events-none absolute inset-0 opacity-[0.07]" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.5) 1px, transparent 1px)', backgroundSize: '28px 28px' }} />
                 <div className="pointer-events-none absolute -right-14 -top-14 w-48 h-48 rounded-full bg-white/5 blur-2xl" />
 
-                <div className="relative">
-                    <h1 className="text-xl md:text-2xl font-extrabold text-white tracking-tight mb-3">Business Directory</h1>
+                <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-2.5">
+                    <div className="flex items-center gap-2 shrink-0">
+                        <div className="w-8 h-8 rounded-lg bg-white/15 backdrop-blur flex items-center justify-center border border-white/20">
+                            <FaMapMarkerAlt className="text-white" size={14} />
+                        </div>
+                        <h1 className="text-lg md:text-xl font-extrabold text-white tracking-tight">Business Directory</h1>
+                    </div>
 
-                    <div className="bg-white/95 backdrop-blur rounded-xl p-2 flex flex-col md:flex-row gap-2 shadow-[0_8px_30px_rgba(20,27,60,0.25)]">
+                    <div className="bg-white/95 backdrop-blur rounded-xl p-1.5 flex flex-col md:flex-row gap-1.5 shadow-[0_8px_30px_rgba(20,27,60,0.25)] md:flex-1 md:max-w-2xl">
                         <div className="relative flex-1">
                             <FaSearch className="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-[#2A45C2]" size={14} />
                             <input
@@ -123,7 +129,7 @@ const UserDirectoryCom = () => {
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                                 placeholder="Search businesses, services..."
-                                className="w-full pl-10 pr-3 py-2 bg-[#F5F6FC] border border-transparent rounded-lg focus:outline-none focus:border-[#2A45C2] focus:bg-white transition-colors text-sm"
+                                className="w-full pl-10 pr-3 py-2.5 bg-[#F5F6FC] border border-transparent rounded-lg focus:outline-none focus:border-[#2A45C2] focus:bg-white transition-colors text-sm"
                             />
                         </div>
                         <div className="relative flex-1">
@@ -133,13 +139,13 @@ const UserDirectoryCom = () => {
                                 value={locationSearch}
                                 onChange={(e) => setLocationSearch(e.target.value)}
                                 placeholder="Location (e.g. City, Area)"
-                                className="w-full pl-10 pr-3 py-2 bg-[#F5F6FC] border border-transparent rounded-lg focus:outline-none focus:border-[#2A45C2] focus:bg-white transition-colors text-sm"
+                                className="w-full pl-10 pr-3 py-2.5 bg-[#F5F6FC] border border-transparent rounded-lg focus:outline-none focus:border-[#2A45C2] focus:bg-white transition-colors text-sm"
                             />
                         </div>
                         <Button
                             variant="outline"
                             onClick={() => setShowNearby(!showNearby)}
-                            className={`py-2 px-4 font-bold rounded-lg whitespace-nowrap border transition-colors flex items-center gap-1.5 text-sm ${showNearby ? 'bg-gradient-to-r from-[#2A45C2] to-[#5B4FE0] text-white border-transparent' : 'bg-white text-gray-600 border-[#E4E7F2] hover:bg-gray-50'}`}
+                            className={`py-1.5 px-4 font-bold rounded-lg whitespace-nowrap border transition-colors flex items-center gap-1.5 text-sm ${showNearby ? 'bg-gradient-to-r from-[#2A45C2] to-[#5B4FE0] text-white border-transparent' : 'bg-white text-gray-600 border-[#E4E7F2] hover:bg-gray-50'}`}
                         >
                             <FaDirections className={showNearby ? 'text-white' : 'text-gray-400'} size={13} /> Nearby
                         </Button>
@@ -147,7 +153,7 @@ const UserDirectoryCom = () => {
                 </div>
             </div>
 
-            <div className="flex gap-1.5 py-2.5 overflow-x-auto custom-scrollbar">
+            <div className="flex gap-1.5 py-2 overflow-x-auto custom-scrollbar">
                 {!isLoading ? (
                     filterOptions.map((filter) => (
                         <button
@@ -169,7 +175,7 @@ const UserDirectoryCom = () => {
             </div>
 
             <div>
-                <div className="flex justify-between items-center mb-2.5 px-0.5">
+                <div className="flex justify-between items-center mb-2 px-0.5">
                     <div className="flex items-center gap-2">
                         <h2 className="text-sm font-extrabold text-gray-900 uppercase tracking-wide">Directory Results</h2>
                         <Badge variant="primary" className="text-[11px] px-2 py-0.5 rounded-md bg-blue-50 text-[#2A45C2] border border-[#E4E7F2] font-bold">
@@ -191,17 +197,17 @@ const UserDirectoryCom = () => {
                 </div>
 
                 {isLoading ? (
-                    <div className={viewMode === 'grid' ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5" : "flex flex-col gap-2"}>
+                    <div className={viewMode === 'grid' ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2" : "flex flex-col gap-2"}>
                         {Array(6).fill(0).map((_, idx) => (
-                            <div key={idx} className="bg-white border border-[#E4E7F2] p-3.5 rounded-2xl h-[120px] shadow-[0_2px_16px_rgba(30,41,89,0.02)]">
+                            <div key={idx} className="bg-white border border-[#E4E7F2] p-3 rounded-2xl h-[112px] shadow-[0_2px_16px_rgba(30,41,89,0.02)]">
                                 <Shimmer className="w-full h-full rounded-xl" />
                             </div>
                         ))}
                     </div>
                 ) : filteredBusinesses.length > 0 ? (
                     viewMode === 'map' ? (
-                        <div className="bg-white border border-[#E4E7F2] rounded-xl h-[560px] flex overflow-hidden shadow-[0_2px_16px_rgba(30,41,89,0.05)]">
-                            <div className="w-1/3 border-r border-[#E4E7F2] overflow-y-auto custom-scrollbar p-2 space-y-2 bg-[#F7F8FC]">
+                        <div className="bg-white border border-[#E4E7F2] rounded-xl h-[520px] flex overflow-hidden shadow-[0_2px_16px_rgba(30,41,89,0.05)]">
+                            <div className="w-1/3 border-r border-[#E4E7F2] overflow-y-auto custom-scrollbar p-2 space-y-1.5 bg-[#F7F8FC]">
                                 {filteredBusinesses.map(biz => (
                                     <div key={biz.id} onClick={() => handleOpenDetails(biz)} className="bg-white p-2.5 rounded-lg border border-[#E4E7F2] cursor-pointer hover:border-[#2A45C2] transition-colors">
                                         <h4 className="font-bold text-gray-900 text-[13px] flex items-center gap-1">
@@ -220,12 +226,12 @@ const UserDirectoryCom = () => {
                             </div>
                         </div>
                     ) : (
-                        <div className={viewMode === 'grid' ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5" : "flex flex-col gap-2"}>
+                        <div className={viewMode === 'grid' ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2" : "flex flex-col gap-1.5"}>
                             {filteredBusinesses.map((biz) => (
                                 <div
                                     key={biz.id}
                                     onClick={() => handleOpenDetails(biz)}
-                                    className={`bg-white border border-[#E7E9F7] p-3.5 rounded-2xl cursor-pointer shadow-[0_2px_16px_rgba(30,41,89,0.05)] hover:shadow-[0_10px_28px_rgba(42,69,194,0.14)] hover:-translate-y-0.5 transition-all duration-200 group ${viewMode === 'list' ? 'flex flex-col sm:flex-row sm:items-center justify-between gap-3' : 'flex flex-col relative'}`}
+                                    className={`bg-white border border-[#E7E9F7] p-3 rounded-2xl cursor-pointer shadow-[0_2px_16px_rgba(30,41,89,0.05)] hover:shadow-[0_10px_28px_rgba(42,69,194,0.14)] hover:border-[#2A45C2]/30 hover:-translate-y-0.5 transition-all duration-200 group ${viewMode === 'list' ? 'flex flex-col sm:flex-row sm:items-center justify-between gap-2.5' : 'flex flex-col relative'}`}
                                 >
 
                                     {biz.is_featured && viewMode === 'grid' && (
@@ -234,8 +240,8 @@ const UserDirectoryCom = () => {
                                         </div>
                                     )}
 
-                                    <div className={`flex items-start gap-3 ${viewMode === 'grid' ? 'mb-3.5' : 'flex-1'}`}>
-                                        <div className="w-11 h-11 bg-gradient-to-br from-[#2A45C2] to-[#5B4FE0] flex items-center justify-center rounded-xl overflow-hidden flex-shrink-0 shadow-[0_4px_10px_rgba(42,69,194,0.25)] group-hover:scale-105 transition-transform">
+                                    <div className={`flex items-start gap-2.5 ${viewMode === 'grid' ? 'mb-2.5' : 'flex-1'}`}>
+                                        <div className="w-10 h-10 bg-gradient-to-br from-[#2A45C2] to-[#5B4FE0] flex items-center justify-center rounded-xl overflow-hidden flex-shrink-0 shadow-[0_4px_10px_rgba(42,69,194,0.25)] group-hover:scale-105 transition-transform">
                                             {biz.logo_url ? (
                                                 <img src={biz.logo_url} alt="Logo" className="w-full h-full object-cover" />
                                             ) : (
@@ -243,7 +249,7 @@ const UserDirectoryCom = () => {
                                             )}
                                         </div>
                                         <div className="min-w-0">
-                                            <h3 className="text-[13px] font-bold text-gray-900 leading-tight mb-1 flex items-center gap-1.5 truncate">
+                                            <h3 className="text-[13px] font-bold text-gray-900 leading-tight mb-1 flex items-center gap-1.5 truncate group-hover:text-[#2A45C2] transition-colors">
                                                 {biz.name}
                                                 {biz.is_verified && <FaCheckCircle className="text-[#2A45C2] shrink-0" title="Verified" size={12} />}
                                                 {biz.is_featured && viewMode === 'list' && <FaStar className="text-[#D4A017] shrink-0" title="Featured" size={12} />}
@@ -252,7 +258,7 @@ const UserDirectoryCom = () => {
                                         </div>
                                     </div>
 
-                                    <div className={`${viewMode === 'grid' ? 'mt-auto pt-3 border-t border-[#EDEFF7]' : 'sm:w-auto w-full border-t sm:border-t-0 border-[#EDEFF7] pt-2.5 sm:pt-0'} flex flex-col sm:flex-row items-center justify-between gap-3`}>
+                                    <div className={`${viewMode === 'grid' ? 'mt-auto pt-2.5 border-t border-[#EDEFF7]' : 'sm:w-auto w-full border-t sm:border-t-0 border-[#EDEFF7] pt-2 sm:pt-0'} flex flex-col sm:flex-row items-center justify-between gap-2.5`}>
                                         <div className="flex flex-col gap-1 w-full sm:w-auto">
                                             <div className="flex items-center text-[11px] font-medium text-gray-500 gap-1.5">
                                                 <FaMapMarkerAlt className="text-[#2A45C2]" size={11} />
@@ -279,9 +285,9 @@ const UserDirectoryCom = () => {
                         </div>
                     )
                 ) : (
-                    <div className="text-center py-10 bg-white border border-[#E4E7F2] rounded-xl">
+                    <div className="text-center py-8 bg-white border border-[#E4E7F2] rounded-xl">
                         <p className="text-gray-500 font-medium text-sm">No businesses found matching your criteria.</p>
-                        <Button variant="outline" className="mt-3 rounded-lg border-[#E4E7F2] text-gray-700 text-sm" onClick={() => { setSearchTerm(''); setLocationSearch(''); setActiveCategory('All Categories'); setShowNearby(false); }}>
+                        <Button variant="outline" className="mt-2.5 rounded-lg border-[#E4E7F2] text-gray-700 text-sm" onClick={() => { setSearchTerm(''); setLocationSearch(''); setActiveCategory('All Categories'); setShowNearby(false); }}>
                             Clear All Filters
                         </Button>
                     </div>
@@ -290,19 +296,19 @@ const UserDirectoryCom = () => {
 
             {isDetailsModalOpen && selectedBiz && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-gray-900/60 backdrop-blur-sm">
-                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl h-[95vh] sm:max-h-[90vh] overflow-hidden border border-[#E4E7F2] flex flex-col relative">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl h-[95vh] sm:max-h-[88vh] overflow-hidden border border-[#E4E7F2] flex flex-col relative">
 
-                        <div className="h-16 relative flex-shrink-0 bg-gradient-to-br from-[#141B3C] via-[#2A45C2] to-[#5B4FE0] overflow-hidden">
+                        <div className="h-14 relative flex-shrink-0 bg-gradient-to-br from-[#141B3C] via-[#2A45C2] to-[#5B4FE0] overflow-hidden">
                             <div className="pointer-events-none absolute inset-0 opacity-40" style={{ backgroundImage: 'radial-gradient(circle at 15% 30%, rgba(255,255,255,0.16), transparent 45%)' }} />
                             <button onClick={() => setIsDetailsModalOpen(false)} className="absolute top-3 right-3 bg-white/15 hover:bg-white/25 backdrop-blur text-white p-1.5 rounded-full transition-colors z-10">
                                 <FaTimes size={12} />
                             </button>
                         </div>
 
-                        <div className="px-5 sm:px-7 relative pb-3.5 border-b border-[#E4E7F2] bg-white flex-shrink-0">
-                            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 -mt-9 sm:-mt-11 mb-1.5">
-                                <div className="flex items-end gap-3.5">
-                                    <div className="w-20 h-20 sm:w-24 sm:h-24 bg-white rounded-2xl p-1 shadow-[0_8px_24px_rgba(20,27,60,0.2)] border border-[#E4E7F2] z-10 relative">
+                        <div className="px-4 sm:px-6 relative pb-3 border-b border-[#E4E7F2] bg-white flex-shrink-0">
+                            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2.5 -mt-8 sm:-mt-10 mb-1">
+                                <div className="flex items-end gap-3">
+                                    <div className="w-16 h-16 sm:w-20 sm:h-20 bg-white rounded-2xl p-1 shadow-[0_8px_24px_rgba(20,27,60,0.2)] border border-[#E4E7F2] z-10 relative">
                                         {selectedBiz.logo_url ? (
                                             <img src={selectedBiz.logo_url} alt="Logo" className="w-full h-full object-cover rounded-xl" />
                                         ) : (
@@ -316,8 +322,8 @@ const UserDirectoryCom = () => {
                                             </div>
                                         )}
                                     </div>
-                                    <div className="mb-1.5">
-                                        <h2 className="text-xl sm:text-2xl font-black text-gray-900 flex items-center gap-2">
+                                    <div className="mb-1">
+                                        <h2 className="text-lg sm:text-xl font-black text-gray-900 flex items-center gap-2">
                                             {selectedBiz.name}
                                         </h2>
                                         <div className="flex items-center gap-2.5 mt-1">
@@ -329,7 +335,7 @@ const UserDirectoryCom = () => {
                                     </div>
                                 </div>
 
-                                <div className="flex gap-2 sm:mb-1.5 w-full sm:w-auto">
+                                <div className="flex gap-2 sm:mb-1 w-full sm:w-auto">
                                     <Button onClick={(e) => handleShare(e, selectedBiz.name)} variant="outline" className="flex-1 sm:flex-none border-[#E4E7F2] text-gray-700 font-bold py-1.5 text-sm">
                                         <FaShareAlt size={13} /> Share
                                     </Button>
@@ -342,11 +348,11 @@ const UserDirectoryCom = () => {
 
                         <div className="flex-1 overflow-y-auto custom-scrollbar bg-[#F7F8FC] flex flex-col md:flex-row">
 
-                            <div className="w-full md:w-2/3 p-5 sm:p-6 space-y-5">
+                            <div className="w-full md:w-2/3 p-4 sm:p-5 space-y-4">
 
                                 <section>
                                     <h3 className="text-xs font-extrabold text-gray-900 uppercase tracking-wider mb-2">About the Business</h3>
-                                    <p className="text-sm text-gray-700 leading-relaxed bg-white p-4 rounded-xl border border-[#E4E7F2]">
+                                    <p className="text-sm text-gray-700 leading-relaxed bg-white p-3.5 rounded-xl border border-[#E4E7F2]">
                                         {selectedBiz.description || "No description provided for this business yet. Please contact them directly for more information regarding their services."}
                                     </p>
                                 </section>
@@ -363,16 +369,16 @@ const UserDirectoryCom = () => {
                                 </section>
 
                                 <section>
-                                    <div className="flex justify-between items-end mb-2.5">
+                                    <div className="flex justify-between items-end mb-2">
                                         <h3 className="text-xs font-extrabold text-gray-900 uppercase tracking-wider">Ratings & Reviews</h3>
                                         <Button className="text-[11px] py-1.5 px-3 bg-white text-[#2A45C2] border border-[#2A45C2]/30 font-bold">Write a Review</Button>
                                     </div>
-                                    <div className="space-y-2">
+                                    <div className="space-y-1.5">
                                         {[
                                             { name: "Alice M.", rating: 5, date: "2 weeks ago", text: "Excellent service! Very professional and timely." },
                                             { name: "John D.", rating: 4, date: "1 month ago", text: "Great experience overall. Would recommend to others in the area." }
                                         ].map((review, idx) => (
-                                            <div key={idx} className="bg-white p-3.5 rounded-xl border border-[#E4E7F2]">
+                                            <div key={idx} className="bg-white p-3 rounded-xl border border-[#E4E7F2]">
                                                 <div className="flex justify-between items-start mb-1.5">
                                                     <div className="flex items-center gap-2">
                                                         <FaUserCircle className="text-gray-300 text-xl" />
@@ -393,11 +399,11 @@ const UserDirectoryCom = () => {
 
                             </div>
 
-                            <div className="w-full md:w-1/3 bg-white border-l border-[#E4E7F2] p-5 sm:p-6 space-y-5">
+                            <div className="w-full md:w-1/3 bg-white border-l border-[#E4E7F2] p-4 sm:p-5 space-y-4">
 
                                 <div>
-                                    <h3 className="text-xs font-extrabold text-gray-900 uppercase tracking-wider mb-3 border-b border-[#E4E7F2] pb-2">Contact Details</h3>
-                                    <ul className="space-y-3">
+                                    <h3 className="text-xs font-extrabold text-gray-900 uppercase tracking-wider mb-2.5 border-b border-[#E4E7F2] pb-2">Contact Details</h3>
+                                    <ul className="space-y-2.5">
                                         <li className="flex items-start gap-2.5 text-sm">
                                             <div className="mt-0.5 p-1.5 bg-blue-50 text-[#2A45C2] rounded-lg"><FaMapMarkerAlt size={13} /></div>
                                             <div>
@@ -438,9 +444,9 @@ const UserDirectoryCom = () => {
                                     </ul>
                                 </div>
 
-                                <div className="bg-[#F7F8FC] p-4 rounded-xl border border-[#E4E7F2]">
-                                    <h3 className="text-xs font-extrabold text-gray-900 flex items-center gap-1.5 mb-2.5"><FaPaperPlane className="text-[#2A45C2]" size={12} /> Message Business</h3>
-                                    <form onSubmit={handleContactSubmit} className="space-y-2.5">
+                                <div className="bg-[#F7F8FC] p-3.5 rounded-xl border border-[#E4E7F2]">
+                                    <h3 className="text-xs font-extrabold text-gray-900 flex items-center gap-1.5 mb-2"><FaPaperPlane className="text-[#2A45C2]" size={12} /> Message Business</h3>
+                                    <form onSubmit={handleContactSubmit} className="space-y-2">
                                         <Input
                                             name="name" type="text" placeholder="Your Name" required
                                             value={contactForm.name} onChange={e => setContactForm({ ...contactForm, name: e.target.value })}

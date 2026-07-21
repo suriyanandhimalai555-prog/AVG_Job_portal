@@ -6,12 +6,14 @@ import businessRoutes from './src/routes/business.routes.js';
 import jobRoutes from './src/routes/job.routes.js'; 
 import courseRoutes from './src/routes/course.routes.js'; 
 import userRoutes from './src/routes/user.routes.js';
+import jobApplicationRoutes from './src/routes/jobApplication.routes.js';
+import postRoutes from './src/routes/post.routes.js';
 import { createUserTable } from './src/models/user.model.js';
 import { createBusinessTable } from './src/models/business.model.js';
 import { createJobTable } from './src/models/job.model.js';
 import { createCourseTable } from './src/models/course.model.js';
 import { createJobApplicationTable } from './src/models/jobApplication.model.js';
-import jobApplicationRoutes from './src/routes/jobApplication.routes.js';
+import { createPostTables } from './src/models/post.model.js';
 
 dotenv.config();
 
@@ -37,30 +39,28 @@ app.use(cors({
     allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ limit: '10mb', extended: true }));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
-// Main Routing mount
 app.use('/api/auth', authRoutes);
 app.use('/api/businesses', businessRoutes);
 app.use('/api/jobs', jobRoutes); 
 app.use('/api/courses', courseRoutes); 
 app.use('/api/users', userRoutes);
 app.use('/api/applications', jobApplicationRoutes);
+app.use('/api/posts', postRoutes);
 
-// Root path test
 app.get('/', (req, res) => {
     res.send('AVG Portal API is running cleanly.');
 });
 
-// Initialize Database Tables and Start Server
 const startServer = async () => {
-    // Automatically setup tables on server start
     await createUserTable();
     await createBusinessTable();
     await createJobTable(); 
     await createCourseTable();
     await createJobApplicationTable();
+    await createPostTables();
 
     const PORT = process.env.PORT || 5000;
     app.listen(PORT, () => {
