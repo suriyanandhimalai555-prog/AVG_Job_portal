@@ -105,7 +105,7 @@ const UserDirectoryCom = () => {
     });
 
     return (
-        <div className="max-w-7xl mx-auto p-2 md:p-3 rounded-2xl bg-[#F5F6FC] relative">
+        <div className="max-w-[1400px] mx-auto p-2 md:p-3 rounded-2xl bg-[#F5F6FC] relative">
             <Toaster position="top-right" />
 
             <div className="relative overflow-hidden rounded-2xl px-4 py-4 md:px-6 md:py-4 bg-gradient-to-br from-[#141B3C] via-[#2A45C2] to-[#5B4FE0] mb-2.5">
