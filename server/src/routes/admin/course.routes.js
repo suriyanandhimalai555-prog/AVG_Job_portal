@@ -8,7 +8,7 @@ import {
     enrollInCourse,
     getUserWishlist,
     toggleCourseWishlist
-} from '../controllers/course.controller.js';
+} from '../../controllers/admin/course.controller.js';
 
 const router = express.Router();
 

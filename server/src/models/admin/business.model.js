@@ -1,4 +1,4 @@
-import pool from '../config/db.js';
+import pool from '../../config/db.js';
 
 // Automated Table Creation & Patching Logic
 export const createBusinessTable = async () => {

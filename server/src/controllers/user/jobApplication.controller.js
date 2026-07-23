@@ -1,5 +1,5 @@
-import JobApplicationModel from '../models/jobApplication.model.js';
-import JobModel from '../models/job.model.js';
+import JobApplicationModel from '../../models/user/jobApplication.model.js';
+import JobModel from '../../models/admin/job.model.js';
 import nodemailer from 'nodemailer';
 
 const transporter = nodemailer.createTransport({

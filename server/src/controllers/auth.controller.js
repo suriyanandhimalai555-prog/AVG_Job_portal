@@ -1,6 +1,6 @@
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
-import UserModel from '../models/user.model.js';
+import UserModel from '../models/user/user.model.js';
 
 export const registerUser = async (req, res) => {
     try {
@@ -23,7 +23,9 @@ export const registerUser = async (req, res) => {
             email,
             phone,
             passwordHash,
-            referralCode
+            referralCode,
+            role: 'User',
+            status: 'Active'
         });
 
         res.status(201).json({
@@ -50,13 +52,19 @@ export const loginUser = async (req, res) => {
             return res.status(401).json({ error: 'Invalid email or password.' });
         }
 
+        // FIXED: Block Admin users from logging in via the standard user portal
+        if (user.role && user.role.toLowerCase() === 'admin') {
+            return res.status(403).json({ error: 'Administrative accounts must use the Admin Portal to log in.' });
+        }
+
         const isMatch = await bcrypt.compare(password, user.password_hash);
         if (!isMatch) {
             return res.status(401).json({ error: 'Invalid email or password.' });
         }
 
+        // FIXED: Added 'role' to the JWT payload so the frontend double-checks work
         const token = jwt.sign(
-            { id: user.id, email: user.email, fullName: user.full_name },
+            { id: user.id, email: user.email, fullName: user.full_name, role: user.role || 'User' },
             process.env.JWT_SECRET,
             { expiresIn: '1d' }
         );
@@ -64,7 +72,7 @@ export const loginUser = async (req, res) => {
         res.status(200).json({
             message: 'Login successful',
             token,
-            user: { id: user.id, fullName: user.full_name, email: user.email }
+            user: { id: user.id, fullName: user.full_name, email: user.email, role: user.role }
         });
 
     } catch (error) {
@@ -93,6 +101,7 @@ export const registerAdmin = async (req, res) => {
         const saltRounds = 10;
         const passwordHash = await bcrypt.hash(password, saltRounds);
 
+        // This will now successfully insert "Admin" due to the user.model.js update
         const newAdmin = await UserModel.create({
             fullName,
             email,
@@ -136,24 +145,23 @@ export const adminLogin = async (req, res) => {
             return res.status(401).json({ error: 'Invalid admin credentials.' });
         }
 
-        // 1. Safe Role Check (defaults to 'user' if undefined)
         const userRole = user.role ? user.role.toLowerCase() : 'user';
 
-        // 2. Allow BOTH of your admin emails to bypass strict database role checks
+        // Allow explicitly created admins OR your hardcoded emails to bypass
         const authorizedEmails = ['avgadmin@agilavetri.com', 'admin@agilavetri.com'];
         const isAuthorizedEmail = authorizedEmails.includes(email.toLowerCase());
 
-        // 3. Safe Status Check: Only trigger 403 if the status explicitly exists and is NOT active
         if (user.status && user.status.toLowerCase() !== 'active') {
             return res.status(403).json({ error: 'This administrative account is currently suspended.' });
         }
 
-        if (userRole !== 'admin' && userRole !== 'superadmin' && !isAuthorizedEmail) {
+        if (userRole !== 'admin' && !isAuthorizedEmail) {
             return res.status(403).json({ error: 'Access denied. Unauthorized personnel accounts.' });
         }
 
+        // Add fullName to payload to prevent UI errors
         const token = jwt.sign(
-            { id: user.id, email: user.email, role: userRole === 'user' ? 'superadmin' : userRole },
+            { id: user.id, email: user.email, fullName: user.full_name, role: userRole === 'user' ? 'Admin' : 'Admin' },
             process.env.JWT_SECRET,
             { expiresIn: '1d' }
         );
@@ -161,7 +169,7 @@ export const adminLogin = async (req, res) => {
         res.status(200).json({
             message: 'Admin login successful',
             token,
-            user: { id: user.id, fullName: user.full_name, email: user.email }
+            user: { id: user.id, fullName: user.full_name, email: user.email, role: 'Admin' }
         });
 
     } catch (error) {

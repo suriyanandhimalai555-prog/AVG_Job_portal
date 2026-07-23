@@ -1,8 +1,7 @@
-import pool from '../config/db.js';
+import pool from '../../config/db.js';
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import crypto from 'crypto';
 
-// Initialize AWS S3 Client
 const s3 = new S3Client({
     region: process.env.AWS_REGION,
     credentials: {
@@ -11,17 +10,13 @@ const s3 = new S3Client({
     }
 });
 
-// Helper function to upload multiple base64 images to S3
 const uploadImagesToS3 = async (imagesArray) => {
     if (!imagesArray || !Array.isArray(imagesArray)) return [];
-
     const uploadedUrls = [];
     for (const img of imagesArray) {
         if (img.startsWith('http')) {
-            // Already an uploaded URL (used during edits)
             uploadedUrls.push(img);
         } else if (img.startsWith('data:image')) {
-            // Process base64 string
             const matches = img.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
             if (matches && matches.length === 3) {
                 const buffer = Buffer.from(matches[2], 'base64');
@@ -58,7 +53,6 @@ export const createPost = async (req, res) => {
         );
         res.status(201).json(result.rows[0]);
     } catch (error) {
-        console.error("Create post error:", error);
         res.status(500).json({ error: error.message });
     }
 };
@@ -86,7 +80,6 @@ export const getPosts = async (req, res) => {
         `, [userId]);
         res.status(200).json(result.rows);
     } catch (error) {
-        console.error("Get posts error:", error);
         res.status(500).json({ error: error.message });
     }
 };

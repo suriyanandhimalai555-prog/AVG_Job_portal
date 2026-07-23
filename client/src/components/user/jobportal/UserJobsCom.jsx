@@ -31,6 +31,17 @@ const UserJobsCom = () => {
         setIsLoading(true);
         const token = localStorage.getItem('token');
 
+        // ADMIN BLOCK (Prevent Admins from accessing User Dashboard)
+        if (token) {
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            if (payload.role === 'Admin') {
+                toast.error("Admins cannot access the User Dashboard.");
+                localStorage.removeItem('token');
+                window.location.href = '/login';
+                return;
+            }
+        }
+
         try {
             const jobRes = await fetch(`${apiUrl}/api/jobs`);
             if (jobRes.ok) {

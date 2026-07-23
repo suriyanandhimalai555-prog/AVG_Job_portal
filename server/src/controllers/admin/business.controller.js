@@ -1,4 +1,4 @@
-import BusinessModel from '../models/business.model.js';
+import BusinessModel from '../../models/admin/business.model.js';
 
 export const getBusinesses = async (req, res) => {
     try {

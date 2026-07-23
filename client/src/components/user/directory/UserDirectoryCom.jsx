@@ -298,9 +298,9 @@ const UserDirectoryCom = () => {
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-gray-900/60 backdrop-blur-sm">
                     <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl h-[95vh] sm:max-h-[88vh] overflow-hidden border border-[#E4E7F2] flex flex-col relative">
 
-                        <div className="h-14 relative flex-shrink-0 bg-gradient-to-br from-[#141B3C] via-[#2A45C2] to-[#5B4FE0] overflow-hidden">
+                        <div className="h-14 relative flex-shrink-0 overflow-hidden">
                             <div className="pointer-events-none absolute inset-0 opacity-40" style={{ backgroundImage: 'radial-gradient(circle at 15% 30%, rgba(255,255,255,0.16), transparent 45%)' }} />
-                            <button onClick={() => setIsDetailsModalOpen(false)} className="absolute top-3 right-3 bg-white/15 hover:bg-white/25 backdrop-blur text-white p-1.5 rounded-full transition-colors z-10">
+                            <button onClick={() => setIsDetailsModalOpen(false)} className="absolute top-3 right-3 bg-black backdrop-blur text-white p-1.5 rounded-full transition-colors z-10">
                                 <FaTimes size={12} />
                             </button>
                         </div>
@@ -337,10 +337,10 @@ const UserDirectoryCom = () => {
 
                                 <div className="flex gap-2 sm:mb-1 w-full sm:w-auto">
                                     <Button onClick={(e) => handleShare(e, selectedBiz.name)} variant="outline" className="flex-1 sm:flex-none border-[#E4E7F2] text-gray-700 font-bold py-1.5 text-sm">
-                                        <FaShareAlt size={13} /> Share
+                                        <FaShareAlt size={13} className='me-1'/> Share
                                     </Button>
                                     <Button onClick={(e) => toggleFavorite(e, selectedBiz.id)} className={`flex-1 sm:flex-none py-1.5 font-bold text-sm ${favorites.has(selectedBiz.id) ? 'bg-red-50 text-red-600 border-red-200' : 'bg-gradient-to-r from-[#2A45C2] to-[#5B4FE0] text-white border-0'}`}>
-                                        {favorites.has(selectedBiz.id) ? <><FaHeart size={13} /> Saved</> : <><FaRegHeart size={13} /> Save</>}
+                                        {favorites.has(selectedBiz.id) ? <><FaHeart size={13} className='me-1'/> Saved</> : <><FaRegHeart size={13} className='me-1'/> Save</>}
                                     </Button>
                                 </div>
                             </div>
@@ -371,7 +371,7 @@ const UserDirectoryCom = () => {
                                 <section>
                                     <div className="flex justify-between items-end mb-2">
                                         <h3 className="text-xs font-extrabold text-gray-900 uppercase tracking-wider">Ratings & Reviews</h3>
-                                        <Button className="text-[11px] py-1.5 px-3 bg-white text-[#2A45C2] border border-[#2A45C2]/30 font-bold">Write a Review</Button>
+                                        <Button className="text-[11px] py-1.5 px-3 text-[#2A45C2] border border-[#2A45C2]/30 font-bold">Write a Review</Button>
                                     </div>
                                     <div className="space-y-1.5">
                                         {[

@@ -1,4 +1,4 @@
-import pool from '../config/db.js';
+import pool from '../../config/db.js';
 
 export const createUserTable = async () => {
     const queryText = `
@@ -17,15 +17,23 @@ export const createUserTable = async () => {
         );
     `;
 
+    const followTable = `
+        CREATE TABLE IF NOT EXISTS user_followers (
+            follower_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            following_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (follower_id, following_id)
+        );
+    `;
+
     try {
         await pool.query(queryText);
-        // Automatically add missing columns for existing tables
+        await pool.query(followTable);
         await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(50) DEFAULT 'User';`);
         await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'Active';`);
         await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_code VARCHAR(50) UNIQUE;`);
         await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS referred_by INTEGER REFERENCES users(id);`);
         await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_earnings NUMERIC DEFAULT 0;`);
-        console.log('✅ Users table is ready.');
     } catch (error) {
         console.error('❌ Error creating users table:', error);
     }
@@ -45,15 +53,14 @@ const UserModel = {
     },
 
     create: async (userData) => {
-        const { fullName, email, phone, passwordHash, referralCode } = userData;
+        // FIXED: Destructure role and status, providing defaults if they aren't passed
+        const { fullName, email, phone, passwordHash, referralCode, role = 'User', status = 'Active' } = userData;
 
-        // Generate a unique referral code
         const namePrefix = fullName.replace(/[^a-zA-Z]/g, '').substring(0, 4).toUpperCase();
         const randomNum = Math.floor(1000 + Math.random() * 9000);
         const newReferralCode = `${namePrefix || 'AGILA'}${randomNum}`;
 
         let referredById = null;
-
         if (referralCode) {
             const refQuery = 'SELECT id FROM users WHERE referral_code = $1';
             const refResult = await pool.query(refQuery, [referralCode.toUpperCase()]);
@@ -64,13 +71,13 @@ const UserModel = {
             }
         }
 
+        // FIXED: Inject role and status into the INSERT query
         const query = `
-            INSERT INTO users (full_name, email, phone, password_hash, referral_code, referred_by)
-            VALUES ($1, $2, $3, $4, $5, $6)
-            RETURNING id, full_name, email, phone, referral_code, created_at;
+            INSERT INTO users (full_name, email, phone, password_hash, referral_code, referred_by, role, status)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            RETURNING id, full_name, email, phone, referral_code, role, status, created_at;
         `;
-        const values = [fullName, email, phone, passwordHash, newReferralCode, referredById];
-        const { rows } = await pool.query(query, values);
+        const { rows } = await pool.query(query, [fullName, email, phone, passwordHash, newReferralCode, referredById, role, status]);
         return rows[0];
     },
 
@@ -92,16 +99,13 @@ const UserModel = {
         return true;
     },
 
-    // Self-healing logic for old user accounts with null codes
     getUserStats: async (id) => {
         const checkQuery = 'SELECT referral_code, full_name, referral_earnings FROM users WHERE id = $1';
         const checkResult = await pool.query(checkQuery, [id]);
 
         if (checkResult.rows.length === 0) return null;
-
         let userRow = checkResult.rows[0];
 
-        // If the old user doesn't have a code yet, generate and save it now!
         if (!userRow.referral_code) {
             const namePrefix = userRow.full_name.replace(/[^a-zA-Z]/g, '').substring(0, 4).toUpperCase();
             const randomNum = Math.floor(1000 + Math.random() * 9000);
@@ -111,7 +115,6 @@ const UserModel = {
             userRow.referral_code = generatedCode;
         }
 
-        // Fixed: Removed the stray "ƒ√" from the end of this query
         const statsQuery = `
             SELECT 
                 $1::varchar as referral_code, 
@@ -122,6 +125,29 @@ const UserModel = {
         `;
         const { rows } = await pool.query(statsQuery, [userRow.referral_code, id]);
         return rows[0];
+    },
+
+    toggleFollow: async (followerId, followingId) => {
+        const check = await pool.query('SELECT * FROM user_followers WHERE follower_id = $1 AND following_id = $2', [followerId, followingId]);
+        if (check.rows.length > 0) {
+            await pool.query('DELETE FROM user_followers WHERE follower_id = $1 AND following_id = $2', [followerId, followingId]);
+            return { followed: false };
+        } else {
+            await pool.query('INSERT INTO user_followers (follower_id, following_id) VALUES ($1, $2)', [followerId, followingId]);
+            return { followed: true };
+        }
+    },
+
+    getFollowStats: async (userId) => {
+        const followers = await pool.query('SELECT COUNT(*) FROM user_followers WHERE following_id = $1', [userId]);
+        const following = await pool.query('SELECT COUNT(*) FROM user_followers WHERE follower_id = $1', [userId]);
+        const followingList = await pool.query('SELECT following_id FROM user_followers WHERE follower_id = $1', [userId]);
+
+        return {
+            followers_count: parseInt(followers.rows[0].count),
+            following_count: parseInt(following.rows[0].count),
+            following_ids: followingList.rows.map(r => r.following_id)
+        };
     }
 };
 

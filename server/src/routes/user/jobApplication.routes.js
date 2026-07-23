@@ -1,6 +1,6 @@
 import express from 'express';
-import { applyForJob, getUserApplications, getJobApplicants, updateApplicationStatus } from '../controllers/jobApplication.controller.js';
-import { verifyToken } from '../middleware/auth.middleware.js';
+import { applyForJob, getUserApplications, getJobApplicants, updateApplicationStatus } from '../../controllers/user/jobApplication.controller.js';
+import { verifyToken } from '../../middleware/auth.middleware.js';
 
 const router = express.Router();
 

@@ -10,7 +10,7 @@ import Badge from '../../ui/Badge';
 import Shimmer from '../../ui/Shimmer';
 
 const UserAcademyCom = () => {
-    const SIMULATED_USER_ID = 1;
+    const [userId, setUserId] = useState(null);
 
     const [activeTab, setActiveTab] = useState('browse');
     const [searchTerm, setSearchTerm] = useState('');
@@ -34,6 +34,23 @@ const UserAcademyCom = () => {
     useEffect(() => {
         const fetchAcademyData = async () => {
             try {
+                // ADMIN BLOCK & EXTRACT ACTUAL USER ID
+                let currentUserId = null;
+                const token = localStorage.getItem('token');
+                if (token) {
+                    const payload = JSON.parse(atob(token.split('.')[1]));
+                    if (payload.role === 'Admin') {
+                        toast.error("Admins cannot access the User Dashboard.");
+                        localStorage.removeItem('token');
+                        window.location.href = '/login';
+                        return;
+                    }
+                    currentUserId = payload.id;
+                    setUserId(currentUserId);
+                }
+
+                if (!currentUserId) return; // Wait for login
+
                 const resCourses = await fetch(`${apiUrl}/api/courses`);
                 if (resCourses.ok) {
                     const data = await resCourses.json();
@@ -43,13 +60,13 @@ const UserAcademyCom = () => {
                     setCategories(['All', ...uniqueCategories]);
                 }
 
-                const resEnrollments = await fetch(`${apiUrl}/api/courses/user/enrollments?userId=${SIMULATED_USER_ID}`);
+                const resEnrollments = await fetch(`${apiUrl}/api/courses/user/enrollments?userId=${currentUserId}`);
                 if (resEnrollments.ok) {
                     const enrolledIds = await resEnrollments.json();
                     setEnrolledCourses(new Set(enrolledIds));
                 }
 
-                const resWishlist = await fetch(`${apiUrl}/api/courses/user/wishlist?userId=${SIMULATED_USER_ID}`);
+                const resWishlist = await fetch(`${apiUrl}/api/courses/user/wishlist?userId=${currentUserId}`);
                 if (resWishlist.ok) {
                     const wishlistIds = await resWishlist.json();
                     setFavorites(new Set(wishlistIds));
@@ -82,7 +99,7 @@ const UserAcademyCom = () => {
             const res = await fetch(`${apiUrl}/api/courses/${courseId}/wishlist`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userId: SIMULATED_USER_ID })
+                body: JSON.stringify({ userId })
             });
 
             if (res.ok) {
@@ -112,7 +129,7 @@ const UserAcademyCom = () => {
             const res = await fetch(`${apiUrl}/api/courses/${courseId}/enroll`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userId: SIMULATED_USER_ID })
+                body: JSON.stringify({ userId })
             });
 
             if (res.ok) {

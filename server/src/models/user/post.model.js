@@ -1,4 +1,4 @@
-import pool from '../config/db.js';
+import pool from '../../config/db.js';
 
 export const createPostTables = async () => {
     const postsTable = `
@@ -8,13 +8,13 @@ export const createPostTables = async () => {
             author_name VARCHAR(255) NOT NULL,
             author_title VARCHAR(255),
             content TEXT NOT NULL,
-            image TEXT, -- Legacy column
-            images JSONB DEFAULT '[]'::jsonb, -- New column for multiple S3 images
+            image TEXT,
+            images JSONB DEFAULT '[]'::jsonb,
             share_count INTEGER DEFAULT 0,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
     `;
-    
+
     const likesTable = `
         CREATE TABLE IF NOT EXISTS post_likes (
             id SERIAL PRIMARY KEY,
@@ -24,7 +24,7 @@ export const createPostTables = async () => {
             UNIQUE(post_id, user_id)
         );
     `;
-    
+
     const commentsTable = `
         CREATE TABLE IF NOT EXISTS post_comments (
             id SERIAL PRIMARY KEY,
@@ -40,8 +40,7 @@ export const createPostTables = async () => {
         await pool.query(postsTable);
         await pool.query(likesTable);
         await pool.query(commentsTable);
-        
-        // Safely alter existing tables to add new columns if they were created earlier
+
         await pool.query(`ALTER TABLE post_likes ADD COLUMN IF NOT EXISTS reaction_type VARCHAR(50) DEFAULT 'like'`);
         await pool.query(`ALTER TABLE posts ADD COLUMN IF NOT EXISTS images JSONB DEFAULT '[]'::jsonb`);
     } catch (error) {
