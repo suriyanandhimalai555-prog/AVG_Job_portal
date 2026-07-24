@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
     FaSearch, FaBriefcase, FaMapMarkerAlt, FaStar, FaTh, FaList, FaTimes, FaUsers, FaClock, FaClipboardList, FaFileAlt, FaCheck
 } from 'react-icons/fa';
@@ -8,7 +9,13 @@ import Badge from '../../ui/Badge';
 import Shimmer from '../../ui/Shimmer';
 
 const UserJobsCom = () => {
+    const locationRouter = useLocation();
+    const navigate = useNavigate();
+
     const [searchTerm, setSearchTerm] = useState('');
+    const [locFilter, setLocFilter] = useState('');
+    const [expFilter, setExpFilter] = useState('');
+
     const [activeFilter, setActiveFilter] = useState('All Jobs');
     const [viewMode, setViewMode] = useState('grid');
     const [jobs, setJobs] = useState([]);
@@ -26,6 +33,16 @@ const UserJobsCom = () => {
     const [formData, setFormData] = useState({ resumeLink: '', coverLetter: '' });
 
     const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
+    // Hook into URL Search Params to apply global search filters
+    useEffect(() => {
+        const params = new URLSearchParams(locationRouter.search);
+
+        // Use fallbacks to ensure clearing the URL resets local state
+        setSearchTerm(params.get('q') || '');
+        setLocFilter(params.get('loc') || '');
+        setExpFilter(params.get('exp') || '');
+    }, [locationRouter.search]);
 
     const fetchJobsAndApplications = async () => {
         setIsLoading(true);
@@ -74,11 +91,26 @@ const UserJobsCom = () => {
     }, [apiUrl]);
 
     const filteredJobs = jobs.filter((job) => {
-        const matchesSearch = job.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            job.company.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (job.location && job.location.toLowerCase().includes(searchTerm.toLowerCase()));
+        // Splits the search term into words to match related terms (e.g. "Sales" matching "Sales Person")
+        const searchTermsList = searchTerm.toLowerCase().trim().split(/\s+/).filter(Boolean);
+
+        const matchesSearch = searchTermsList.length === 0 || searchTermsList.every(term =>
+            (job.title && job.title.toLowerCase().includes(term)) ||
+            (job.company && job.company.toLowerCase().includes(term)) ||
+            (job.location && job.location.toLowerCase().includes(term)) ||
+            (job.description && job.description.toLowerCase().includes(term)) // Searches skills embedded in desc
+        );
+
+        const matchesLoc = locFilter === '' ||
+            (job.location && job.location.toLowerCase().includes(locFilter.toLowerCase()));
+
+        // Exact match comparison for the dynamic experience strings fetched from DB
+        const matchesExp = expFilter === '' ||
+            (job.experience && job.experience.toLowerCase().trim() === expFilter.toLowerCase().trim());
+
         const matchesFilter = activeFilter === 'All Jobs' || job.type === activeFilter;
-        return matchesSearch && matchesFilter;
+
+        return matchesSearch && matchesLoc && matchesExp && matchesFilter;
     });
 
     const handleViewDetails = (job) => {
@@ -175,6 +207,14 @@ const UserJobsCom = () => {
         }
     };
 
+    const clearFilters = () => {
+        setSearchTerm('');
+        setLocFilter('');
+        setExpFilter('');
+        setActiveFilter('All Jobs');
+        navigate('/user-dashboard/jobs', { replace: true });
+    };
+
     return (
         <div className="max-w-[1400px] mx-auto space-y-2.5 p-2 md:p-3 rounded-2xl bg-[#F5F6FC]">
             <Toaster position="top-right" />
@@ -244,6 +284,13 @@ const UserJobsCom = () => {
                         <Badge variant="primary" className="text-[11px] px-2 py-0.5 rounded-md bg-blue-50 text-[#2A45C2] border border-[#E4E7F2] font-bold">
                             {isLoading ? '...' : filteredJobs.length} open
                         </Badge>
+
+                        {/* Show Clear Filters indicator if any global search terms are applied */}
+                        {(locFilter || expFilter) && (
+                            <span className="text-[10px] text-gray-500 italic ml-2 hidden sm:inline">
+                                Global search active • <button onClick={clearFilters} className="text-[#2A45C2] hover:underline cursor-pointer">Clear</button>
+                            </span>
+                        )}
                     </div>
 
                     <div className="flex items-center gap-0.5 bg-white border border-[#E7E9F7] p-0.5 rounded-lg">
@@ -344,7 +391,7 @@ const UserJobsCom = () => {
                 ) : (
                     <div className="text-center py-10 bg-white border border-[#E7E9F7] rounded-2xl shadow-sm">
                         <p className="text-gray-500 font-medium text-sm mb-3">No positions found matching your criteria.</p>
-                        <Button variant="outline" className="rounded-xl border-[#E7E9F7] text-gray-700 font-bold px-5 py-2 shadow-sm hover:bg-gray-50" onClick={() => { setSearchTerm(''); setActiveFilter('All Jobs'); }}>
+                        <Button variant="outline" className="rounded-xl border-[#E7E9F7] text-gray-700 font-bold px-5 py-2 shadow-sm hover:bg-gray-50" onClick={clearFilters}>
                             Clear Filters
                         </Button>
                     </div>

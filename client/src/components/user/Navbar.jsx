@@ -2,23 +2,23 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate, Link, NavLink } from 'react-router-dom';
 import { FaUser, FaSignOutAlt, FaChevronDown, FaHome, FaAddressBook, FaBriefcase, FaGraduationCap, FaUserPlus, FaBell } from 'react-icons/fa';
 import Shimmer from '../ui/Shimmer';
+import SearchBar from './SearchBar';
 
 const Navbar = () => {
     const location = useLocation();
     const navigate = useNavigate();
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
     // User & Menu Drawer State
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const [isMenuDrawerOpen, setIsMenuDrawerOpen] = useState(false);
+
+    // Updated States for Profile Data
     const [userFullName, setUserFullName] = useState('User');
+    const [userProfilePic, setUserProfilePic] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
 
-    // Search Bar State
-    const [expDropdownOpen, setExpDropdownOpen] = useState(false);
-    const [selectedExp, setSelectedExp] = useState('');
-
     const dropdownRef = useRef(null);
-    const expRef = useRef(null);
 
     const navLinks = [
         { name: 'Dashboard', path: '/user-dashboard', icon: <FaHome /> },
@@ -28,28 +28,81 @@ const Navbar = () => {
         { name: 'Referrals', path: '/user-dashboard/refer', icon: <FaUserPlus /> }
     ];
 
-    const experiences = [
-        'Fresher (less than 1 year)',
-        '1 year',
-        '2 years',
-        '3 years',
-        '4 years',
-        '5 years'
-    ];
-
+    // Fetch user details from Database to guarantee Profile Picture is loaded
     useEffect(() => {
-        const timer = setTimeout(() => {
+        const fetchUserData = async () => {
+            let nameFound = 'User';
+            let picFound = null;
+
             const storedUser = localStorage.getItem('user');
+            const token = localStorage.getItem('token');
+
+            // 1. Quick optimistic load from localStorage or Token for instant UI rendering
             if (storedUser) {
                 try {
                     const user = JSON.parse(storedUser);
-                    if (user && user.fullName) setUserFullName(user.fullName);
-                } catch (error) { }
+                    if (user && (user.fullName || user.name)) nameFound = user.fullName || user.name;
+                    if (user && user.profile_picture) picFound = user.profile_picture;
+                } catch (error) { console.error("Failed to parse user data:", error); }
+            }
+            if (!picFound && token) {
+                try {
+                    const payload = JSON.parse(atob(token.split('.')[1]));
+                    if (payload.profile_picture) picFound = payload.profile_picture;
+                    if (nameFound === 'User' && (payload.fullName || payload.name)) nameFound = payload.fullName || payload.name;
+                } catch (error) { console.error("Failed to parse token:", error); }
+            }
+
+            setUserFullName(nameFound);
+            setUserProfilePic(picFound);
+
+            // 2. Fetch the latest accurate data directly from the API 
+            if (token) {
+                try {
+                    const payload = JSON.parse(atob(token.split('.')[1]));
+                    const userId = payload.id;
+
+                    const res = await fetch(`${apiUrl}/api/users`, {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+
+                    if (res.ok) {
+                        const usersList = await res.json();
+                        const currentUser = usersList.find(u => u.id === userId);
+
+                        if (currentUser) {
+                            const actualName = currentUser.full_name || currentUser.name || nameFound;
+                            setUserFullName(actualName);
+
+                            // If the backend has a profile picture, override the state
+                            if (currentUser.profile_picture) {
+                                setUserProfilePic(currentUser.profile_picture);
+
+                                // Sync local storage for consistency
+                                if (storedUser) {
+                                    const userObj = JSON.parse(storedUser);
+                                    userObj.profile_picture = currentUser.profile_picture;
+                                    localStorage.setItem('user', JSON.stringify(userObj));
+                                }
+                            }
+                        }
+                    }
+                } catch (error) {
+                    console.error("Failed to fetch latest user data:", error);
+                }
             }
             setIsLoading(false);
-        }, 500);
-        return () => clearTimeout(timer);
-    }, []);
+        };
+
+        fetchUserData();
+
+        // Listen for storage changes across tabs
+        window.addEventListener('storage', fetchUserData);
+
+        return () => {
+            window.removeEventListener('storage', fetchUserData);
+        };
+    }, [location.pathname, apiUrl]); // Trigger refetch if user navigates away from profile page
 
     const getInitials = (name) => {
         if (!name) return 'U';
@@ -62,9 +115,6 @@ const Navbar = () => {
         const handleClickOutside = (event) => {
             if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
                 setIsDropdownOpen(false);
-            }
-            if (expRef.current && !expRef.current.contains(event.target)) {
-                setExpDropdownOpen(false);
             }
         };
         document.addEventListener('mousedown', handleClickOutside);
@@ -104,63 +154,7 @@ const Navbar = () => {
 
                     {/* Middle Section: Integrated Search Bar (Sleeker Design) */}
                     <div className="hidden md:flex flex-1 max-w-[600px] mx-4 lg:mx-6">
-                        {isLoading ? (
-                            <Shimmer className="w-full h-[40px] rounded-full" />
-                        ) : (
-                            <div className="flex w-full items-center bg-gray-50/50 border border-gray-200 hover:border-gray-300 focus-within:bg-white focus-within:border-[#2A45C2]/40 focus-within:ring-4 focus-within:ring-[#2A45C2]/10 rounded-full transition-all duration-300 h-[40px] relative shadow-sm">
-
-                                {/* Keyword/Designation Input */}
-                                <div className="flex-[2] pl-5 pr-3 h-full flex items-center border-r border-gray-200/80">
-                                    <input
-                                        type="text"
-                                        placeholder="Skills, Designations, Companies..."
-                                        className="w-full text-sm outline-none text-gray-800 placeholder-gray-400 bg-transparent font-medium"
-                                    />
-                                </div>
-
-                                {/* Experience Dropdown */}
-                                <div
-                                    className="relative h-full flex items-center border-r border-gray-200/80 cursor-pointer min-w-[122px] px-3.5 hover:bg-gray-100/50 transition-colors"
-                                    onClick={() => setExpDropdownOpen(!expDropdownOpen)}
-                                    ref={expRef}
-                                >
-                                    <span className={`text-sm font-medium flex-1 truncate ${selectedExp ? 'text-gray-800' : 'text-gray-400'}`}>
-                                        {selectedExp || 'Experience'}
-                                    </span>
-                                    <FaChevronDown className={`text-gray-400 text-[10px] ml-2 shrink-0 transition-transform duration-300 ${expDropdownOpen ? 'rotate-180' : ''}`} />
-
-                                    {expDropdownOpen && (
-                                        <div className="absolute top-[48px] left-0 w-52 bg-white border border-gray-100 rounded-2xl shadow-[0_12px_40px_rgba(20,27,60,0.1)] py-2 z-50 animate-fade-in-up">
-                                            {experiences.map(exp => (
-                                                <div
-                                                    key={exp}
-                                                    className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-blue-50/80 hover:text-[#2A45C2] cursor-pointer transition-colors"
-                                                    onClick={() => { setSelectedExp(exp); setExpDropdownOpen(false); }}
-                                                >
-                                                    {exp}
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
-
-                                {/* Location Input */}
-                                <div className="flex-1 pl-3.5 pr-2 h-full flex items-center min-w-[110px]">
-                                    <input
-                                        type="text"
-                                        placeholder="Location"
-                                        className="w-full text-sm outline-none text-gray-800 placeholder-gray-400 bg-transparent font-medium"
-                                    />
-                                </div>
-
-                                {/* Search Button */}
-                                <div className="pr-1.5 pl-1 h-full flex items-center">
-                                    <button className="bg-gradient-to-r from-[#2A45C2] to-[#5B4FE0] hover:shadow-lg text-white rounded-full px-5 h-[32px] text-sm font-bold flex items-center transition-all shadow-md hover:-translate-y-0.5 tracking-wide">
-                                        Search
-                                    </button>
-                                </div>
-                            </div>
-                        )}
+                        <SearchBar isLoading={isLoading} />
                     </div>
 
                     {/* Right Section: Actions & Profile */}
@@ -181,9 +175,16 @@ const Navbar = () => {
 
                                 <div className="relative h-full flex items-center ml-0.5 sm:ml-0" ref={dropdownRef}>
                                     <button onClick={() => setIsDropdownOpen(!isDropdownOpen)} className="flex items-center gap-2.5 pl-1 pr-2.5 py-1 rounded-full hover:bg-gray-100/80 border border-transparent hover:border-gray-200/80 transition-all focus:outline-none group">
-                                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#141B3C] via-[#2A45C2] to-[#5B4FE0] text-white flex items-center justify-center font-bold text-xs shadow-md border border-white/40 group-hover:scale-105 transition-transform">
-                                            {getInitials(userFullName)}
+
+                                        {/* Dynamic User Avatar using fetched Profile Picture */}
+                                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#141B3C] via-[#2A45C2] to-[#5B4FE0] text-white flex items-center justify-center font-bold text-xs shadow-md border border-white/40 group-hover:scale-105 transition-transform overflow-hidden shrink-0">
+                                            {userProfilePic ? (
+                                                <img src={userProfilePic} alt={userFullName} className="w-full h-full object-cover" />
+                                            ) : (
+                                                getInitials(userFullName)
+                                            )}
                                         </div>
+
                                         <div className="hidden md:flex flex-col items-start justify-center text-left max-w-[120px]">
                                             <span className="text-sm font-extrabold text-gray-900 truncate w-full leading-tight">{userFullName}</span>
                                             <span className="text-[10px] text-gray-500 font-semibold tracking-wide">Job Seeker</span>

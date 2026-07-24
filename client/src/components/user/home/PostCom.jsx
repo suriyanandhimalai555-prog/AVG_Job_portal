@@ -22,7 +22,9 @@ import {
     FaHandHoldingHeart,
     FaSignLanguage,
     FaChevronLeft,
-    FaChevronRight
+    FaChevronRight,
+    FaEnvelope,
+    FaCheck
 } from 'react-icons/fa';
 
 const PostCom = ({ userName, userIdState, apiUrl }) => {
@@ -44,6 +46,9 @@ const PostCom = ({ userName, userIdState, apiUrl }) => {
     const [commentText, setCommentText] = useState('');
     const [visibleCommentsCount, setVisibleCommentsCount] = useState({});
 
+    // Read More / Less State
+    const [expandedText, setExpandedText] = useState({});
+
     const [expandedPost, setExpandedPost] = useState(null);
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
@@ -52,6 +57,12 @@ const PostCom = ({ userName, userIdState, apiUrl }) => {
     const [hoveredReactionPostId, setHoveredReactionPostId] = useState(null);
     const [toastMsg, setToastMsg] = useState('');
     const [postToDelete, setPostToDelete] = useState(null);
+
+    // Current User Profile Picture State
+    const [currentUserPic, setCurrentUserPic] = useState(null);
+
+    // Map to store all users' profile pictures for rapid lookup
+    const [usersMap, setUsersMap] = useState({});
 
     const reactions = [
         { type: 'like', Icon: FaThumbsUp, label: 'Like', color: 'text-blue-600', bgColor: 'bg-blue-600', textColor: 'text-white' },
@@ -70,6 +81,64 @@ const PostCom = ({ userName, userIdState, apiUrl }) => {
         setToastMsg(msg);
         setTimeout(() => setToastMsg(''), 3500);
     };
+
+    // Fetch Current User Picture from Local Storage & API to ensure it loads
+    useEffect(() => {
+        const fetchUserPic = async () => {
+            let picFound = null;
+            const userStr = localStorage.getItem('user');
+            const token = localStorage.getItem('token');
+
+            // Quick optimistic load
+            if (userStr) {
+                try {
+                    const userObj = JSON.parse(userStr);
+                    if (userObj.profile_picture) picFound = userObj.profile_picture;
+                } catch (e) { console.error(e); }
+            }
+            if (!picFound && token) {
+                try {
+                    const payload = JSON.parse(atob(token.split('.')[1]));
+                    if (payload.profile_picture) picFound = payload.profile_picture;
+                } catch (e) { console.error(e); }
+            }
+
+            setCurrentUserPic(picFound);
+
+            // Fetch actual latest from API and build the users map
+            if (token) {
+                try {
+                    const res = await fetch(`${apiUrl}/api/users`, {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    if (res.ok) {
+                        const users = await res.json();
+                        const map = {};
+
+                        users.forEach(u => {
+                            if (u.id) map[u.id] = u.profile_picture || '';
+                            if (u.full_name || u.name) map[u.full_name || u.name] = u.profile_picture || '';
+
+                            // Check if this is the current user to sync their pic
+                            if (u.id === userIdState && u.profile_picture) {
+                                setCurrentUserPic(u.profile_picture);
+                                if (userStr) {
+                                    const userObj = JSON.parse(userStr);
+                                    userObj.profile_picture = u.profile_picture;
+                                    localStorage.setItem('user', JSON.stringify(userObj));
+                                }
+                            }
+                        });
+                        setUsersMap(map);
+                    }
+                } catch (e) { console.error("Failed fetching user profiles:", e); }
+            }
+        };
+
+        fetchUserPic();
+        window.addEventListener('storage', fetchUserPic);
+        return () => window.removeEventListener('storage', fetchUserPic);
+    }, [userIdState, apiUrl]);
 
     const fetchPosts = async () => {
         try {
@@ -108,7 +177,7 @@ const PostCom = ({ userName, userIdState, apiUrl }) => {
         }
     }, [feedPosts, expandedPost]);
 
-    // NEW LOGIC: Follow / Unfollow from the feed
+    // Follow / Unfollow from the feed
     const handleToggleFollow = async (targetId) => {
         const isFollowing = followedUsers[targetId];
 
@@ -125,6 +194,17 @@ const PostCom = ({ userName, userIdState, apiUrl }) => {
         } catch (e) {
             console.error(e);
         }
+    };
+
+    // TRIGGER GLOBAL CHAT WIDGET VIA CUSTOM EVENT
+    const handleOpenChat = (post) => {
+        const userForChat = {
+            id: post.user_id,
+            full_name: post.author_name,
+            role: post.author_title || 'Member'
+        };
+        const event = new CustomEvent('open-global-chat', { detail: userForChat });
+        window.dispatchEvent(event);
     };
 
     const handleEmojiClick = (emojiData) => setPostContent(prev => prev + emojiData.emoji);
@@ -150,14 +230,14 @@ const PostCom = ({ userName, userIdState, apiUrl }) => {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ userId: userIdState, content: postContent, images: postImages })
                 });
-                showToast("Post updated successfully!");
+                showToast("Post updated successfully");
             } else {
                 await fetch(`${apiUrl}/api/posts`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ userId: userIdState, authorName: userName, content: postContent, images: postImages })
                 });
-                showToast("Post created successfully!");
+                showToast("Post created successfully");
             }
             setPostContent('');
             setPostImages([]);
@@ -182,7 +262,7 @@ const PostCom = ({ userName, userIdState, apiUrl }) => {
             fetchPosts();
             setActivePostOptions(null);
             setPostToDelete(null);
-            showToast("Post deleted successfully!");
+            showToast("Post deleted successfully");
         } catch (e) { console.error(e) }
     };
 
@@ -202,7 +282,7 @@ const PostCom = ({ userName, userIdState, apiUrl }) => {
 
     const copyToClipboard = (text) => {
         navigator.clipboard.writeText(text);
-        showToast("Link copied to clipboard!");
+        showToast("Link copied to clipboard");
     };
 
     const handleShareClick = async (postId, platform) => {
@@ -303,9 +383,12 @@ const PostCom = ({ userName, userIdState, apiUrl }) => {
 
     return (
         <>
+            {/* MATCHED TOAST DESIGN */}
             {toastMsg && (
-                <div className="fixed top-6 right-6 bg-gray-900 text-white px-5 py-3 rounded-lg shadow-2xl z-[100] animate-fade-in-up font-semibold text-sm flex items-center gap-3">
-                    <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                <div className="fixed top-20 right-6 bg-white text-gray-800 px-4 py-3.5 rounded-xl shadow-[0_4px_24px_rgba(0,0,0,0.12)] z-[100] animate-fade-in-down font-medium text-[15px] flex items-center gap-3 border border-gray-100 min-w-[250px]">
+                    <div className="w-6 h-6 rounded-full bg-[#4ade80] flex items-center justify-center shrink-0">
+                        <FaCheck className="text-white text-[12px]" />
+                    </div>
                     {toastMsg}
                 </div>
             )}
@@ -330,7 +413,11 @@ const PostCom = ({ userName, userIdState, apiUrl }) => {
                 <div className="bg-white rounded-xl shadow-[0_2px_12px_rgba(15,23,42,0.04)] border border-gray-200 p-4">
                     <div className="flex gap-3 mb-3">
                         <div className="w-12 h-12 rounded-full bg-indigo-100 text-[#2A45C2] flex items-center justify-center font-bold text-lg shrink-0 overflow-hidden">
-                            {userName.charAt(0).toUpperCase()}
+                            {currentUserPic ? (
+                                <img src={currentUserPic} alt={userName} className="w-full h-full object-cover" />
+                            ) : (
+                                userName.charAt(0).toUpperCase()
+                            )}
                         </div>
                         <button onClick={() => setIsPostModalOpen(true)} className="flex-1 text-left bg-white border border-gray-300 hover:bg-gray-50 rounded-full px-5 text-gray-500 font-medium text-sm transition-colors">
                             Start a post...
@@ -362,24 +449,44 @@ const PostCom = ({ userName, userIdState, apiUrl }) => {
                         const activeReaction = post.user_reaction ? getReactionDetails(post.user_reaction) : null;
                         const ActiveIcon = activeReaction ? activeReaction.Icon : FaThumbsUp;
 
+                        // Check if text is long for "Read More" logic
+                        const isLongText = post.content && (post.content.length > 250 || post.content.split('\n').length > 5);
+                        const isExpanded = expandedText[post.id];
+
+                        // Attempt to grab author picture from post object, OR the usersMap via ID/Name, OR fallback to current user
+                        const postAuthorPic = post.profile_picture || post.author_profile_picture || usersMap[post.user_id] || usersMap[post.author_name] || (post.author_name === userName ? currentUserPic : null);
+
                         return (
                             <div key={post.id} className="bg-white rounded-xl shadow-[0_2px_12px_rgba(15,23,42,0.04)] border border-gray-200 relative">
                                 <div className="p-4 flex items-start justify-between">
                                     <div className="flex gap-3">
                                         <div className="w-12 h-12 rounded-full bg-indigo-100 text-[#2A45C2] flex items-center justify-center font-bold text-lg shrink-0 overflow-hidden">
-                                            {post.author_name.charAt(0).toUpperCase()}
+                                            {postAuthorPic ? (
+                                                <img src={postAuthorPic} alt={post.author_name} className="w-full h-full object-cover" />
+                                            ) : (
+                                                post.author_name.charAt(0).toUpperCase()
+                                            )}
                                         </div>
                                         <div>
-                                            {/* AUTHOR NAME AND FOLLOW BUTTON */}
+                                            {/* AUTHOR NAME, FOLLOW BUTTON, AND MESSAGE BUTTON */}
                                             <div className="flex items-center gap-2">
                                                 <h4 className="font-bold text-gray-900 text-sm leading-tight hover:text-[#2A45C2] cursor-pointer">{post.author_name}</h4>
                                                 {post.user_id !== userIdState && (
-                                                    <button
-                                                        onClick={() => handleToggleFollow(post.user_id)}
-                                                        className={`text-[10px] font-bold px-2 py-0.5 rounded-md transition-colors ${followedUsers[post.user_id] ? 'bg-gray-100 text-gray-500' : 'bg-[#EEF1FE] text-[#2A45C2] hover:bg-[#2A45C2] hover:text-white'}`}
-                                                    >
-                                                        {followedUsers[post.user_id] ? 'Following' : '+ Follow'}
-                                                    </button>
+                                                    <>
+                                                        <button
+                                                            onClick={() => handleToggleFollow(post.user_id)}
+                                                            className={`text-[10px] font-bold px-2 py-0.5 rounded-md transition-colors ${followedUsers[post.user_id] ? 'bg-gray-100 text-gray-500' : 'bg-[#EEF1FE] text-[#2A45C2] hover:bg-[#2A45C2] hover:text-white'}`}
+                                                        >
+                                                            {followedUsers[post.user_id] ? 'Following' : '+ Follow'}
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleOpenChat(post)}
+                                                            className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-[#F5F6FC] text-gray-600 border border-gray-200 hover:border-[#2A45C2] hover:text-[#2A45C2] transition-colors flex items-center gap-1 shadow-sm"
+                                                            title={`Message ${post.author_name}`}
+                                                        >
+                                                            <FaEnvelope size={10} /> Message
+                                                        </button>
+                                                    </>
                                                 )}
                                             </div>
                                             <p className="text-[11px] text-gray-500 leading-tight mt-0.5">{post.author_title || 'Job Seeker'}</p>
@@ -408,7 +515,17 @@ const PostCom = ({ userName, userIdState, apiUrl }) => {
                                 </div>
 
                                 <div className="px-4 pb-2">
-                                    <p className="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap">{post.content}</p>
+                                    <div className={`text-sm text-gray-800 leading-relaxed whitespace-pre-wrap ${!isExpanded && isLongText ? 'line-clamp-5' : ''}`}>
+                                        {post.content}
+                                    </div>
+                                    {isLongText && (
+                                        <button
+                                            onClick={() => setExpandedText(prev => ({ ...prev, [post.id]: !isExpanded }))}
+                                            className="text-gray-500 hover:text-gray-800 text-sm font-semibold mt-1 transition-colors"
+                                        >
+                                            {isExpanded ? '...see less' : '...see more'}
+                                        </button>
+                                    )}
                                 </div>
 
                                 {renderPostImagesGrid(post)}
@@ -495,7 +612,11 @@ const PostCom = ({ userName, userIdState, apiUrl }) => {
                                         <div className="px-4 py-3">
                                             <div className="flex gap-2">
                                                 <div className="w-8 h-8 rounded-full bg-indigo-100 text-[#2A45C2] flex items-center justify-center font-bold text-sm shrink-0 overflow-hidden">
-                                                    {userName.charAt(0).toUpperCase()}
+                                                    {currentUserPic ? (
+                                                        <img src={currentUserPic} alt={userName} className="w-full h-full object-cover" />
+                                                    ) : (
+                                                        userName.charAt(0).toUpperCase()
+                                                    )}
                                                 </div>
                                                 <input
                                                     type="text"
@@ -515,22 +636,33 @@ const PostCom = ({ userName, userIdState, apiUrl }) => {
                                             const visibleCount = visibleCommentsCount[post.id] || 5;
                                             const remainingCount = post.comments_data.length - visibleCount;
 
+                                            // Ensure latest comments appear on top
+                                            const sortedComments = [...post.comments_data].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
                                             return (
                                                 <div className="px-4 pb-4 max-h-[300px] overflow-y-auto">
-                                                    {post.comments_data.slice(0, visibleCount).map(comment => (
-                                                        <div key={comment.id} className="mb-3 flex gap-2">
-                                                            <div className="w-8 h-8 rounded-full bg-gray-200 text-gray-600 flex items-center justify-center font-bold text-sm shrink-0 overflow-hidden mt-1">
-                                                                {comment.author_name.charAt(0).toUpperCase()}
-                                                            </div>
-                                                            <div className="bg-white p-3 rounded-tr-xl rounded-br-xl rounded-bl-xl border border-gray-200 flex-1 shadow-sm">
-                                                                <div className="flex justify-between items-start">
-                                                                    <span className="font-bold text-[13px] text-gray-900 block">{comment.author_name}</span>
-                                                                    <span className="text-[10px] text-gray-400 block">{formatTime(comment.created_at)}</span>
+                                                    {sortedComments.slice(0, visibleCount).map(comment => {
+                                                        const commentPic = comment.profile_picture || comment.author_profile_picture || usersMap[comment.user_id] || usersMap[comment.author_name] || (comment.author_name === userName ? currentUserPic : null);
+
+                                                        return (
+                                                            <div key={comment.id} className="mb-3 flex gap-2">
+                                                                <div className="w-8 h-8 rounded-full bg-gray-200 text-gray-600 flex items-center justify-center font-bold text-sm shrink-0 overflow-hidden mt-1">
+                                                                    {commentPic ? (
+                                                                        <img src={commentPic} alt={comment.author_name} className="w-full h-full object-cover" />
+                                                                    ) : (
+                                                                        comment.author_name.charAt(0).toUpperCase()
+                                                                    )}
                                                                 </div>
-                                                                <span className="text-[13px] text-gray-700 mt-1 block leading-snug">{comment.content}</span>
+                                                                <div className="bg-white p-3 rounded-tr-xl rounded-br-xl rounded-bl-xl border border-gray-200 flex-1 shadow-sm">
+                                                                    <div className="flex justify-between items-start">
+                                                                        <span className="font-bold text-[13px] text-gray-900 block">{comment.author_name}</span>
+                                                                        <span className="text-[10px] text-gray-400 block">{formatTime(comment.created_at)}</span>
+                                                                    </div>
+                                                                    <span className="text-[13px] text-gray-700 mt-1 block leading-snug">{comment.content}</span>
+                                                                </div>
                                                             </div>
-                                                        </div>
-                                                    ))}
+                                                        );
+                                                    })}
 
                                                     {remainingCount > 0 && (
                                                         <button onClick={() => handleSeeMoreComments(post.id)} className="text-[13px] font-bold text-gray-500 hover:text-blue-600 transition-colors ml-10 mt-1">
@@ -554,7 +686,11 @@ const PostCom = ({ userName, userIdState, apiUrl }) => {
                         <div className="flex justify-between items-center p-4 border-b border-gray-100">
                             <div className="flex gap-3 items-center">
                                 <div className="w-12 h-12 rounded-full bg-indigo-100 text-[#2A45C2] flex items-center justify-center font-bold text-xl shrink-0 overflow-hidden">
-                                    {userName.charAt(0).toUpperCase()}
+                                    {currentUserPic ? (
+                                        <img src={currentUserPic} alt={userName} className="w-full h-full object-cover" />
+                                    ) : (
+                                        userName.charAt(0).toUpperCase()
+                                    )}
                                 </div>
                                 <div>
                                     <div className="flex items-center gap-1 cursor-pointer">
@@ -624,108 +760,160 @@ const PostCom = ({ userName, userIdState, apiUrl }) => {
                 </div>
             )}
 
-            {expandedPost && (
-                <div className="fixed inset-0 z-[120] flex bg-black/95 animate-fade-in flex-col md:flex-row">
-                    <div className="flex-1 relative flex items-center justify-center h-[60vh] md:h-screen">
-                        <button onClick={() => setExpandedPost(null)} className="absolute top-4 left-4 text-white p-2 bg-black/50 hover:bg-white/20 rounded-full transition-colors z-20">
-                            <FaTimes size={20} />
-                        </button>
-                        {getImagesArray(expandedPost).length > 1 && (
-                            <>
-                                <button onClick={() => setCurrentImageIndex(prev => prev === 0 ? getImagesArray(expandedPost).length - 1 : prev - 1)} className="absolute left-4 text-white p-3 bg-white/10 hover:bg-white/20 rounded-full transition-colors z-20 hidden md:block">
-                                    <FaChevronLeft size={20} />
-                                </button>
-                                <button onClick={() => setCurrentImageIndex(prev => prev === getImagesArray(expandedPost).length - 1 ? 0 : prev + 1)} className="absolute right-4 text-white p-3 bg-white/10 hover:bg-white/20 rounded-full transition-colors z-20 hidden md:block">
-                                    <FaChevronRight size={20} />
-                                </button>
-                            </>
-                        )}
-                        <img src={getImagesArray(expandedPost)[currentImageIndex]} className="max-w-full max-h-full object-contain" />
-                    </div>
+            {expandedPost && (() => {
+                const isLongText = expandedPost.content && (expandedPost.content.length > 250 || expandedPost.content.split('\n').length > 5);
+                const isExpanded = expandedText[`theater_${expandedPost.id}`];
 
-                    <div className="w-full md:w-[380px] lg:w-[450px] bg-white flex flex-col h-[40vh] md:h-screen overflow-hidden">
-                        <div className="flex justify-between items-center p-4 border-b border-gray-100 hidden md:flex">
-                            <div className="flex gap-3">
-                                <div className="w-10 h-10 rounded-full bg-indigo-100 text-[#2A45C2] flex items-center justify-center font-bold text-base shrink-0">
-                                    {expandedPost.author_name.charAt(0).toUpperCase()}
-                                </div>
-                                <div>
-                                    <h4 className="font-bold text-gray-900 text-sm">{expandedPost.author_name}</h4>
-                                    <p className="text-[11px] text-gray-500">{expandedPost.author_title || 'Job Seeker'}</p>
-                                </div>
-                            </div>
-                            <button onClick={() => setExpandedPost(null)} className="text-gray-500 hover:bg-gray-100 p-2 rounded-full transition-colors">
-                                <FaTimes />
+                const postAuthorPic = expandedPost.profile_picture || expandedPost.author_profile_picture || usersMap[expandedPost.user_id] || usersMap[expandedPost.author_name] || (expandedPost.author_name === userName ? currentUserPic : null);
+
+                return (
+                    <div className="fixed inset-0 z-[120] flex bg-black/95 animate-fade-in flex-col md:flex-row">
+                        <div className="flex-1 relative flex items-center justify-center h-[60vh] md:h-screen">
+                            <button onClick={() => setExpandedPost(null)} className="absolute top-4 left-4 text-white p-2 bg-black/50 hover:bg-white/20 rounded-full transition-colors z-20">
+                                <FaTimes size={20} />
                             </button>
+                            {getImagesArray(expandedPost).length > 1 && (
+                                <>
+                                    <button onClick={() => setCurrentImageIndex(prev => prev === 0 ? getImagesArray(expandedPost).length - 1 : prev - 1)} className="absolute left-4 text-white p-3 bg-white/10 hover:bg-white/20 rounded-full transition-colors z-20 hidden md:block">
+                                        <FaChevronLeft size={20} />
+                                    </button>
+                                    <button onClick={() => setCurrentImageIndex(prev => prev === getImagesArray(expandedPost).length - 1 ? 0 : prev + 1)} className="absolute right-4 text-white p-3 bg-white/10 hover:bg-white/20 rounded-full transition-colors z-20 hidden md:block">
+                                        <FaChevronRight size={20} />
+                                    </button>
+                                </>
+                            )}
+                            <img src={getImagesArray(expandedPost)[currentImageIndex]} className="max-w-full max-h-full object-contain" />
                         </div>
 
-                        <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                            <p className="text-sm text-gray-800 whitespace-pre-wrap">{expandedPost.content}</p>
-
-                            <div className="border-t border-gray-100 pt-2 flex justify-between items-center text-[11px] text-gray-500">
-                                <div className="flex items-center gap-1.5">
-                                    <div className="bg-blue-50 text-blue-600 p-1 rounded-full"><FaThumbsUp size={10} /></div>
-                                    <span>{expandedPost.likes_count}</span>
-                                </div>
+                        <div className="w-full md:w-[380px] lg:w-[450px] bg-white flex flex-col h-[40vh] md:h-screen overflow-hidden">
+                            <div className="flex justify-between items-center p-4 border-b border-gray-100 hidden md:flex">
                                 <div className="flex gap-3">
-                                    <span>{expandedPost.comments_count} comments</span>
-                                    <span>{expandedPost.share_count} shares</span>
-                                </div>
-                            </div>
-
-                            <div className="flex items-center justify-between border-y border-gray-50 py-1 relative">
-                                <button onClick={() => handleReaction(expandedPost.id, expandedPost.user_reaction ? expandedPost.user_reaction : 'like')} className={`flex items-center gap-2 font-bold text-[13px] flex-1 justify-center py-2.5 rounded-lg transition-colors ${expandedPost.user_reaction ? getReactionDetails(expandedPost.user_reaction).color : 'text-gray-500 hover:bg-gray-100'}`}>
-                                    {expandedPost.user_reaction ? (
-                                        <span className="text-lg">{getReactionDetails(expandedPost.user_reaction).Icon({})}</span>
-                                    ) : (
-                                        <FaThumbsUp className="text-lg" />
-                                    )}
-                                    <span className="capitalize">{expandedPost.user_reaction ? getReactionDetails(expandedPost.user_reaction).label : 'Like'}</span>
-                                </button>
-                                <button className="flex items-center gap-2 text-gray-500 font-bold text-[13px] hover:bg-gray-100 flex-1 justify-center py-2.5 rounded-lg transition-colors">
-                                    <FaRegCommentDots className="text-[19px]" /> Comment
-                                </button>
-                            </div>
-
-                            <div className="flex gap-2">
-                                <div className="w-8 h-8 rounded-full bg-indigo-100 text-[#2A45C2] flex items-center justify-center font-bold text-sm shrink-0 overflow-hidden">
-                                    {userName.charAt(0).toUpperCase()}
-                                </div>
-                                <input
-                                    type="text"
-                                    value={commentText}
-                                    onChange={(e) => setCommentText(e.target.value)}
-                                    placeholder="Add a comment..."
-                                    className="flex-1 bg-gray-50 border border-gray-200 rounded-full px-4 py-1.5 text-sm outline-none focus:border-blue-500 transition-colors"
-                                    onKeyDown={(e) => e.key === 'Enter' && submitComment(expandedPost.id)}
-                                />
-                                <button onClick={() => submitComment(expandedPost.id)} className="bg-blue-600 text-white px-3 py-1.5 rounded-full text-sm font-bold hover:bg-blue-700 transition-colors">
-                                    <FaPaperPlane size={12} />
-                                </button>
-                            </div>
-
-                            {expandedPost.comments_data && expandedPost.comments_data.length > 0 && (
-                                <div className="pt-2">
-                                    {expandedPost.comments_data.map(comment => (
-                                        <div key={comment.id} className="mb-3 flex gap-2">
-                                            <div className="w-8 h-8 rounded-full bg-gray-200 text-gray-600 flex items-center justify-center font-bold text-sm shrink-0 overflow-hidden mt-1">
-                                                {comment.author_name.charAt(0).toUpperCase()}
-                                            </div>
-                                            <div className="bg-gray-50 p-3 rounded-xl flex-1 shadow-sm">
-                                                <div className="flex justify-between items-start">
-                                                    <span className="font-bold text-[13px] text-gray-900 block">{comment.author_name}</span>
-                                                    <span className="text-[10px] text-gray-400 block">{formatTime(comment.created_at)}</span>
-                                                </div>
-                                                <span className="text-[13px] text-gray-700 mt-1 block leading-snug">{comment.content}</span>
-                                            </div>
+                                    <div className="w-10 h-10 rounded-full bg-indigo-100 text-[#2A45C2] flex items-center justify-center font-bold text-base shrink-0 overflow-hidden">
+                                        {postAuthorPic ? (
+                                            <img src={postAuthorPic} alt={expandedPost.author_name} className="w-full h-full object-cover" />
+                                        ) : (
+                                            expandedPost.author_name.charAt(0).toUpperCase()
+                                        )}
+                                    </div>
+                                    <div>
+                                        {/* MESSAGE BUTTON IN THEATER MODE */}
+                                        <div className="flex items-center gap-2">
+                                            <h4 className="font-bold text-gray-900 text-sm">{expandedPost.author_name}</h4>
+                                            {expandedPost.user_id !== userIdState && (
+                                                <button
+                                                    onClick={() => handleOpenChat(expandedPost)}
+                                                    className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 hover:bg-[#EEF1FE] hover:text-[#2A45C2] transition-colors flex items-center gap-1"
+                                                    title={`Message ${expandedPost.author_name}`}
+                                                >
+                                                    <FaEnvelope size={10} /> Message
+                                                </button>
+                                            )}
                                         </div>
-                                    ))}
+                                        <p className="text-[11px] text-gray-500">{expandedPost.author_title || 'Job Seeker'}</p>
+                                    </div>
                                 </div>
-                            )}
+                                <button onClick={() => setExpandedPost(null)} className="text-gray-500 hover:bg-gray-100 p-2 rounded-full transition-colors">
+                                    <FaTimes />
+                                </button>
+                            </div>
+
+                            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                                <div>
+                                    <div className={`text-sm text-gray-800 whitespace-pre-wrap ${!isExpanded && isLongText ? 'line-clamp-5' : ''}`}>
+                                        {expandedPost.content}
+                                    </div>
+                                    {isLongText && (
+                                        <button
+                                            onClick={() => setExpandedText(prev => ({ ...prev, [`theater_${expandedPost.id}`]: !isExpanded }))}
+                                            className="text-gray-500 hover:text-gray-800 text-sm font-semibold mt-1 transition-colors"
+                                        >
+                                            {isExpanded ? '...see less' : '...see more'}
+                                        </button>
+                                    )}
+                                </div>
+
+                                <div className="border-t border-gray-100 pt-2 flex justify-between items-center text-[11px] text-gray-500">
+                                    <div className="flex items-center gap-1.5">
+                                        <div className="bg-blue-50 text-blue-600 p-1 rounded-full"><FaThumbsUp size={10} /></div>
+                                        <span>{expandedPost.likes_count}</span>
+                                    </div>
+                                    <div className="flex gap-3">
+                                        <span>{expandedPost.comments_count} comments</span>
+                                        <span>{expandedPost.share_count} shares</span>
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center justify-between border-y border-gray-50 py-1 relative">
+                                    <button onClick={() => handleReaction(expandedPost.id, expandedPost.user_reaction ? expandedPost.user_reaction : 'like')} className={`flex items-center gap-2 font-bold text-[13px] flex-1 justify-center py-2.5 rounded-lg transition-colors ${expandedPost.user_reaction ? getReactionDetails(expandedPost.user_reaction).color : 'text-gray-500 hover:bg-gray-100'}`}>
+                                        {expandedPost.user_reaction ? (
+                                            <span className="text-lg">{getReactionDetails(expandedPost.user_reaction).Icon({})}</span>
+                                        ) : (
+                                            <FaThumbsUp className="text-lg" />
+                                        )}
+                                        <span className="capitalize">{expandedPost.user_reaction ? getReactionDetails(expandedPost.user_reaction).label : 'Like'}</span>
+                                    </button>
+                                    <button className="flex items-center gap-2 text-gray-500 font-bold text-[13px] hover:bg-gray-100 flex-1 justify-center py-2.5 rounded-lg transition-colors">
+                                        <FaRegCommentDots className="text-[19px]" /> Comment
+                                    </button>
+                                </div>
+
+                                <div className="flex gap-2">
+                                    <div className="w-8 h-8 rounded-full bg-indigo-100 text-[#2A45C2] flex items-center justify-center font-bold text-sm shrink-0 overflow-hidden">
+                                        {currentUserPic ? (
+                                            <img src={currentUserPic} alt={userName} className="w-full h-full object-cover" />
+                                        ) : (
+                                            userName.charAt(0).toUpperCase()
+                                        )}
+                                    </div>
+                                    <input
+                                        type="text"
+                                        value={commentText}
+                                        onChange={(e) => setCommentText(e.target.value)}
+                                        placeholder="Add a comment..."
+                                        className="flex-1 bg-gray-50 border border-gray-200 rounded-full px-4 py-1.5 text-sm outline-none focus:border-blue-500 transition-colors"
+                                        onKeyDown={(e) => e.key === 'Enter' && submitComment(expandedPost.id)}
+                                    />
+                                    <button onClick={() => submitComment(expandedPost.id)} className="bg-blue-600 text-white px-3 py-1.5 rounded-full text-sm font-bold hover:bg-blue-700 transition-colors">
+                                        <FaPaperPlane size={12} />
+                                    </button>
+                                </div>
+
+                                {expandedPost.comments_data && expandedPost.comments_data.length > 0 && (() => {
+                                    // Ensure latest comments appear on top
+                                    const sortedComments = [...expandedPost.comments_data].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+                                    return (
+                                        <div className="pt-2">
+                                            {sortedComments.map(comment => {
+                                                const commentPic = comment.profile_picture || comment.author_profile_picture || usersMap[comment.user_id] || usersMap[comment.author_name] || (comment.author_name === userName ? currentUserPic : null);
+
+                                                return (
+                                                    <div key={comment.id} className="mb-3 flex gap-2">
+                                                        <div className="w-8 h-8 rounded-full bg-gray-200 text-gray-600 flex items-center justify-center font-bold text-sm shrink-0 overflow-hidden mt-1">
+                                                            {commentPic ? (
+                                                                <img src={commentPic} alt={comment.author_name} className="w-full h-full object-cover" />
+                                                            ) : (
+                                                                comment.author_name.charAt(0).toUpperCase()
+                                                            )}
+                                                        </div>
+                                                        <div className="bg-gray-50 p-3 rounded-xl flex-1 shadow-sm">
+                                                            <div className="flex justify-between items-start">
+                                                                <span className="font-bold text-[13px] text-gray-900 block">{comment.author_name}</span>
+                                                                <span className="text-[10px] text-gray-400 block">{formatTime(comment.created_at)}</span>
+                                                            </div>
+                                                            <span className="text-[13px] text-gray-700 mt-1 block leading-snug">{comment.content}</span>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    );
+                                })()}
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
+                );
+            })()}
         </>
     );
 };

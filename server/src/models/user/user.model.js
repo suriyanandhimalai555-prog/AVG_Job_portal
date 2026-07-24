@@ -10,6 +10,7 @@ export const createUserTable = async () => {
             password_hash VARCHAR(255) NOT NULL,
             role VARCHAR(50) DEFAULT 'User',
             status VARCHAR(50) DEFAULT 'Active',
+            profile_picture TEXT,
             referral_code VARCHAR(50) UNIQUE,
             referred_by INTEGER REFERENCES users(id),
             referral_earnings NUMERIC DEFAULT 0,
@@ -31,6 +32,7 @@ export const createUserTable = async () => {
         await pool.query(followTable);
         await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(50) DEFAULT 'User';`);
         await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'Active';`);
+        await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_picture TEXT;`);
         await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_code VARCHAR(50) UNIQUE;`);
         await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS referred_by INTEGER REFERENCES users(id);`);
         await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_earnings NUMERIC DEFAULT 0;`);
@@ -41,7 +43,7 @@ export const createUserTable = async () => {
 
 const UserModel = {
     getAll: async () => {
-        const query = 'SELECT id, full_name, email, phone, role, status, created_at FROM users ORDER BY created_at DESC';
+        const query = 'SELECT id, full_name, email, phone, role, status, profile_picture, created_at FROM users ORDER BY created_at DESC';
         const { rows } = await pool.query(query);
         return rows;
     },
@@ -53,8 +55,7 @@ const UserModel = {
     },
 
     create: async (userData) => {
-        // FIXED: Destructure role and status, providing defaults if they aren't passed
-        const { fullName, email, phone, passwordHash, referralCode, role = 'User', status = 'Active' } = userData;
+        const { fullName, email, phone, passwordHash, referralCode, role = 'User', status = 'Active', profile_picture = null } = userData;
 
         const namePrefix = fullName.replace(/[^a-zA-Z]/g, '').substring(0, 4).toUpperCase();
         const randomNum = Math.floor(1000 + Math.random() * 9000);
@@ -71,25 +72,25 @@ const UserModel = {
             }
         }
 
-        // FIXED: Inject role and status into the INSERT query
         const query = `
-            INSERT INTO users (full_name, email, phone, password_hash, referral_code, referred_by, role, status)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-            RETURNING id, full_name, email, phone, referral_code, role, status, created_at;
+            INSERT INTO users (full_name, email, phone, password_hash, referral_code, referred_by, role, status, profile_picture)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+            RETURNING id, full_name, email, phone, referral_code, role, status, profile_picture, created_at;
         `;
-        const { rows } = await pool.query(query, [fullName, email, phone, passwordHash, newReferralCode, referredById, role, status]);
+        const { rows } = await pool.query(query, [fullName, email, phone, passwordHash, newReferralCode, referredById, role, status, profile_picture]);
         return rows[0];
     },
 
     update: async (id, data) => {
-        const { full_name, email, phone, role, status } = data;
+        const { full_name, email, phone, role, status, profile_picture } = data;
         const query = `
             UPDATE users 
-            SET full_name = $1, email = $2, phone = $3, role = $4, status = $5
-            WHERE id = $6 
-            RETURNING id, full_name, email, phone, role, status;
+            SET full_name = $1, email = $2, phone = $3, role = $4, status = $5,
+                profile_picture = COALESCE($6, profile_picture)
+            WHERE id = $7 
+            RETURNING id, full_name, email, phone, role, status, profile_picture;
         `;
-        const { rows } = await pool.query(query, [full_name, email, phone, role, status, id]);
+        const { rows } = await pool.query(query, [full_name, email, phone, role, status, profile_picture || null, id]);
         return rows[0];
     },
 
