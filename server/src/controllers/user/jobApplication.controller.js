@@ -1,6 +1,33 @@
 import JobApplicationModel from '../../models/user/jobApplication.model.js';
 import JobModel from '../../models/admin/job.model.js';
 import nodemailer from 'nodemailer';
+import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import crypto from 'crypto';
+
+// Setup S3 Client for PDF uploads
+const s3 = new S3Client({
+    region: process.env.AWS_REGION,
+    credentials: {
+        accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
+    }
+});
+
+const uploadPdfToS3 = async (file) => {
+    if (!file) return null;
+    const extension = 'pdf'; 
+    const fileName = `resumes/${crypto.randomBytes(16).toString('hex')}.${extension}`;
+
+    const command = new PutObjectCommand({
+        Bucket: process.env.AWS_S3_BUCKET,
+        Key: fileName,
+        Body: file.buffer,
+        ContentType: file.mimetype || 'application/pdf'
+    });
+
+    await s3.send(command);
+    return `https://${process.env.AWS_S3_BUCKET}.s3.${process.env.AWS_REGION}.amazonaws.com/${fileName}`;
+};
 
 const transporter = nodemailer.createTransport({
     service: 'gmail',
@@ -12,8 +39,15 @@ const transporter = nodemailer.createTransport({
 
 export const applyForJob = async (req, res) => {
     try {
-        const { jobId, jobTitle, companyName, companyEmail, applicantName, applicantEmail, resumeLink, coverLetter } = req.body;
+        const { jobId, jobTitle, companyName, companyEmail, applicantName, applicantEmail, coverLetter } = req.body;
         const userId = req.user.id;
+
+        if (!req.file) {
+            return res.status(400).json({ message: 'Resume PDF file is required.' });
+        }
+
+        // Upload to S3 and get the secure URL
+        const resumeLink = await uploadPdfToS3(req.file);
 
         const application = await JobApplicationModel.create({
             jobId, userId, applicantName, applicantEmail, resumeLink, coverLetter
@@ -45,7 +79,7 @@ export const applyForJob = async (req, res) => {
                 <h3>New Job Application Received</h3>
                 <p><strong>Applicant Name:</strong> ${applicantName}</p>
                 <p><strong>Email:</strong> ${applicantEmail}</p>
-                <p><strong>Resume Link:</strong> <a href="${resumeLink}">${resumeLink}</a></p>
+                <p><strong>Resume PDF:</strong> <a href="${resumeLink}">Download/View Applicant PDF</a></p>
                 <p><strong>Cover Letter:</strong></p>
                 <blockquote style="border-left: 4px solid #ccc; padding-left: 10px;">${coverLetter}</blockquote>
             `
@@ -74,7 +108,6 @@ export const getUserApplications = async (req, res) => {
     }
 };
 
-// NEW: Fetch applicants for a job (Admin)
 export const getJobApplicants = async (req, res) => {
     try {
         const { jobId } = req.params;
@@ -86,7 +119,6 @@ export const getJobApplicants = async (req, res) => {
     }
 };
 
-// NEW: Update applicant status (Admin)
 export const updateApplicationStatus = async (req, res) => {
     try {
         const { id } = req.params;

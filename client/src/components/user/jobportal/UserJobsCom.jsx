@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
-    FaSearch, FaBriefcase, FaMapMarkerAlt, FaStar, FaTh, FaList, FaTimes, FaUsers, FaClock, FaClipboardList, FaFileAlt, FaCheck
+    FaSearch, FaBriefcase, FaMapMarkerAlt, FaStar, FaTh, FaList, FaTimes, FaUsers, FaClock, FaClipboardList, FaFileAlt, FaCheck, FaFileUpload
 } from 'react-icons/fa';
 import { toast, Toaster } from 'react-hot-toast';
 import Button from '../../ui/Button';
@@ -30,15 +30,13 @@ const UserJobsCom = () => {
     const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const [formData, setFormData] = useState({ resumeLink: '', coverLetter: '' });
+    // Changed resumeLink to resume (File object)
+    const [formData, setFormData] = useState({ resume: null, coverLetter: '' });
 
     const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
-    // Hook into URL Search Params to apply global search filters
     useEffect(() => {
         const params = new URLSearchParams(locationRouter.search);
-
-        // Use fallbacks to ensure clearing the URL resets local state
         setSearchTerm(params.get('q') || '');
         setLocFilter(params.get('loc') || '');
         setExpFilter(params.get('exp') || '');
@@ -48,7 +46,6 @@ const UserJobsCom = () => {
         setIsLoading(true);
         const token = localStorage.getItem('token');
 
-        // ADMIN BLOCK (Prevent Admins from accessing User Dashboard)
         if (token) {
             const payload = JSON.parse(atob(token.split('.')[1]));
             if (payload.role === 'Admin') {
@@ -91,20 +88,18 @@ const UserJobsCom = () => {
     }, [apiUrl]);
 
     const filteredJobs = jobs.filter((job) => {
-        // Splits the search term into words to match related terms (e.g. "Sales" matching "Sales Person")
         const searchTermsList = searchTerm.toLowerCase().trim().split(/\s+/).filter(Boolean);
 
         const matchesSearch = searchTermsList.length === 0 || searchTermsList.every(term =>
             (job.title && job.title.toLowerCase().includes(term)) ||
             (job.company && job.company.toLowerCase().includes(term)) ||
             (job.location && job.location.toLowerCase().includes(term)) ||
-            (job.description && job.description.toLowerCase().includes(term)) // Searches skills embedded in desc
+            (job.description && job.description.toLowerCase().includes(term))
         );
 
         const matchesLoc = locFilter === '' ||
             (job.location && job.location.toLowerCase().includes(locFilter.toLowerCase()));
 
-        // Exact match comparison for the dynamic experience strings fetched from DB
         const matchesExp = expFilter === '' ||
             (job.experience && job.experience.toLowerCase().trim() === expFilter.toLowerCase().trim());
 
@@ -123,7 +118,19 @@ const UserJobsCom = () => {
         setIsApplyModalOpen(true);
     };
 
+    // Handle standard text inputs
     const handleFormChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
+
+    // Handle strict PDF file inputs
+    const handleFileChange = (e) => {
+        const file = e.target.files[0];
+        if (file && file.type !== 'application/pdf') {
+            toast.error('Only PDF files are allowed.');
+            e.target.value = ''; 
+            return;
+        }
+        setFormData({ ...formData, resume: file });
+    };
 
     const getDaysAgo = (dateString) => {
         if (!dateString) return 'Just now';
@@ -146,8 +153,9 @@ const UserJobsCom = () => {
 
     const submitApplication = async (e) => {
         e.preventDefault();
-        if (!formData.resumeLink) {
-            toast.error("Please provide a link to your resume.");
+        
+        if (!formData.resume) {
+            toast.error("Please upload your PDF resume.");
             return;
         }
 
@@ -176,28 +184,28 @@ const UserJobsCom = () => {
                 applicantEmail = payload.email || applicantEmail;
             }
 
-            const payload = {
-                jobId: selectedJob.id,
-                jobTitle: selectedJob.title,
-                companyName: selectedJob.company,
-                companyEmail: selectedJob.contact_email || 'hr@company.com',
-                applicantName,
-                applicantEmail,
-                resumeLink: formData.resumeLink,
-                coverLetter: formData.coverLetter
-            };
+            // Using FormData because we are sending a binary file
+            const payloadData = new FormData();
+            payloadData.append('jobId', selectedJob.id);
+            payloadData.append('jobTitle', selectedJob.title);
+            payloadData.append('companyName', selectedJob.company);
+            payloadData.append('companyEmail', selectedJob.contact_email || 'hr@company.com');
+            payloadData.append('applicantName', applicantName);
+            payloadData.append('applicantEmail', applicantEmail);
+            payloadData.append('resume', formData.resume); 
+            payloadData.append('coverLetter', formData.coverLetter);
 
             const res = await fetch(`${apiUrl}/api/applications/apply`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify(payload)
+                headers: { 'Authorization': `Bearer ${token}` }, // Notice NO Content-Type. Browser sets it automatically with the boundary for FormData.
+                body: payloadData
             });
 
             if (!res.ok) throw new Error('Failed to apply');
 
             toast.success('Successfully applied!', { id: loadingToast });
             setIsApplyModalOpen(false);
-            setFormData({ resumeLink: '', coverLetter: '' });
+            setFormData({ resume: null, coverLetter: '' });
             fetchJobsAndApplications();
         } catch (error) {
             console.error(error);
@@ -285,7 +293,6 @@ const UserJobsCom = () => {
                             {isLoading ? '...' : filteredJobs.length} open
                         </Badge>
 
-                        {/* Show Clear Filters indicator if any global search terms are applied */}
                         {(locFilter || expFilter) && (
                             <span className="text-[10px] text-gray-500 italic ml-2 hidden sm:inline">
                                 Global search active • <button onClick={clearFilters} className="text-[#2A45C2] hover:underline cursor-pointer">Clear</button>
@@ -467,8 +474,15 @@ const UserJobsCom = () => {
                         </div>
                         <form onSubmit={submitApplication} className="p-5 space-y-4">
                             <div>
-                                <label className="block text-xs font-black text-gray-700 uppercase tracking-widest mb-1.5">Resume URL Link *</label>
-                                <input type="url" name="resumeLink" required value={formData.resumeLink} onChange={handleFormChange} placeholder="https://drive.google.com/..." className="w-full px-3.5 py-2.5 bg-gray-50/50 border border-[#E7E9F7] rounded-xl focus:ring-2 focus:ring-[#2A45C2]/20 focus:border-[#2A45C2] transition-all text-sm font-medium shadow-sm" />
+                                <label className="block text-xs font-black text-gray-700 uppercase tracking-widest mb-1.5">Resume (PDF Only) *</label>
+                                <input 
+                                    type="file" 
+                                    name="resume" 
+                                    accept=".pdf" 
+                                    required 
+                                    onChange={handleFileChange} 
+                                    className="w-full px-3.5 py-2.5 bg-gray-50/50 border border-[#E7E9F7] rounded-xl focus:ring-2 focus:ring-[#2A45C2]/20 focus:border-[#2A45C2] transition-all text-sm font-medium shadow-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-bold file:bg-[#EEF1FE] file:text-[#2A45C2] hover:file:bg-[#2A45C2] hover:file:text-white cursor-pointer" 
+                                />
                             </div>
                             <div>
                                 <label className="block text-xs font-black text-gray-700 uppercase tracking-widest mb-1.5">Cover Letter (Optional)</label>

@@ -372,9 +372,10 @@ const AdminJobsCom = () => {
                                                 <p className="text-xs font-bold text-gray-500 mb-3 flex items-center gap-1.5"><FaEnvelope className="text-gray-400" /> {app.applicant_email || app.email || 'No email provided'}</p>
 
                                                 <div className="flex items-center gap-4">
+                                                    {/* Updated rendering to display an obvious PDF Resume button[cite: 13] */}
                                                     {app.resume_link ? (
-                                                        <a href={app.resume_link} target="_blank" rel="noopener noreferrer" className="text-[10px] font-black text-[#4353FF] flex items-center gap-1.5 bg-[#F8F9FE] hover:bg-[#4353FF] hover:text-white px-3 py-1.5 rounded-lg transition-colors uppercase tracking-widest border border-blue-50">
-                                                            <FaFileAlt size={12} /> View Resume
+                                                        <a href={app.resume_link} target="_blank" rel="noopener noreferrer" className="text-[10px] font-black text-[#4353FF] flex items-center gap-1.5 bg-[#F8F9FE] hover:bg-[#4353FF] hover:text-white px-3 py-1.5 rounded-lg transition-colors uppercase tracking-widest border border-blue-50 shadow-sm">
+                                                            <FaFileAlt size={12} /> View PDF Resume
                                                         </a>
                                                     ) : (
                                                         <span className="text-[10px] font-black text-gray-400 bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-100 uppercase tracking-widest">No Resume</span>
