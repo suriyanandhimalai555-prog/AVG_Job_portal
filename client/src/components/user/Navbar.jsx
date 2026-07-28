@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate, Link, NavLink } from 'react-router-dom';
 import { FaUser, FaSignOutAlt, FaChevronDown, FaHome, FaAddressBook, FaBriefcase, FaGraduationCap, FaUserPlus, FaBell } from 'react-icons/fa';
+import { LuChartNetwork } from "react-icons/lu";
 import Shimmer from '../ui/Shimmer';
 import SearchBar from './SearchBar';
 
@@ -25,6 +26,7 @@ const Navbar = () => {
         { name: 'Directory', path: '/user-dashboard/directory', icon: <FaAddressBook /> },
         { name: 'Jobs', path: '/user-dashboard/jobs', icon: <FaBriefcase /> },
         { name: 'Academy', path: '/user-dashboard/academy', icon: <FaGraduationCap /> },
+        { name: 'My Network', path: '/user-dashboard/my-network', icon: <LuChartNetwork /> },
         { name: 'Referrals', path: '/user-dashboard/refer', icon: <FaUserPlus /> }
     ];
 

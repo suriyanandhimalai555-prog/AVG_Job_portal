@@ -10,6 +10,8 @@ export const createPostTables = async () => {
             content TEXT NOT NULL,
             image TEXT,
             images JSONB DEFAULT '[]'::jsonb,
+            video TEXT,
+            article_title VARCHAR(255),
             share_count INTEGER DEFAULT 0,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
@@ -41,8 +43,11 @@ export const createPostTables = async () => {
         await pool.query(likesTable);
         await pool.query(commentsTable);
 
+        // Migrations for existing databases
         await pool.query(`ALTER TABLE post_likes ADD COLUMN IF NOT EXISTS reaction_type VARCHAR(50) DEFAULT 'like'`);
         await pool.query(`ALTER TABLE posts ADD COLUMN IF NOT EXISTS images JSONB DEFAULT '[]'::jsonb`);
+        await pool.query(`ALTER TABLE posts ADD COLUMN IF NOT EXISTS video TEXT`);
+        await pool.query(`ALTER TABLE posts ADD COLUMN IF NOT EXISTS article_title VARCHAR(255)`);
     } catch (error) {
         console.error("Error creating post tables:", error.message);
     }

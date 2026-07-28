@@ -10,6 +10,7 @@ import UserDirectory from "../pages/user/UserDirectory";
 import UserJobs from "../pages/user/UserJobs";
 import UserAcademy from "../pages/user/UserAcademy";
 import UserReferral from "../pages/user/UserReferral";
+import UserMyNetwork from "../pages/user/UserMyNetwork";
 import UserProfile from "../pages/user/UserProfile";
 import UserProtectedRoute from "./UserProtectedRoute";
 import UserLogin from "../pages/auth/UserLogin";
@@ -45,6 +46,7 @@ const AppRouter = () => {
                         <Route path="jobs" element={<UserJobs />} />
                         <Route path="academy" element={<UserAcademy />} />
                         <Route path="refer" element={<UserReferral />} />
+                        <Route path="my-network" element={<UserMyNetwork />} />
                         <Route path="profile" element={<UserProfile />} />
                     </Route>
                 </Route>

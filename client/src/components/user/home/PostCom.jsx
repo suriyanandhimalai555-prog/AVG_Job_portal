@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import EmojiPicker from 'emoji-picker-react';
 import {
     FaImage,
+    FaVideo,
     FaRegSmile,
     FaTimes,
     FaEllipsisH,
@@ -24,17 +25,25 @@ import {
     FaChevronLeft,
     FaChevronRight,
     FaEnvelope,
-    FaCheck
+    FaCheck,
+    FaSpinner,
+    FaRegNewspaper
 } from 'react-icons/fa';
 
 const PostCom = ({ userName, userIdState, apiUrl }) => {
     const fileInputRef = useRef(null);
+    const videoInputRef = useRef(null);
 
     const [isPostModalOpen, setIsPostModalOpen] = useState(false);
     const [editPostId, setEditPostId] = useState(null);
     const [postContent, setPostContent] = useState('');
     const [postImages, setPostImages] = useState([]);
+    const [postVideo, setPostVideo] = useState(null);
+    const [articleTitle, setArticleTitle] = useState('');
+    const [isArticleMode, setIsArticleMode] = useState(false);
+
     const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+    const [isUploading, setIsUploading] = useState(false);
 
     const [feedPosts, setFeedPosts] = useState([]);
     const [sortBy, setSortBy] = useState('latest');
@@ -48,6 +57,9 @@ const PostCom = ({ userName, userIdState, apiUrl }) => {
 
     // Read More / Less State
     const [expandedText, setExpandedText] = useState({});
+
+    // Swiper State for Posts
+    const [mediaIndices, setMediaIndices] = useState({});
 
     const [expandedPost, setExpandedPost] = useState(null);
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -82,14 +94,26 @@ const PostCom = ({ userName, userIdState, apiUrl }) => {
         setTimeout(() => setToastMsg(''), 3500);
     };
 
-    // Fetch Current User Picture from Local Storage & API to ensure it loads
+    // Centralized Modal Resetter
+    const resetModal = () => {
+        if (!isUploading) {
+            setIsPostModalOpen(false);
+            setShowEmojiPicker(false);
+            setPostImages([]);
+            setPostVideo(null);
+            setEditPostId(null);
+            setPostContent('');
+            setArticleTitle('');
+            setIsArticleMode(false);
+        }
+    };
+
     useEffect(() => {
         const fetchUserPic = async () => {
             let picFound = null;
             const userStr = localStorage.getItem('user');
             const token = localStorage.getItem('token');
 
-            // Quick optimistic load
             if (userStr) {
                 try {
                     const userObj = JSON.parse(userStr);
@@ -105,7 +129,6 @@ const PostCom = ({ userName, userIdState, apiUrl }) => {
 
             setCurrentUserPic(picFound);
 
-            // Fetch actual latest from API and build the users map
             if (token) {
                 try {
                     const res = await fetch(`${apiUrl}/api/users`, {
@@ -119,7 +142,6 @@ const PostCom = ({ userName, userIdState, apiUrl }) => {
                             if (u.id) map[u.id] = u.profile_picture || '';
                             if (u.full_name || u.name) map[u.full_name || u.name] = u.profile_picture || '';
 
-                            // Check if this is the current user to sync their pic
                             if (u.id === userIdState && u.profile_picture) {
                                 setCurrentUserPic(u.profile_picture);
                                 if (userStr) {
@@ -177,11 +199,9 @@ const PostCom = ({ userName, userIdState, apiUrl }) => {
         }
     }, [feedPosts, expandedPost]);
 
-    // Follow / Unfollow from the feed
     const handleToggleFollow = async (targetId) => {
         const isFollowing = followedUsers[targetId];
 
-        // Optimistic update
         setFollowedUsers(prev => ({ ...prev, [targetId]: !isFollowing }));
         showToast(isFollowing ? "User unfollowed" : "Following user");
 
@@ -196,7 +216,6 @@ const PostCom = ({ userName, userIdState, apiUrl }) => {
         }
     };
 
-    // TRIGGER GLOBAL CHAT WIDGET VIA CUSTOM EVENT
     const handleOpenChat = (post) => {
         const userForChat = {
             id: post.user_id,
@@ -219,39 +238,74 @@ const PostCom = ({ userName, userIdState, apiUrl }) => {
         e.target.value = null;
     };
 
+    const handleVideoChange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onloadend = () => setPostVideo(reader.result);
+            reader.readAsDataURL(file);
+        }
+        e.target.value = null;
+    };
+
     const removePreviewImage = (indexToRemove) => setPostImages(prev => prev.filter((_, idx) => idx !== indexToRemove));
 
     const handleSavePost = async () => {
-        if (!postContent.trim() && postImages.length === 0) return;
+        // Validation ensuring article mode requires both title and content
+        if (isArticleMode && (!articleTitle.trim() || !postContent.trim())) return;
+        if (!isArticleMode && (!postContent.trim() && postImages.length === 0 && !postVideo)) return;
+
+        setIsUploading(true);
+
         try {
+            const payload = {
+                userId: userIdState,
+                authorName: userName,
+                content: postContent,
+                images: postImages,
+                video: postVideo,
+                articleTitle: isArticleMode ? articleTitle : null
+            };
+
             if (editPostId) {
                 await fetch(`${apiUrl}/api/posts/${editPostId}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ userId: userIdState, content: postContent, images: postImages })
+                    body: JSON.stringify(payload)
                 });
                 showToast("Post updated successfully");
             } else {
                 await fetch(`${apiUrl}/api/posts`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ userId: userIdState, authorName: userName, content: postContent, images: postImages })
+                    body: JSON.stringify(payload)
                 });
                 showToast("Post created successfully");
             }
-            setPostContent('');
-            setPostImages([]);
-            setEditPostId(null);
-            setShowEmojiPicker(false);
-            setIsPostModalOpen(false);
+            resetModal();
             fetchPosts();
-        } catch (e) { console.error(e) }
+        } catch (e) {
+            console.error(e);
+            showToast("Failed to upload post");
+        } finally {
+            setIsUploading(false);
+        }
     };
 
     const handleEditInit = (post) => {
         setEditPostId(post.id);
         setPostContent(post.content);
         setPostImages(post.images || (post.image ? [post.image] : []));
+        setPostVideo(post.video || null);
+
+        if (post.article_title) {
+            setIsArticleMode(true);
+            setArticleTitle(post.article_title);
+        } else {
+            setIsArticleMode(false);
+            setArticleTitle('');
+        }
+
         setIsPostModalOpen(true);
         setActivePostOptions(null);
     };
@@ -331,55 +385,80 @@ const PostCom = ({ userName, userIdState, apiUrl }) => {
 
     const getImagesArray = (post) => post.images && post.images.length > 0 ? post.images : (post.image ? [post.image] : []);
 
-    const renderPostImagesGrid = (post) => {
+    const renderPostMedia = (post) => {
         const images = getImagesArray(post);
-        if (images.length === 0) return null;
-        const handleImageClick = (idx) => { setExpandedPost(post); setCurrentImageIndex(idx); };
+        const hasVideo = !!post.video;
 
-        if (images.length === 1) {
+        const mediaItems = [];
+        if (hasVideo) mediaItems.push({ type: 'video', url: post.video });
+        images.forEach(img => mediaItems.push({ type: 'image', url: img }));
+
+        if (mediaItems.length === 0) return null;
+
+        if (mediaItems.length === 1) {
+            const currentMedia = mediaItems[0];
             return (
-                <div className="w-full mt-2 bg-gray-50 border-t border-b border-gray-100 cursor-pointer" onClick={() => handleImageClick(0)}>
-                    <img src={images[0]} alt="Post content" className="w-full h-auto max-h-[350px] object-cover" />
+                <div className="relative mt-2 bg-gray-50 border-t border-b border-gray-100 flex items-center justify-center">
+                    {currentMedia.type === 'video' ? (
+                        <video src={currentMedia.url} controls className="max-h-[450px] w-full object-contain bg-black" />
+                    ) : (
+                        <img
+                            src={currentMedia.url}
+                            alt="Post Media"
+                            className="max-h-[450px] w-full object-contain cursor-pointer"
+                            onClick={() => {
+                                setExpandedPost(post);
+                                setCurrentImageIndex(0);
+                            }}
+                        />
+                    )}
                 </div>
             );
         }
-        if (images.length === 2) {
-            return (
-                <div className="grid grid-cols-2 gap-0.5 mt-2 bg-white max-h-[400px] overflow-hidden cursor-pointer">
-                    <img src={images[0]} onClick={() => handleImageClick(0)} className="w-full h-[400px] object-cover hover:opacity-90 transition-opacity bg-gray-100" />
-                    <img src={images[1]} onClick={() => handleImageClick(1)} className="w-full h-[400px] object-cover hover:opacity-90 transition-opacity bg-gray-100" />
+
+        const currentIndex = mediaIndices[post.id] || 0;
+        const currentMedia = mediaItems[currentIndex] || mediaItems[0];
+
+        const goNext = () => setMediaIndices(prev => ({ ...prev, [post.id]: Math.min((prev[post.id] || 0) + 1, mediaItems.length - 1) }));
+        const goPrev = () => setMediaIndices(prev => ({ ...prev, [post.id]: Math.max((prev[post.id] || 0) - 1, 0) }));
+
+        return (
+            <div className="relative mt-2 bg-black flex items-center justify-center border-t border-b border-gray-100 h-[450px] group select-none">
+                {currentMedia.type === 'video' ? (
+                    <video src={currentMedia.url} controls className="max-h-[450px] w-full object-contain" />
+                ) : (
+                    <img
+                        src={currentMedia.url}
+                        alt={`Media ${currentIndex + 1}`}
+                        className="max-h-[450px] w-full object-contain cursor-pointer"
+                        onClick={() => {
+                            setExpandedPost(post);
+                            setCurrentImageIndex(currentIndex);
+                        }}
+                    />
+                )}
+
+                {currentIndex > 0 && (
+                    <button onClick={goPrev} className="absolute left-3 top-1/2 -translate-y-1/2 bg-black/60 text-white p-2.5 rounded-full hover:bg-black transition-opacity opacity-0 group-hover:opacity-100 shadow-md z-10">
+                        <FaChevronLeft size={16} />
+                    </button>
+                )}
+                {currentIndex < mediaItems.length - 1 && (
+                    <button onClick={goNext} className="absolute right-3 top-1/2 -translate-y-1/2 bg-black/60 text-white p-2.5 rounded-full hover:bg-black transition-opacity opacity-0 group-hover:opacity-100 shadow-md z-10">
+                        <FaChevronRight size={16} />
+                    </button>
+                )}
+
+                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 z-10 bg-black/40 px-3 py-1.5 rounded-full backdrop-blur-sm">
+                    {mediaItems.map((_, idx) => (
+                        <div key={idx} className={`w-2 h-2 rounded-full transition-colors ${idx === currentIndex ? 'bg-white' : 'bg-white/40'}`} />
+                    ))}
                 </div>
-            );
-        }
-        if (images.length === 3) {
-            return (
-                <div className="grid grid-cols-2 gap-0.5 mt-2 bg-white max-h-[400px] overflow-hidden cursor-pointer">
-                    <img src={images[0]} onClick={() => handleImageClick(0)} className="w-full h-[400px] object-cover hover:opacity-90 transition-opacity bg-gray-100" />
-                    <div className="grid grid-rows-2 gap-0.5 h-[400px]">
-                        <img src={images[1]} onClick={() => handleImageClick(1)} className="w-full h-[198px] object-cover hover:opacity-90 transition-opacity bg-gray-100" />
-                        <img src={images[2]} onClick={() => handleImageClick(2)} className="w-full h-[198px] object-cover hover:opacity-90 transition-opacity bg-gray-100" />
-                    </div>
-                </div>
-            );
-        }
-        if (images.length >= 4) {
-            return (
-                <div className="grid grid-cols-2 grid-rows-2 gap-0.5 mt-2 bg-white h-[400px] overflow-hidden cursor-pointer">
-                    <img src={images[0]} onClick={() => handleImageClick(0)} className="w-full h-[198px] object-cover hover:opacity-90 transition-opacity bg-gray-100" />
-                    <img src={images[1]} onClick={() => handleImageClick(1)} className="w-full h-[198px] object-cover hover:opacity-90 transition-opacity bg-gray-100" />
-                    <img src={images[2]} onClick={() => handleImageClick(2)} className="w-full h-[198px] object-cover hover:opacity-90 transition-opacity bg-gray-100" />
-                    <div className="relative h-[198px] w-full bg-gray-100" onClick={() => handleImageClick(3)}>
-                        <img src={images[3]} className="w-full h-full object-cover hover:opacity-90 transition-opacity" />
-                        {images.length > 4 && (
-                            <div className="absolute inset-0 bg-black/40 flex items-center justify-center text-white text-3xl font-medium tracking-wide">
-                                +{images.length - 4}
-                            </div>
-                        )}
-                    </div>
-                </div>
-            );
-        }
+            </div>
+        );
     };
+
+    const isPostDisabled = isUploading || (isArticleMode ? (!articleTitle.trim() || !postContent.trim()) : (!postContent.trim() && postImages.length === 0 && !postVideo));
 
     return (
         <>
@@ -410,6 +489,8 @@ const PostCom = ({ userName, userIdState, apiUrl }) => {
             )}
 
             <div className="lg:col-span-5 xl:col-span-5 lg:sticky lg:h-[calc(180vh-100px)] lg:overflow-y-auto hidden-scrollbar space-y-4 pb-10">
+
+                {/* START POST SECTION LINKEDIN STYLE */}
                 <div className="bg-white rounded-xl shadow-[0_2px_12px_rgba(15,23,42,0.04)] border border-gray-200 p-4">
                     <div className="flex gap-3 mb-3">
                         <div className="w-12 h-12 rounded-full bg-indigo-100 text-[#2A45C2] flex items-center justify-center font-bold text-lg shrink-0 overflow-hidden">
@@ -419,13 +500,19 @@ const PostCom = ({ userName, userIdState, apiUrl }) => {
                                 userName.charAt(0).toUpperCase()
                             )}
                         </div>
-                        <button onClick={() => setIsPostModalOpen(true)} className="flex-1 text-left bg-white border border-gray-300 hover:bg-gray-50 rounded-full px-5 text-gray-500 font-medium text-sm transition-colors">
+                        <button onClick={() => { setIsPostModalOpen(true); setIsArticleMode(false); }} className="flex-1 text-left bg-white border border-gray-300 hover:bg-gray-50 rounded-full px-5 text-gray-500 font-medium text-sm transition-colors">
                             Start a post...
                         </button>
                     </div>
-                    <div className="flex items-center px-2 text-gray-500 font-semibold text-sm">
-                        <button onClick={() => setIsPostModalOpen(true)} className="flex items-center gap-2 hover:bg-gray-100 px-3 py-2 rounded-lg transition-colors">
-                            <FaImage className="text-blue-500 text-lg" /> Media
+                    <div className="flex items-center justify-around px-2 text-gray-500 font-semibold text-sm gap-1 sm:gap-2">
+                        <button onClick={() => { setIsPostModalOpen(true); setIsArticleMode(false); }} className="flex-1 flex items-center justify-center gap-2 hover:bg-gray-100 px-2 py-3 rounded-lg transition-colors">
+                            <FaImage className="text-blue-500 text-lg" /> <span className="hidden sm:inline">Media</span>
+                        </button>
+                        <button onClick={() => { setIsPostModalOpen(true); setIsArticleMode(false); setTimeout(() => videoInputRef.current?.click(), 150); }} className="flex-1 flex items-center justify-center gap-2 hover:bg-gray-100 px-2 py-3 rounded-lg transition-colors">
+                            <FaVideo className="text-green-600 text-lg" /> <span className="hidden sm:inline">Video</span>
+                        </button>
+                        <button onClick={() => { setIsPostModalOpen(true); setIsArticleMode(true); }} className="flex-1 flex items-center justify-center gap-2 hover:bg-gray-100 px-2 py-3 rounded-lg transition-colors">
+                            <FaRegNewspaper className="text-orange-600 text-lg" /> <span className="hidden sm:inline">Write article</span>
                         </button>
                     </div>
                 </div>
@@ -449,11 +536,9 @@ const PostCom = ({ userName, userIdState, apiUrl }) => {
                         const activeReaction = post.user_reaction ? getReactionDetails(post.user_reaction) : null;
                         const ActiveIcon = activeReaction ? activeReaction.Icon : FaThumbsUp;
 
-                        // Check if text is long for "Read More" logic
                         const isLongText = post.content && (post.content.length > 250 || post.content.split('\n').length > 5);
                         const isExpanded = expandedText[post.id];
 
-                        // Attempt to grab author picture from post object, OR the usersMap via ID/Name, OR fallback to current user
                         const postAuthorPic = post.profile_picture || post.author_profile_picture || usersMap[post.user_id] || usersMap[post.author_name] || (post.author_name === userName ? currentUserPic : null);
 
                         return (
@@ -468,7 +553,6 @@ const PostCom = ({ userName, userIdState, apiUrl }) => {
                                             )}
                                         </div>
                                         <div>
-                                            {/* AUTHOR NAME, FOLLOW BUTTON, AND MESSAGE BUTTON */}
                                             <div className="flex items-center gap-2">
                                                 <h4 className="font-bold text-gray-900 text-sm leading-tight hover:text-[#2A45C2] cursor-pointer">{post.author_name}</h4>
                                                 {post.user_id !== userIdState && (
@@ -514,6 +598,14 @@ const PostCom = ({ userName, userIdState, apiUrl }) => {
                                     </div>
                                 </div>
 
+                                {/* RENDER ARTICLE BADGE & TITLE IF APPLICABLE */}
+                                {post.article_title && (
+                                    <div className="px-4 pt-2 pb-1">
+                                        <span className="inline-block bg-orange-100 text-orange-600 text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider mb-2">Article</span>
+                                        <h2 className="text-xl sm:text-2xl font-black text-gray-900 leading-tight mb-1">{post.article_title}</h2>
+                                    </div>
+                                )}
+
                                 <div className="px-4 pb-2">
                                     <div className={`text-sm text-gray-800 leading-relaxed whitespace-pre-wrap ${!isExpanded && isLongText ? 'line-clamp-5' : ''}`}>
                                         {post.content}
@@ -528,7 +620,8 @@ const PostCom = ({ userName, userIdState, apiUrl }) => {
                                     )}
                                 </div>
 
-                                {renderPostImagesGrid(post)}
+                                {/* RENDER DYNAMIC MEDIA VIA SWIPER MODEL */}
+                                {renderPostMedia(post)}
 
                                 <div className="px-4 py-2 border-b border-gray-100 flex justify-between items-center text-[11px] text-gray-500 mt-2">
                                     <div className="flex items-center gap-1.5">
@@ -636,7 +729,6 @@ const PostCom = ({ userName, userIdState, apiUrl }) => {
                                             const visibleCount = visibleCommentsCount[post.id] || 5;
                                             const remainingCount = post.comments_data.length - visibleCount;
 
-                                            // Ensure latest comments appear on top
                                             const sortedComments = [...post.comments_data].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
                                             return (
@@ -682,8 +774,17 @@ const PostCom = ({ userName, userIdState, apiUrl }) => {
 
             {isPostModalOpen && (
                 <div className="fixed inset-0 z-[100] flex items-start sm:items-center justify-center bg-black/60 backdrop-blur-sm sm:p-4 animate-fade-in">
-                    <div className="bg-white w-full sm:w-[650px] sm:rounded-xl shadow-2xl flex flex-col h-full sm:h-auto max-h-screen relative">
-                        <div className="flex justify-between items-center p-4 border-b border-gray-100">
+                    <div className="bg-white w-full sm:w-[650px] sm:rounded-xl shadow-2xl flex flex-col h-full sm:h-auto max-h-screen relative overflow-hidden">
+
+                        {isUploading && (
+                            <div className="absolute inset-0 bg-white/70 backdrop-blur-sm z-50 flex flex-col items-center justify-center">
+                                <FaSpinner className="animate-spin text-[#2A45C2] text-5xl mb-4" />
+                                <p className="text-lg font-bold text-gray-800">Uploading {isArticleMode ? 'Article' : 'Post'}...</p>
+                                <p className="text-sm font-medium text-gray-500 mt-1">Please wait, this may take a moment.</p>
+                            </div>
+                        )}
+
+                        <div className="flex justify-between items-center p-4 border-b border-gray-100 bg-gray-50">
                             <div className="flex gap-3 items-center">
                                 <div className="w-12 h-12 rounded-full bg-indigo-100 text-[#2A45C2] flex items-center justify-center font-bold text-xl shrink-0 overflow-hidden">
                                     {currentUserPic ? (
@@ -697,62 +798,107 @@ const PostCom = ({ userName, userIdState, apiUrl }) => {
                                         <h3 className="font-bold text-gray-900 text-lg leading-tight">{userName}</h3>
                                         <FaCaretDown className="text-gray-500" />
                                     </div>
-                                    <p className="text-sm font-medium text-gray-500">Post to Anyone</p>
+                                    <p className="text-sm font-medium text-gray-500">{isArticleMode ? 'Publish Article' : 'Post to Anyone'}</p>
                                 </div>
                             </div>
-                            <button onClick={() => { setIsPostModalOpen(false); setShowEmojiPicker(false); setPostImages([]); setEditPostId(null); setPostContent(''); }} className="text-gray-500 hover:bg-gray-100 p-2 rounded-full transition-colors">
+                            <button
+                                onClick={resetModal}
+                                disabled={isUploading}
+                                className="text-gray-500 hover:bg-gray-200 p-2 rounded-full transition-colors disabled:opacity-50"
+                            >
                                 <FaTimes size={20} />
                             </button>
                         </div>
 
-                        <div className="flex-1 overflow-y-auto p-4 min-h-[150px] flex flex-col">
+                        <div className="flex-1 overflow-y-auto p-4 min-h-[150px] flex flex-col relative">
+                            {/* NEW ARTICLE TITLE INPUT */}
+                            {isArticleMode && (
+                                <div className="pb-3 mb-3 border-b border-gray-100">
+                                    <input
+                                        type="text"
+                                        value={articleTitle}
+                                        onChange={(e) => setArticleTitle(e.target.value)}
+                                        disabled={isUploading}
+                                        placeholder="Headline / Article Title"
+                                        className="w-full text-2xl font-black outline-none placeholder-gray-400 text-gray-900 disabled:bg-transparent"
+                                        autoFocus
+                                    />
+                                </div>
+                            )}
+
                             <textarea
                                 value={postContent}
                                 onChange={(e) => setPostContent(e.target.value)}
-                                placeholder="What do you want to talk about?"
-                                className="w-full flex-1 text-lg outline-none resize-none placeholder-gray-500 text-gray-800 min-h-[100px]"
-                                autoFocus
+                                disabled={isUploading}
+                                placeholder={isArticleMode ? "Write your article here..." : "What do you want to talk about?"}
+                                className="w-full flex-1 text-lg outline-none resize-none placeholder-gray-500 text-gray-800 min-h-[100px] disabled:bg-transparent"
+                                autoFocus={!isArticleMode}
                             />
+
+                            {postVideo && (
+                                <div className="relative inline-block border border-gray-200 rounded-lg p-1 bg-black mt-4">
+                                    <video src={postVideo} controls className="w-full h-auto max-h-[250px] rounded-md" />
+                                    {!isUploading && (
+                                        <button onClick={() => setPostVideo(null)} className="absolute top-2 right-2 bg-black/60 text-white p-1.5 rounded-full hover:bg-red-600 transition-colors shadow-sm z-10">
+                                            <FaTimes size={12} />
+                                        </button>
+                                    )}
+                                </div>
+                            )}
+
                             {postImages.length > 0 && (
                                 <div className={`grid gap-2 mt-4 ${postImages.length > 1 ? 'grid-cols-2' : 'grid-cols-1'}`}>
                                     {postImages.map((img, idx) => (
                                         <div key={idx} className="relative inline-block border border-gray-200 rounded-lg p-1 bg-gray-50">
                                             <img src={img} alt={`Preview ${idx}`} className="w-full h-auto max-h-[150px] object-cover rounded-md" />
-                                            <button onClick={() => removePreviewImage(idx)} className="absolute top-2 right-2 bg-black/60 text-white p-1.5 rounded-full hover:bg-red-600 transition-colors shadow-sm">
-                                                <FaTimes size={12} />
-                                            </button>
+                                            {!isUploading && (
+                                                <button onClick={() => removePreviewImage(idx)} className="absolute top-2 right-2 bg-black/60 text-white p-1.5 rounded-full hover:bg-red-600 transition-colors shadow-sm">
+                                                    <FaTimes size={12} />
+                                                </button>
+                                            )}
                                         </div>
                                     ))}
                                 </div>
                             )}
                         </div>
 
-                        {showEmojiPicker && (
+                        {showEmojiPicker && !isUploading && (
                             <div className="absolute bottom-[70px] left-4 z-50 shadow-xl rounded-lg">
                                 <EmojiPicker onEmojiClick={handleEmojiClick} />
                             </div>
                         )}
 
-                        <div className="px-4 py-3 border-t border-gray-100 flex justify-between items-center bg-gray-50/50 rounded-b-xl">
+                        <div className="px-4 py-3 border-t border-gray-100 flex justify-between items-center bg-gray-50/50 rounded-b-xl relative">
                             <div className="flex items-center gap-1 sm:gap-2">
-                                <button onClick={() => setShowEmojiPicker(!showEmojiPicker)} className="text-gray-500 hover:bg-gray-200 p-2 rounded-full transition-colors">
+                                <button disabled={isUploading} onClick={() => setShowEmojiPicker(!showEmojiPicker)} className="text-gray-500 hover:bg-gray-200 p-2 rounded-full transition-colors disabled:opacity-50">
                                     <FaRegSmile size={22} />
                                 </button>
-                                <button onClick={() => fileInputRef.current.click()} className="text-gray-500 hover:bg-gray-200 p-2 rounded-full transition-colors">
+                                <button disabled={isUploading} onClick={() => fileInputRef.current.click()} className="text-gray-500 hover:bg-gray-200 p-2 rounded-full transition-colors disabled:opacity-50" title="Add Image">
                                     <FaImage size={20} />
                                 </button>
+                                <button disabled={isUploading} onClick={() => videoInputRef.current.click()} className="text-gray-500 hover:bg-gray-200 p-2 rounded-full transition-colors disabled:opacity-50" title="Add Video">
+                                    <FaVideo size={20} />
+                                </button>
                                 <input type="file" ref={fileInputRef} onChange={handleImageChange} accept="image/*" multiple className="hidden" />
+                                <input type="file" ref={videoInputRef} onChange={handleVideoChange} accept="video/*" className="hidden" />
                             </div>
                             <div className="flex items-center gap-3">
                                 <button
                                     onClick={handleSavePost}
-                                    disabled={!postContent.trim() && postImages.length === 0}
-                                    className={`px-5 py-2 rounded-full font-bold text-sm transition-colors ${postContent.trim() || postImages.length > 0
+                                    disabled={isPostDisabled}
+                                    className={`px-5 py-2 rounded-full font-bold text-sm transition-colors flex items-center justify-center min-w-[80px] ${!isPostDisabled
                                         ? 'bg-[#0a66c2] text-white hover:bg-[#004182] shadow-md'
                                         : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                                         }`}
                                 >
-                                    {editPostId ? 'Update' : 'Post'}
+                                    {isUploading ? (
+                                        <span className="flex items-center gap-2">
+                                            <FaSpinner className="animate-spin text-sm" />
+                                            {isArticleMode ? 'Publishing...' : 'Posting...'}
+                                        </span>
+                                    ) : (
+                                        editPostId ? 'Update' : (isArticleMode ? 'Publish' : 'Post')
+                                    )}
                                 </button>
                             </div>
                         </div>
@@ -763,26 +909,51 @@ const PostCom = ({ userName, userIdState, apiUrl }) => {
             {expandedPost && (() => {
                 const isLongText = expandedPost.content && (expandedPost.content.length > 250 || expandedPost.content.split('\n').length > 5);
                 const isExpanded = expandedText[`theater_${expandedPost.id}`];
-
                 const postAuthorPic = expandedPost.profile_picture || expandedPost.author_profile_picture || usersMap[expandedPost.user_id] || usersMap[expandedPost.author_name] || (expandedPost.author_name === userName ? currentUserPic : null);
+
+                // Aggregated Media for Theater Mode
+                const expandedImages = getImagesArray(expandedPost);
+                const expandedHasVideo = !!expandedPost.video;
+                const expandedMediaItems = [];
+                if (expandedHasVideo) expandedMediaItems.push({ type: 'video', url: expandedPost.video });
+                expandedImages.forEach(img => expandedMediaItems.push({ type: 'image', url: img }));
+
+                const currentExpandedMedia = expandedMediaItems[currentImageIndex] || expandedMediaItems[0];
 
                 return (
                     <div className="fixed inset-0 z-[120] flex bg-black/95 animate-fade-in flex-col md:flex-row">
-                        <div className="flex-1 relative flex items-center justify-center h-[60vh] md:h-screen">
+                        <div className="flex-1 relative flex items-center justify-center h-[60vh] md:h-screen group">
                             <button onClick={() => setExpandedPost(null)} className="absolute top-4 left-4 text-white p-2 bg-black/50 hover:bg-white/20 rounded-full transition-colors z-20">
                                 <FaTimes size={20} />
                             </button>
-                            {getImagesArray(expandedPost).length > 1 && (
+
+                            {/* Theater Mode Swiper Controls */}
+                            {expandedMediaItems.length > 1 && (
                                 <>
-                                    <button onClick={() => setCurrentImageIndex(prev => prev === 0 ? getImagesArray(expandedPost).length - 1 : prev - 1)} className="absolute left-4 text-white p-3 bg-white/10 hover:bg-white/20 rounded-full transition-colors z-20 hidden md:block">
+                                    <button onClick={() => setCurrentImageIndex(prev => prev === 0 ? expandedMediaItems.length - 1 : prev - 1)} className="absolute left-4 text-white p-3 bg-white/10 hover:bg-white/20 rounded-full transition-colors z-20 hidden md:block">
                                         <FaChevronLeft size={20} />
                                     </button>
-                                    <button onClick={() => setCurrentImageIndex(prev => prev === getImagesArray(expandedPost).length - 1 ? 0 : prev + 1)} className="absolute right-4 text-white p-3 bg-white/10 hover:bg-white/20 rounded-full transition-colors z-20 hidden md:block">
+                                    <button onClick={() => setCurrentImageIndex(prev => prev === expandedMediaItems.length - 1 ? 0 : prev + 1)} className="absolute right-4 text-white p-3 bg-white/10 hover:bg-white/20 rounded-full transition-colors z-20 hidden md:block">
                                         <FaChevronRight size={20} />
                                     </button>
                                 </>
                             )}
-                            <img src={getImagesArray(expandedPost)[currentImageIndex]} className="max-w-full max-h-full object-contain" />
+
+                            {/* Render Current Theater Media */}
+                            {currentExpandedMedia?.type === 'video' ? (
+                                <video src={currentExpandedMedia.url} controls autoPlay className="max-w-full max-h-full object-contain" />
+                            ) : currentExpandedMedia?.type === 'image' ? (
+                                <img src={currentExpandedMedia.url} className="max-w-full max-h-full object-contain select-none" />
+                            ) : null}
+
+                            {/* Theater Mode Swiper Dots */}
+                            {expandedMediaItems.length > 1 && (
+                                <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2 z-10 bg-black/50 px-4 py-2 rounded-full backdrop-blur-md opacity-0 group-hover:opacity-100 transition-opacity">
+                                    {expandedMediaItems.map((_, idx) => (
+                                        <div key={idx} className={`w-2.5 h-2.5 rounded-full transition-all cursor-pointer ${idx === currentImageIndex ? 'bg-white scale-110' : 'bg-white/40 hover:bg-white/70'}`} onClick={() => setCurrentImageIndex(idx)} />
+                                    ))}
+                                </div>
+                            )}
                         </div>
 
                         <div className="w-full md:w-[380px] lg:w-[450px] bg-white flex flex-col h-[40vh] md:h-screen overflow-hidden">
@@ -796,7 +967,6 @@ const PostCom = ({ userName, userIdState, apiUrl }) => {
                                         )}
                                     </div>
                                     <div>
-                                        {/* MESSAGE BUTTON IN THEATER MODE */}
                                         <div className="flex items-center gap-2">
                                             <h4 className="font-bold text-gray-900 text-sm">{expandedPost.author_name}</h4>
                                             {expandedPost.user_id !== userIdState && (
@@ -818,6 +988,14 @@ const PostCom = ({ userName, userIdState, apiUrl }) => {
                             </div>
 
                             <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                                {/* THEATER ARTICLE TITLE RENDERING */}
+                                {expandedPost.article_title && (
+                                    <div className="mb-2 border-b border-gray-100 pb-2">
+                                        <span className="inline-block bg-orange-100 text-orange-600 text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider mb-1">Article</span>
+                                        <h2 className="text-lg font-black text-gray-900 leading-tight">{expandedPost.article_title}</h2>
+                                    </div>
+                                )}
+
                                 <div>
                                     <div className={`text-sm text-gray-800 whitespace-pre-wrap ${!isExpanded && isLongText ? 'line-clamp-5' : ''}`}>
                                         {expandedPost.content}
@@ -879,7 +1057,6 @@ const PostCom = ({ userName, userIdState, apiUrl }) => {
                                 </div>
 
                                 {expandedPost.comments_data && expandedPost.comments_data.length > 0 && (() => {
-                                    // Ensure latest comments appear on top
                                     const sortedComments = [...expandedPost.comments_data].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
                                     return (

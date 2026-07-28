@@ -144,10 +144,15 @@ const UserModel = {
         const following = await pool.query('SELECT COUNT(*) FROM user_followers WHERE follower_id = $1', [userId]);
         const followingList = await pool.query('SELECT following_id FROM user_followers WHERE follower_id = $1', [userId]);
 
+        // Fetch the IDs of users who are following the current user
+        const followerList = await pool.query('SELECT follower_id FROM user_followers WHERE following_id = $1', [userId]);
+
         return {
             followers_count: parseInt(followers.rows[0].count),
             following_count: parseInt(following.rows[0].count),
-            following_ids: followingList.rows.map(r => r.following_id)
+            following_ids: followingList.rows.map(r => r.following_id),
+            // Return the follower IDs back to the frontend
+            follower_ids: followerList.rows.map(r => r.follower_id)
         };
     }
 };

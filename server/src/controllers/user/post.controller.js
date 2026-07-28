@@ -17,7 +17,7 @@ const uploadImagesToS3 = async (imagesArray) => {
         if (img.startsWith('http')) {
             uploadedUrls.push(img);
         } else if (img.startsWith('data:image')) {
-            const matches = img.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+            const matches = img.match(/^data:([A-Za-z0-9-+\/]+);base64,(.+)$/);
             if (matches && matches.length === 3) {
                 const buffer = Buffer.from(matches[2], 'base64');
                 const extension = matches[1].split('/')[1] || 'jpg';
@@ -39,17 +39,43 @@ const uploadImagesToS3 = async (imagesArray) => {
     return uploadedUrls;
 };
 
+const uploadVideoToS3 = async (videoStr) => {
+    if (!videoStr) return null;
+    if (videoStr.startsWith('http')) return videoStr;
+
+    if (videoStr.startsWith('data:video')) {
+        const matches = videoStr.match(/^data:([A-Za-z0-9-+\/]+);base64,(.+)$/);
+        if (matches && matches.length === 3) {
+            const buffer = Buffer.from(matches[2], 'base64');
+            const extension = matches[1].split('/')[1] || 'mp4';
+            const fileName = `posts/videos/${crypto.randomBytes(16).toString('hex')}.${extension}`;
+
+            const command = new PutObjectCommand({
+                Bucket: process.env.AWS_S3_BUCKET,
+                Key: fileName,
+                Body: buffer,
+                ContentType: matches[1]
+            });
+
+            await s3.send(command);
+            return `https://${process.env.AWS_S3_BUCKET}.s3.${process.env.AWS_REGION}.amazonaws.com/${fileName}`;
+        }
+    }
+    return null;
+};
+
 export const createPost = async (req, res) => {
     try {
-        const { userId, authorName, authorTitle, content, images } = req.body;
+        const { userId, authorName, authorTitle, content, images, video, articleTitle } = req.body;
         let uId = parseInt(userId, 10);
         if (isNaN(uId)) uId = 0;
 
         const uploadedImages = await uploadImagesToS3(images || []);
+        const uploadedVideo = await uploadVideoToS3(video);
 
         const result = await pool.query(
-            'INSERT INTO posts (user_id, author_name, author_title, content, images) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-            [uId, authorName, authorTitle || 'Job Seeker', content, JSON.stringify(uploadedImages)]
+            'INSERT INTO posts (user_id, author_name, author_title, content, images, video, article_title) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
+            [uId, authorName, authorTitle || 'Job Seeker', content, JSON.stringify(uploadedImages), uploadedVideo, articleTitle || null]
         );
         res.status(201).json(result.rows[0]);
     } catch (error) {
@@ -140,15 +166,16 @@ export const sharePost = async (req, res) => {
 export const updatePost = async (req, res) => {
     try {
         const { postId } = req.params;
-        const { userId, content, images } = req.body;
+        const { userId, content, images, video, articleTitle } = req.body;
         let uId = parseInt(userId, 10);
         if (isNaN(uId)) uId = 0;
 
         const uploadedImages = await uploadImagesToS3(images || []);
+        const uploadedVideo = await uploadVideoToS3(video);
 
         const result = await pool.query(
-            'UPDATE posts SET content = $1, images = $2 WHERE id = $3 AND user_id = $4 RETURNING *',
-            [content, JSON.stringify(uploadedImages), postId, uId]
+            'UPDATE posts SET content = $1, images = $2, video = $3, article_title = $4 WHERE id = $5 AND user_id = $6 RETURNING *',
+            [content, JSON.stringify(uploadedImages), uploadedVideo, articleTitle || null, postId, uId]
         );
         res.status(200).json(result.rows[0]);
     } catch (error) {

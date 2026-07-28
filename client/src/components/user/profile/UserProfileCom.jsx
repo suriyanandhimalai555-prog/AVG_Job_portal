@@ -344,7 +344,6 @@ const UserProfileCom = () => {
 
     return (
         <div className="max-w-[1400px] mx-auto p-2 md:p-3 rounded-2xl bg-[#F5F6FC] min-h-screen">
-            {/* STYLED TOASTER TO MATCH SCREENSHOT DESIGN */}
             <Toaster
                 position="top-right"
                 reverseOrder={false}
@@ -407,12 +406,20 @@ const UserProfileCom = () => {
                                     <p className="text-sm text-gray-400 font-medium mb-2.5">{profile.phone}</p>
 
                                     <div className="flex gap-3 mb-3 bg-[#F5F6FC] px-4 py-2 rounded-xl border border-[#E7E9F7]">
-                                        <div className="text-center">
+                                        <div 
+                                            className="text-center cursor-pointer hover:opacity-70 transition-opacity flex-1"
+                                            onClick={() => navigate('/user-dashboard/my-network', { state: { activeTab: 'followers' } })}
+                                            title="View Followers"
+                                        >
                                             <span className="block text-lg font-black text-[#2A45C2]">{profile.followers}</span>
                                             <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Followers</span>
                                         </div>
                                         <div className="w-px bg-[#E7E9F7]"></div>
-                                        <div className="text-center">
+                                        <div 
+                                            className="text-center cursor-pointer hover:opacity-70 transition-opacity flex-1"
+                                            onClick={() => navigate('/user-dashboard/my-network', { state: { activeTab: 'following' } })}
+                                            title="View Following"
+                                        >
                                             <span className="block text-lg font-black text-[#2A45C2]">{profile.following}</span>
                                             <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Following</span>
                                         </div>

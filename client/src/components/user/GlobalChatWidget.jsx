@@ -6,6 +6,30 @@ import {
 import { io } from 'socket.io-client';
 import CryptoJS from 'crypto-js';
 
+// --- LocalStorage Helpers for Persistent Unread Counts ---
+const getUnreadCounts = (userId) => {
+    try {
+        return JSON.parse(localStorage.getItem(`unread_msgs_${userId}`)) || {};
+    } catch (e) {
+        return {};
+    }
+};
+
+const setUnreadCount = (userId, contactId, count) => {
+    if (!userId) return;
+    const counts = getUnreadCounts(userId);
+    counts[contactId] = count;
+    localStorage.setItem(`unread_msgs_${userId}`, JSON.stringify(counts));
+};
+
+const incrementUnreadCount = (userId, contactId) => {
+    if (!userId) return 1;
+    const counts = getUnreadCounts(userId);
+    counts[contactId] = (counts[contactId] || 0) + 1;
+    localStorage.setItem(`unread_msgs_${userId}`, JSON.stringify(counts));
+    return counts[contactId];
+};
+
 const GlobalChatWidget = () => {
     const [isOpen, setIsOpen] = useState(false);
     const [activeChat, setActiveChat] = useState(null);
@@ -18,9 +42,26 @@ const GlobalChatWidget = () => {
 
     const [currentUser, setCurrentUser] = useState(null);
     const [socket, setSocket] = useState(null);
+
     const messagesEndRef = useRef(null);
+    const activeChatRef = useRef(activeChat);
+    const currentUserRef = useRef(currentUser);
+    const isOpenRef = useRef(isOpen); // Tracks actual visibility
 
     const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
+    // Keep refs updated for socket callbacks to prevent stale closures
+    useEffect(() => {
+        activeChatRef.current = activeChat;
+    }, [activeChat]);
+
+    useEffect(() => {
+        currentUserRef.current = currentUser;
+    }, [currentUser]);
+
+    useEffect(() => {
+        isOpenRef.current = isOpen;
+    }, [isOpen]);
 
     // 1. Encryption / Decryption Handlers
     const generateSharedKey = (id1, id2) => {
@@ -56,19 +97,60 @@ const GlobalChatWidget = () => {
 
             newSocket.on('receive_message', (encryptedPayload) => {
                 const { senderId, senderName, senderRole, text, time } = encryptedPayload;
+
+                // Prevent echoing your own messages if backend broadcasts to sender
+                if (senderId === payload.id) return;
+
                 const decryptedText = decryptMessage(text, payload.id, senderId);
+
+                // FIX: Calculate "currently active" based on BOTH the active chat AND whether the widget is open.
+                const isCurrentlyActive = isOpenRef.current && activeChatRef.current && activeChatRef.current.id === senderId;
+
+                // FIX: Execute localStorage mutation outside of React's state updater function 
+                // to prevent StrictMode from doubling the increment.
+                let newUnreadCount = 0;
+                if (!isCurrentlyActive) {
+                    newUnreadCount = incrementUnreadCount(payload.id, senderId);
+                } else {
+                    setUnreadCount(payload.id, senderId, 0);
+                }
 
                 setContacts(prev => {
                     const exists = prev.find(c => c.id === senderId);
+
+                    // Move the contact with the new message to the top of the list
+                    let updatedContacts = [];
                     if (!exists) {
-                        return [{ id: senderId, name: senderName, role: senderRole, online: true, lastMsg: decryptedText }, ...prev];
+                        updatedContacts = [{
+                            id: senderId,
+                            name: senderName,
+                            role: senderRole,
+                            online: true,
+                            lastMsg: decryptedText,
+                            unreadCount: newUnreadCount
+                        }, ...prev];
+                    } else {
+                        const otherContacts = prev.filter(c => c.id !== senderId);
+                        const updatedContact = {
+                            ...exists,
+                            lastMsg: decryptedText,
+                            unreadCount: newUnreadCount
+                        };
+                        updatedContacts = [updatedContact, ...otherContacts];
                     }
-                    return prev.map(c => c.id === senderId ? { ...c, lastMsg: decryptedText } : c);
+
+                    return updatedContacts;
                 });
 
                 setActiveChat(currentActive => {
                     if (currentActive && currentActive.id === senderId) {
-                        setMessages(prev => [...prev, { id: Date.now(), sender: 'them', text: decryptedText, time }]);
+                        setMessages(prev => {
+                            // Deduplication logic for overlapping socket emits
+                            const isDuplicate = prev.some(m => m.sender === 'them' && m.text === decryptedText && m.time === time);
+                            if (isDuplicate) return prev;
+
+                            return [...prev, { id: Date.now() + Math.random(), sender: 'them', text: decryptedText, time }];
+                        });
                     }
                     return currentActive;
                 });
@@ -80,7 +162,7 @@ const GlobalChatWidget = () => {
         }
     }, [apiUrl]);
 
-    // 3. Fetch Initial Contacts List on Load (Fixed mapping to handle DB structure)
+    // 3. Fetch Initial Contacts List on Load
     useEffect(() => {
         const fetchInitialContacts = async () => {
             if (!currentUser) return;
@@ -93,17 +175,21 @@ const GlobalChatWidget = () => {
 
                 if (res.ok) {
                     const data = await res.json();
+                    const unreadMap = getUnreadCounts(currentUser.id);
 
-                    // Decrypt the last message for each historical contact safely
-                    const decryptedContacts = data.map(contact => ({
-                        id: contact.id || contact.contact_id,
-                        name: contact.full_name || contact.name || 'Unknown User',
-                        role: contact.role || 'Member',
-                        online: false,
-                        lastMsg: contact.lastMessage
-                            ? decryptMessage(contact.lastMessage, currentUser.id, (contact.id || contact.contact_id))
-                            : 'Click to view history'
-                    }));
+                    const decryptedContacts = data.map(contact => {
+                        const cid = contact.id || contact.contact_id;
+                        return {
+                            id: cid,
+                            name: contact.full_name || contact.name || 'Unknown User',
+                            role: contact.role || 'Member',
+                            online: false,
+                            unreadCount: unreadMap[cid] || 0,
+                            lastMsg: contact.lastMessage
+                                ? decryptMessage(contact.lastMessage, currentUser.id, cid)
+                                : 'Click to view history'
+                        };
+                    });
 
                     setContacts(decryptedContacts);
                 } else {
@@ -165,12 +251,18 @@ const GlobalChatWidget = () => {
                 name: user.full_name || user.name || 'Unknown User',
                 role: user.role || 'Member',
                 online: true,
+                unreadCount: 0,
                 lastMsg: 'Click to view history'
             };
 
+            if (currentUserRef.current) {
+                setUnreadCount(currentUserRef.current.id, user.id, 0);
+            }
+
             setContacts(prev => {
-                if (!prev.find(c => c.id === formattedUser.id)) return [formattedUser, ...prev];
-                return prev;
+                const exists = prev.find(c => c.id === formattedUser.id);
+                if (!exists) return [formattedUser, ...prev];
+                return prev.map(c => c.id === formattedUser.id ? { ...c, unreadCount: 0 } : c);
             });
 
             setIsOpen(true);
@@ -197,7 +289,16 @@ const GlobalChatWidget = () => {
 
         const newMsg = { id: Date.now(), sender: 'me', text: messageInput, time: timeString };
         setMessages(prev => [...prev, newMsg]);
-        setContacts(prev => prev.map(c => c.id === activeChat.id ? { ...c, lastMsg: messageInput } : c));
+
+        // Update contact last message and move it to top
+        setContacts(prev => {
+            const exists = prev.find(c => c.id === activeChat.id);
+            const others = prev.filter(c => c.id !== activeChat.id);
+            if (exists) {
+                return [{ ...exists, lastMsg: messageInput }, ...others];
+            }
+            return prev;
+        });
 
         const encryptedText = encryptMessage(messageInput, currentUser.id, activeChat.id);
 
@@ -213,23 +314,56 @@ const GlobalChatWidget = () => {
         setMessageInput('');
     };
 
+    // Handler when user clicks a contact to open the chat
+    const handleContactClick = (contact) => {
+        setActiveChat(contact);
+        if (currentUser) {
+            setUnreadCount(currentUser.id, contact.id, 0);
+        }
+        setContacts(prev => prev.map(c => c.id === contact.id ? { ...c, unreadCount: 0 } : c));
+    };
+
+    const handleOpenWidget = () => {
+        setIsOpen(true);
+        // If we open and an active chat was already lingering, clear its count immediately
+        if (activeChat && currentUser) {
+            setUnreadCount(currentUser.id, activeChat.id, 0);
+            setContacts(prev => prev.map(c => c.id === activeChat.id ? { ...c, unreadCount: 0 } : c));
+        }
+    };
+
+    const handleCloseWidget = () => {
+        setIsOpen(false);
+        // Optional: clear active chat so they start at the contact list again next time.
+        // setActiveChat(null); 
+    };
+
     const filteredContacts = contacts.filter(contact =>
         contact.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         contact.role.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
+    const totalUnreadCount = contacts.reduce((sum, contact) => sum + (contact.unreadCount || 0), 0);
+
     return (
-        <div className="fixed bottom-6 right-6 z-[100] flex flex-col items-end">
+        <div className={`fixed z-[100] transition-all ${isOpen
+            ? 'inset-0 sm:inset-auto sm:bottom-6 sm:right-6 sm:w-[380px] sm:h-[500px]'
+            : 'bottom-4 right-4 sm:bottom-6 sm:right-6'
+            }`}>
             {!isOpen && (
-                <button onClick={() => setIsOpen(true)} className="w-14 h-14 bg-gradient-to-r from-[#2A45C2] to-[#5B4FE0] rounded-full flex items-center justify-center text-white shadow-[0_8px_24px_rgba(42,69,194,0.4)] hover:scale-105 transition-transform duration-300 relative group">
+                <button onClick={handleOpenWidget} className="w-14 h-14 bg-gradient-to-r from-[#2A45C2] to-[#5B4FE0] rounded-full flex items-center justify-center text-white shadow-[0_8px_24px_rgba(42,69,194,0.4)] hover:scale-105 transition-transform duration-300 relative group">
                     <FaCommentDots size={24} />
-                    {contacts.length > 0 && <span className="absolute top-0 right-0 w-3.5 h-3.5 bg-red-500 border-2 border-white rounded-full"></span>}
+                    {totalUnreadCount > 0 && (
+                        <span className="absolute top-0 right-0 transform translate-x-1 -translate-y-1 w-5 h-5 bg-red-500 border-2 border-white rounded-full flex items-center justify-center text-[10px] font-bold text-white shadow-sm">
+                            {totalUnreadCount > 99 ? '99+' : totalUnreadCount}
+                        </span>
+                    )}
                 </button>
             )}
 
             {isOpen && (
-                <div className="w-[340px] sm:w-[380px] h-[500px] bg-white rounded-2xl shadow-[0_10px_40px_rgba(30,41,89,0.2)] border border-[#E7E9F7] flex flex-col overflow-hidden animate-fade-in-up">
-                    <div className="bg-gradient-to-r from-[#2A45C2] to-[#5B4FE0] px-4 py-3.5 flex justify-between items-center text-white shrink-0">
+                <div className="w-full h-[100dvh] sm:h-full bg-white sm:rounded-2xl shadow-none sm:shadow-[0_10px_40px_rgba(30,41,89,0.2)] border-0 sm:border border-[#E7E9F7] flex flex-col overflow-hidden sm:animate-fade-in-up">
+                    <div className="bg-gradient-to-r from-[#2A45C2] to-[#5B4FE0] px-4 py-3.5 flex justify-between items-center text-white shrink-0 shadow-sm z-10">
                         {activeChat ? (
                             <div className="flex items-center gap-3">
                                 <button onClick={() => setActiveChat(null)} className="p-1.5 hover:bg-white/20 rounded-full transition-colors">
@@ -241,8 +375,8 @@ const GlobalChatWidget = () => {
                                         {activeChat.online && <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-400 border-2 border-[#2A45C2] rounded-full"></span>}
                                     </div>
                                     <div>
-                                        <h3 className="font-bold text-sm leading-tight">{activeChat.name}</h3>
-                                        <p className="text-[10px] text-white/80 font-medium">{activeChat.role}</p>
+                                        <h3 className="font-bold text-sm leading-tight truncate max-w-[150px] sm:max-w-[200px]">{activeChat.name}</h3>
+                                        <p className="text-[10px] text-white/80 font-medium truncate max-w-[150px]">{activeChat.role}</p>
                                     </div>
                                 </div>
                             </div>
@@ -252,7 +386,7 @@ const GlobalChatWidget = () => {
                                 <h3 className="font-bold text-sm tracking-wide">Live Messages</h3>
                             </div>
                         )}
-                        <button onClick={() => setIsOpen(false)} className="p-1.5 hover:bg-white/20 rounded-full transition-colors">
+                        <button onClick={handleCloseWidget} className="p-1.5 hover:bg-white/20 rounded-full transition-colors">
                             <FaTimes size={16} />
                         </button>
                     </div>
@@ -260,7 +394,7 @@ const GlobalChatWidget = () => {
                     <div className="flex-1 overflow-hidden flex flex-col bg-[#F5F6FC]">
                         {!activeChat ? (
                             <div className="flex flex-col h-full">
-                                <div className="bg-[#EEF1FE] px-3 py-2 flex items-center justify-center gap-1.5 text-[10px] font-bold text-[#2A45C2] border-b border-[#E7E9F7]">
+                                <div className="bg-[#EEF1FE] px-3 py-2 flex items-center justify-center gap-1.5 text-[10px] font-bold text-[#2A45C2] border-b border-[#E7E9F7] shrink-0">
                                     <FaLock /> Secured by End-to-End Encryption
                                 </div>
                                 <div className="p-3 bg-white border-b border-[#E7E9F7] shrink-0">
@@ -279,19 +413,24 @@ const GlobalChatWidget = () => {
                                     {filteredContacts.length > 0 ? filteredContacts.map((contact) => (
                                         <div
                                             key={contact.id}
-                                            onClick={() => setActiveChat(contact)}
-                                            className="flex items-center gap-3 p-2.5 bg-white hover:bg-[#EEF1FE] rounded-xl cursor-pointer transition-colors border border-transparent hover:border-[#2A45C2]/20"
+                                            onClick={() => handleContactClick(contact)}
+                                            className="flex items-center gap-3 p-2.5 bg-white hover:bg-[#EEF1FE] rounded-xl cursor-pointer transition-colors border border-transparent hover:border-[#2A45C2]/20 relative"
                                         >
                                             <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#2A45C2] to-[#8B5CF6] flex items-center justify-center text-white font-bold shrink-0 relative">
                                                 {contact.name.charAt(0).toUpperCase()}
                                                 {contact.online && <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-400 border-2 border-white rounded-full"></span>}
                                             </div>
-                                            <div className="flex-1 min-w-0">
+                                            <div className="flex-1 min-w-0 pr-6">
                                                 <div className="flex justify-between items-center mb-0.5">
-                                                    <h4 className="text-sm font-bold text-gray-900 truncate">{contact.name}</h4>
+                                                    <h4 className={`text-sm truncate ${contact.unreadCount > 0 ? 'font-black text-gray-900' : 'font-bold text-gray-900'}`}>{contact.name}</h4>
                                                 </div>
-                                                <p className="text-xs text-gray-500 truncate">{contact.lastMsg}</p>
+                                                <p className={`text-xs truncate ${contact.unreadCount > 0 ? 'font-bold text-gray-800' : 'text-gray-500'}`}>{contact.lastMsg}</p>
                                             </div>
+                                            {contact.unreadCount > 0 && (
+                                                <div className="absolute right-3 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-white text-[10px] font-bold shadow-sm">
+                                                    {contact.unreadCount > 99 ? '99+' : contact.unreadCount}
+                                                </div>
+                                            )}
                                         </div>
                                     )) : (
                                         <div className="text-center py-10 flex flex-col items-center justify-center h-full text-gray-400 text-xs font-medium">
@@ -330,7 +469,11 @@ const GlobalChatWidget = () => {
                                     )}
                                     <div ref={messagesEndRef} />
                                 </div>
-                                <form onSubmit={handleSendMessage} className="p-3 bg-white border-t border-[#E7E9F7] flex gap-2 items-center shrink-0">
+                                <form
+                                    onSubmit={handleSendMessage}
+                                    className="p-3 bg-white border-t border-[#E7E9F7] flex gap-2 items-center shrink-0"
+                                    style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))' }}
+                                >
                                     <input
                                         type="text"
                                         value={messageInput}
