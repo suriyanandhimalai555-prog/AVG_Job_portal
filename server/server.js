@@ -78,7 +78,7 @@ const startServer = async () => {
     await createCourseTable();
     await createJobApplicationTable();
     await createPostTables();
-    await createChatTable(); // 4. Execute table creation on startup
+    await createChatTable();
 
     const PORT = process.env.PORT || 5000;
 
