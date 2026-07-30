@@ -11,7 +11,7 @@ import courseRoutes from './src/routes/admin/course.routes.js';
 import userRoutes from './src/routes/user/user.routes.js';
 import jobApplicationRoutes from './src/routes/user/jobApplication.routes.js';
 import postRoutes from './src/routes/user/post.routes.js';
-import chatRoutes from './src/routes/user/chat.routes.js'; // 1. Added chat routes import
+import chatRoutes from './src/routes/user/chat.routes.js';
 
 // Model Imports
 import { createUserTable } from './src/models/user/user.model.js';
@@ -20,7 +20,7 @@ import { createJobTable } from './src/models/admin/job.model.js';
 import { createCourseTable } from './src/models/admin/course.model.js';
 import { createJobApplicationTable } from './src/models/user/jobApplication.model.js';
 import { createPostTables } from './src/models/user/post.model.js';
-import { createChatTable } from './src/models/user/chat.model.js'; // 2. Added chat table import
+import { createChatTable } from './src/models/user/chat.model.js';
 
 // Socket Initialization
 import { initializeSocket } from './src/socket.js';
