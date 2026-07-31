@@ -5,7 +5,7 @@ import Shimmer from '../ui/Shimmer';
 
 const SearchBar = ({ isLoading }) => {
     const navigate = useNavigate();
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5001';
 
     // Search Bar State
     const [keyword, setKeyword] = useState('');

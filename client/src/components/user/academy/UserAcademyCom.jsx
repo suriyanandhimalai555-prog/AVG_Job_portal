@@ -29,7 +29,7 @@ const UserAcademyCom = () => {
     const [selectedCourse, setSelectedCourse] = useState(null);
     const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
 
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5001';
 
     useEffect(() => {
         const fetchAcademyData = async () => {

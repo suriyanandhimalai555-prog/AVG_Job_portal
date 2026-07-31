@@ -48,7 +48,7 @@ const GlobalChatWidget = () => {
     const currentUserRef = useRef(currentUser);
     const isOpenRef = useRef(isOpen); // Tracks actual visibility
 
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5001';
 
     // Keep refs updated for socket callbacks to prevent stale closures
     useEffect(() => {

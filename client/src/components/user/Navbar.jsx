@@ -8,7 +8,7 @@ import SearchBar from './SearchBar';
 const Navbar = () => {
     const location = useLocation();
     const navigate = useNavigate();
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5001';
 
     // User & Menu Drawer State
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);

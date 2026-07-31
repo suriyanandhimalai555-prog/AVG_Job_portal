@@ -15,7 +15,7 @@ const AdminJobsCom = () => {
     const [jobApplicants, setJobApplicants] = useState([]);
     const [isFetchingApplicants, setIsFetchingApplicants] = useState(false);
 
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5001';
 
     const getAuthToken = () => localStorage.getItem('adminToken') || localStorage.getItem('token') || '';
 
