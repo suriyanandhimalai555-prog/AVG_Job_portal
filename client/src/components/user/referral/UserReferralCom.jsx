@@ -38,7 +38,10 @@ const UserReferralCom = () => {
             console.error('Error fetching referral stats:', error);
             toast.error('Could not load referral data.');
         } finally {
-            setIsStatsLoading(false);
+            // Added a slight timeout for smoother shimmer transition visually
+            setTimeout(() => {
+                setIsStatsLoading(false);
+            }, 400);
         }
     };
 
@@ -53,6 +56,77 @@ const UserReferralCom = () => {
         navigator.clipboard.writeText(shareLink);
         toast.success('Registration link copied to clipboard!');
     };
+
+    // --- FULL PAGE SHIMMER STATE ---
+    if (isStatsLoading) {
+        return (
+            <div className="max-w-[1400px] mx-auto space-y-3 p-2 md:p-3 rounded-2xl bg-[#F5F6FC] relative">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 md:gap-3.5">
+
+                    {/* Left Column Shimmer */}
+                    <div className="lg:col-span-7 space-y-3 md:space-y-3.5">
+                        {/* Hero Card Shimmer */}
+                        <div className="relative overflow-hidden rounded-2xl px-5 py-5 md:px-7 md:py-6 bg-gray-200 h-[160px] md:h-[180px] shadow-sm">
+                            <Shimmer className="absolute inset-0 w-full h-full" />
+                        </div>
+
+                        {/* Code Card Shimmer */}
+                        <div className="bg-white border border-[#E7E9F7] p-4 md:p-5 rounded-2xl shadow-[0_2px_16px_rgba(30,41,89,0.05)]">
+                            <Shimmer className="w-32 h-3 rounded mb-3.5 bg-gray-200" />
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                <Shimmer className="w-full h-12 rounded-xl bg-gray-200" />
+                                <Shimmer className="w-full sm:w-36 h-12 rounded-xl bg-gray-200 shrink-0" />
+                            </div>
+                        </div>
+
+                        {/* Link Card Shimmer */}
+                        <div className="bg-white border border-[#E7E9F7] p-4 md:p-5 rounded-2xl shadow-[0_2px_16px_rgba(30,41,89,0.05)]">
+                            <Shimmer className="w-32 h-3 rounded mb-3.5 bg-gray-200" />
+                            <div className="flex flex-col sm:flex-row items-center gap-3">
+                                <Shimmer className="w-full h-12 rounded-xl bg-gray-200" />
+                                <Shimmer className="w-full sm:w-36 h-12 rounded-xl bg-gray-200 shrink-0" />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Right Column Shimmer */}
+                    <div className="lg:col-span-5 space-y-3 md:space-y-3.5">
+                        {/* Total Earnings Card Shimmer */}
+                        <div className="bg-white border border-[#E7E9F7] p-5 rounded-2xl shadow-sm flex flex-col justify-center h-[140px] md:h-[150px]">
+                            <Shimmer className="w-24 h-3 rounded mb-3 bg-gray-200" />
+                            <Shimmer className="w-48 h-10 rounded mb-3 bg-gray-200" />
+                            <Shimmer className="w-32 h-3 rounded bg-gray-200" />
+                        </div>
+
+                        {/* Stats Grid Shimmer */}
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="bg-white border border-[#E7E9F7] p-4 rounded-2xl shadow-sm flex flex-col items-center justify-center h-[100px]">
+                                <Shimmer className="w-16 h-8 rounded mb-2 bg-gray-200" />
+                                <Shimmer className="w-20 h-2.5 rounded bg-gray-200" />
+                            </div>
+                            <div className="bg-white border border-[#E7E9F7] p-4 rounded-2xl shadow-sm flex flex-col items-center justify-center h-[100px]">
+                                <Shimmer className="w-16 h-8 rounded mb-2 bg-gray-200" />
+                                <Shimmer className="w-20 h-2.5 rounded bg-gray-200" />
+                            </div>
+                        </div>
+
+                        {/* How It Works Shimmer */}
+                        <div className="bg-white border border-[#E7E9F7] p-4 md:p-5 rounded-2xl shadow-sm">
+                            <Shimmer className="w-32 h-4 rounded mb-5 bg-gray-200" />
+                            <div className="space-y-5">
+                                {[1, 2, 3].map(i => (
+                                    <div key={i} className="flex gap-3 items-center">
+                                        <Shimmer className="w-7 h-7 rounded-xl shrink-0 bg-gray-200" />
+                                        <Shimmer className="w-full h-3.5 rounded bg-gray-200" />
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="max-w-[1400px] mx-auto space-y-3 p-2 md:p-3 rounded-2xl bg-[#F5F6FC]">
@@ -87,10 +161,10 @@ const UserReferralCom = () => {
                                     <FaStar size={15} />
                                 </div>
                                 <span className="block w-full pl-11 pr-4 py-3 text-lg md:text-xl font-black text-gray-900 tracking-widest bg-gray-50 border border-[#E7E9F7] rounded-xl text-center sm:text-left shadow-inner">
-                                    {isStatsLoading ? <Shimmer className="w-40 h-8 rounded mx-auto sm:mx-0" /> : stats.referral_code || 'N/A'}
+                                    {stats.referral_code || 'N/A'}
                                 </span>
                             </div>
-                            <Button onClick={handleCopyCode} disabled={isStatsLoading || !stats.referral_code} className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-[#141B3C] hover:bg-[#2A45C2] text-white border-0 font-bold w-full sm:w-auto flex-shrink-0 disabled:opacity-50 text-sm shadow-md transition-colors">
+                            <Button onClick={handleCopyCode} disabled={!stats.referral_code} className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-[#141B3C] hover:bg-[#2A45C2] text-white border-0 font-bold w-full sm:w-auto flex-shrink-0 disabled:opacity-50 text-sm shadow-md transition-colors">
                                 <FaRegCopy size={15} /> Copy Code
                             </Button>
                         </div>
@@ -99,13 +173,8 @@ const UserReferralCom = () => {
                     <div className="bg-white border border-[#E7E9F7] p-4 md:p-5 rounded-2xl shadow-[0_2px_16px_rgba(30,41,89,0.05)] hover:border-[#2A45C2]/20 transition-all hover:shadow-lg">
                         <p className="text-xs font-black text-gray-500 tracking-widest mb-2.5 uppercase">Share Direct Link</p>
                         <div className="flex flex-col sm:flex-row items-center gap-3 relative">
-                            {isStatsLoading && (
-                                <div className="absolute left-0 top-0 w-full sm:w-[calc(100%-150px)] h-full z-10 bg-gray-50 border border-[#E7E9F7] rounded-xl flex items-center px-4">
-                                    <Shimmer className="w-3/4 h-5 rounded" />
-                                </div>
-                            )}
-                            <Input readOnly value={isStatsLoading ? '' : shareLink} className="w-full bg-gray-50 text-gray-600 border-[#E7E9F7] rounded-xl font-bold focus:ring-0 cursor-text py-3 text-sm shadow-inner" />
-                            <Button onClick={handleShareLink} disabled={isStatsLoading || !stats.referral_code} className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-[#2A45C2] to-[#5B4FE0] text-white border-0 font-bold w-full sm:w-auto flex-shrink-0 disabled:opacity-50 text-sm shadow-md hover:shadow-lg transition-transform hover:-translate-y-0.5">
+                            <Input readOnly value={shareLink} className="w-full bg-gray-50 text-gray-600 border-[#E7E9F7] rounded-xl font-bold focus:ring-0 cursor-text py-3 text-sm shadow-inner" />
+                            <Button onClick={handleShareLink} disabled={!stats.referral_code} className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-[#2A45C2] to-[#5B4FE0] text-white border-0 font-bold w-full sm:w-auto flex-shrink-0 disabled:opacity-50 text-sm shadow-md hover:shadow-lg transition-transform hover:-translate-y-0.5">
                                 <FaShareAlt size={15} /> Copy Link
                             </Button>
                         </div>
@@ -117,7 +186,7 @@ const UserReferralCom = () => {
                         <div className="absolute top-0 right-0 p-5 opacity-10 group-hover:opacity-20 transition-opacity group-hover:scale-110 duration-500"><FaCoins size={64} className="text-[#D4A017]" /></div>
                         <p className="text-xs font-black text-gray-500 tracking-widest mb-1.5 uppercase relative z-10">Total Earnings</p>
                         <h2 className="text-4xl font-black bg-clip-text text-transparent bg-gradient-to-r from-[#D4A017] to-[#F2C14E] drop-shadow-sm mb-1.5 relative z-10">
-                            {isStatsLoading ? <Shimmer className="w-48 h-10 rounded mt-2 mb-2" /> : `AED ${stats.referral_earnings}`}
+                            AED {stats.referral_earnings}
                         </h2>
                         <p className="text-sm font-bold text-gray-400 relative z-10">Ready to withdraw soon</p>
                     </div>
@@ -125,13 +194,13 @@ const UserReferralCom = () => {
                     <div className="grid grid-cols-2 gap-3">
                         <div className="bg-white border border-[#E7E9F7] p-4 rounded-2xl shadow-sm text-center flex flex-col items-center hover:shadow-md transition-shadow">
                             <h3 className="text-3xl font-black text-gray-900 mb-1">
-                                {isStatsLoading ? <Shimmer className="w-16 h-9 rounded" /> : stats.total_referrals}
+                                {stats.total_referrals}
                             </h3>
                             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Total Invites</p>
                         </div>
                         <div className="bg-[#EEF1FE] border border-[#2A45C2]/10 p-4 rounded-2xl shadow-sm text-center flex flex-col items-center hover:shadow-md transition-shadow">
                             <h3 className="text-3xl font-black text-[#2A45C2] mb-1">
-                                {isStatsLoading ? <Shimmer className="w-16 h-9 rounded" /> : stats.total_referrals}
+                                {stats.total_referrals}
                             </h3>
                             <p className="text-[10px] font-bold text-[#2A45C2]/60 uppercase tracking-widest">Successful</p>
                         </div>

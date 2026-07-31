@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
-    FaSearch, FaBriefcase, FaMapMarkerAlt, FaStar, FaTh, FaList, FaTimes, FaUsers, FaClock, FaClipboardList, FaFileAlt, FaCheck, FaFileUpload
+    FaSearch, FaBriefcase, FaMapMarkerAlt, FaStar, FaTh, FaList, FaTimes, FaUsers, FaClock, FaClipboardList, FaFileAlt, FaCheck
 } from 'react-icons/fa';
 import { toast, Toaster } from 'react-hot-toast';
 import Button from '../../ui/Button';
@@ -30,7 +30,6 @@ const UserJobsCom = () => {
     const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    // Changed resumeLink to resume (File object)
     const [formData, setFormData] = useState({ resume: null, coverLetter: '' });
 
     const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5001';
@@ -79,7 +78,10 @@ const UserJobsCom = () => {
         } catch (error) {
             console.error('Error fetching data:', error);
         } finally {
-            setIsLoading(false);
+            // Added a slight timeout for a smoother shimmer transition visually
+            setTimeout(() => {
+                setIsLoading(false);
+            }, 400);
         }
     };
 
@@ -118,15 +120,13 @@ const UserJobsCom = () => {
         setIsApplyModalOpen(true);
     };
 
-    // Handle standard text inputs
     const handleFormChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
 
-    // Handle strict PDF file inputs
     const handleFileChange = (e) => {
         const file = e.target.files[0];
         if (file && file.type !== 'application/pdf') {
             toast.error('Only PDF files are allowed.');
-            e.target.value = ''; 
+            e.target.value = '';
             return;
         }
         setFormData({ ...formData, resume: file });
@@ -153,7 +153,7 @@ const UserJobsCom = () => {
 
     const submitApplication = async (e) => {
         e.preventDefault();
-        
+
         if (!formData.resume) {
             toast.error("Please upload your PDF resume.");
             return;
@@ -184,7 +184,6 @@ const UserJobsCom = () => {
                 applicantEmail = payload.email || applicantEmail;
             }
 
-            // Using FormData because we are sending a binary file
             const payloadData = new FormData();
             payloadData.append('jobId', selectedJob.id);
             payloadData.append('jobTitle', selectedJob.title);
@@ -192,12 +191,12 @@ const UserJobsCom = () => {
             payloadData.append('companyEmail', selectedJob.contact_email || 'hr@company.com');
             payloadData.append('applicantName', applicantName);
             payloadData.append('applicantEmail', applicantEmail);
-            payloadData.append('resume', formData.resume); 
+            payloadData.append('resume', formData.resume);
             payloadData.append('coverLetter', formData.coverLetter);
 
             const res = await fetch(`${apiUrl}/api/applications/apply`, {
                 method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}` }, // Notice NO Content-Type. Browser sets it automatically with the boundary for FormData.
+                headers: { 'Authorization': `Bearer ${token}` },
                 body: payloadData
             });
 
@@ -222,6 +221,79 @@ const UserJobsCom = () => {
         setActiveFilter('All Jobs');
         navigate('/user-dashboard/jobs', { replace: true });
     };
+
+    // --- FULL PAGE SHIMMER STATE ---
+    if (isLoading) {
+        return (
+            <div className="max-w-[1400px] mx-auto space-y-2.5 p-2 md:p-3 rounded-2xl bg-[#F5F6FC] relative">
+                {/* Header / Search Banner Shimmer */}
+                <div className="relative overflow-hidden rounded-2xl px-4 py-4 md:px-6 md:py-4 bg-gray-200 h-[140px] md:h-[84px] shadow-sm">
+                    <Shimmer className="absolute inset-0 w-full h-full" />
+                </div>
+
+                {/* Filters Shimmer */}
+                <div className="flex gap-1.5 pb-1 overflow-hidden mb-2">
+                    {[1, 2, 3, 4, 5, 6].map((i) => (
+                        <Shimmer key={i} className="w-24 h-8 rounded-lg shrink-0 bg-gray-200" />
+                    ))}
+                </div>
+
+                {/* Results Count & View Toggles Shimmer */}
+                <div className="flex justify-between items-center mb-2.5 px-0.5">
+                    <div className="flex items-center gap-2">
+                        <Shimmer className="w-32 h-5 rounded bg-gray-200" />
+                        <Shimmer className="w-16 h-5 rounded bg-gray-200" />
+                    </div>
+                    <Shimmer className="w-20 h-8 rounded-lg bg-gray-200" />
+                </div>
+
+                {/* Results Grid/List Shimmer */}
+                <div className={viewMode === 'grid' ? "grid grid-cols-1 md:grid-cols-3 gap-2.5" : "flex flex-col gap-2.5"}>
+                    {[1, 2, 3, 4, 5, 6].map((i) => (
+                        <div key={i} className={`bg-white border border-[#E7E9F7] p-4 rounded-2xl shadow-[0_2px_16px_rgba(30,41,89,0.02)] ${viewMode === 'grid' ? 'flex flex-col h-[200px] justify-between' : 'flex flex-col md:flex-row md:items-center justify-between gap-3 h-auto md:h-[100px]'}`}>
+                            {viewMode === 'grid' ? (
+                                <>
+                                    <div className="flex gap-3 mb-3">
+                                        <Shimmer className="w-11 h-11 rounded-xl bg-gray-200 shrink-0" />
+                                        <div className="flex-1">
+                                            <Shimmer className="w-3/4 h-4 rounded mb-2 bg-gray-200" />
+                                            <Shimmer className="w-1/2 h-3 rounded mb-2 bg-gray-200" />
+                                            <Shimmer className="w-full h-3 rounded mt-3 bg-gray-200" />
+                                        </div>
+                                    </div>
+                                    <div className="mt-3 pt-3 border-t border-[#E7E9F7] flex justify-between items-center">
+                                        <div className="flex gap-4">
+                                            <Shimmer className="w-10 h-6 rounded bg-gray-200" />
+                                            <Shimmer className="w-10 h-6 rounded bg-gray-200" />
+                                        </div>
+                                        <Shimmer className="w-24 h-8 rounded-xl bg-gray-200" />
+                                    </div>
+                                </>
+                            ) : (
+                                <>
+                                    <div className="flex items-center gap-4 flex-1">
+                                        <Shimmer className="w-11 h-11 rounded-xl bg-gray-200 shrink-0" />
+                                        <div className="flex-1">
+                                            <Shimmer className="w-1/3 h-4 rounded mb-2 bg-gray-200" />
+                                            <Shimmer className="w-1/4 h-3 rounded bg-gray-200" />
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-5 justify-end">
+                                        <div className="hidden md:flex gap-4">
+                                            <Shimmer className="w-16 h-6 rounded bg-gray-200" />
+                                            <Shimmer className="w-16 h-6 rounded bg-gray-200" />
+                                        </div>
+                                        <Shimmer className="w-24 h-6 rounded bg-gray-200" />
+                                        <Shimmer className="w-24 h-8 rounded-xl bg-gray-200" />
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="max-w-[1400px] mx-auto space-y-2.5 p-2 md:p-3 rounded-2xl bg-[#F5F6FC]">
@@ -265,24 +337,18 @@ const UserJobsCom = () => {
             </div>
 
             <div className="flex gap-1.5 pb-1 overflow-x-auto custom-scrollbar">
-                {!isLoading ? (
-                    filterOptions.map((filter) => (
-                        <button
-                            key={filter}
-                            onClick={() => setActiveFilter(filter)}
-                            className={`whitespace-nowrap rounded-lg px-3.5 py-1.5 text-xs font-bold transition-all shadow-sm ${activeFilter === filter
-                                ? 'bg-gradient-to-r from-[#2A45C2] to-[#5B4FE0] text-white border-0'
-                                : 'bg-white border border-[#E7E9F7] text-gray-600 hover:border-[#2A45C2]/30 hover:bg-[#F8F9FE]'
-                                }`}
-                        >
-                            {filter}
-                        </button>
-                    ))
-                ) : (
-                    Array(4).fill(0).map((_, idx) => (
-                        <Shimmer key={idx} className="w-24 h-8 rounded-lg shrink-0" />
-                    ))
-                )}
+                {filterOptions.map((filter) => (
+                    <button
+                        key={filter}
+                        onClick={() => setActiveFilter(filter)}
+                        className={`whitespace-nowrap rounded-lg px-3.5 py-1.5 text-xs font-bold transition-all shadow-sm ${activeFilter === filter
+                            ? 'bg-gradient-to-r from-[#2A45C2] to-[#5B4FE0] text-white border-0'
+                            : 'bg-white border border-[#E7E9F7] text-gray-600 hover:border-[#2A45C2]/30 hover:bg-[#F8F9FE]'
+                            }`}
+                    >
+                        {filter}
+                    </button>
+                ))}
             </div>
 
             <div>
@@ -290,7 +356,7 @@ const UserJobsCom = () => {
                     <div className="flex items-center gap-2">
                         <h2 className="text-sm font-extrabold text-gray-900 uppercase tracking-wide">Featured Jobs</h2>
                         <Badge variant="primary" className="text-[11px] px-2 py-0.5 rounded-md bg-blue-50 text-[#2A45C2] border border-[#E4E7F2] font-bold">
-                            {isLoading ? '...' : filteredJobs.length} open
+                            {filteredJobs.length} open
                         </Badge>
 
                         {(locFilter || expFilter) && (
@@ -316,15 +382,7 @@ const UserJobsCom = () => {
                     </div>
                 </div>
 
-                {isLoading ? (
-                    <div className={viewMode === 'grid' ? "grid grid-cols-1 md:grid-cols-2 gap-2.5" : "flex flex-col gap-2.5"}>
-                        {Array(4).fill(0).map((_, idx) => (
-                            <div key={idx} className="bg-white border border-[#E7E9F7] rounded-2xl p-4 h-40 shadow-[0_2px_16px_rgba(30,41,89,0.02)]">
-                                <Shimmer className="w-full h-full rounded-xl" />
-                            </div>
-                        ))}
-                    </div>
-                ) : filteredJobs.length > 0 ? (
+                {filteredJobs.length > 0 ? (
                     <div className={viewMode === 'grid' ? "grid grid-cols-1 md:grid-cols-3 gap-2.5" : "flex flex-col gap-2.5"}>
                         {filteredJobs.map((job) => {
                             const isApplied = appliedJobIds.has(job.id);
@@ -475,13 +533,13 @@ const UserJobsCom = () => {
                         <form onSubmit={submitApplication} className="p-5 space-y-4">
                             <div>
                                 <label className="block text-xs font-black text-gray-700 uppercase tracking-widest mb-1.5">Resume (PDF Only) *</label>
-                                <input 
-                                    type="file" 
-                                    name="resume" 
-                                    accept=".pdf" 
-                                    required 
-                                    onChange={handleFileChange} 
-                                    className="w-full px-3.5 py-2.5 bg-gray-50/50 border border-[#E7E9F7] rounded-xl focus:ring-2 focus:ring-[#2A45C2]/20 focus:border-[#2A45C2] transition-all text-sm font-medium shadow-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-bold file:bg-[#EEF1FE] file:text-[#2A45C2] hover:file:bg-[#2A45C2] hover:file:text-white cursor-pointer" 
+                                <input
+                                    type="file"
+                                    name="resume"
+                                    accept=".pdf"
+                                    required
+                                    onChange={handleFileChange}
+                                    className="w-full px-3.5 py-2.5 bg-gray-50/50 border border-[#E7E9F7] rounded-xl focus:ring-2 focus:ring-[#2A45C2]/20 focus:border-[#2A45C2] transition-all text-sm font-medium shadow-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-bold file:bg-[#EEF1FE] file:text-[#2A45C2] hover:file:bg-[#2A45C2] hover:file:text-white cursor-pointer"
                                 />
                             </div>
                             <div>

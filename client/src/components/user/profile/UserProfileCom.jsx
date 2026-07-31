@@ -37,7 +37,7 @@ const UserProfileCom = () => {
     const [allUsers, setAllUsers] = useState([]);
     const [userPosts, setUserPosts] = useState([]);
     const [followingMap, setFollowingMap] = useState({});
-    
+
     // Users Map for quick profile picture lookups
     const [usersMap, setUsersMap] = useState({});
 
@@ -178,7 +178,10 @@ const UserProfileCom = () => {
             console.error("Fetch data error:", error);
             toast.error("Failed to load profile details.");
         } finally {
-            setIsLoading(false);
+            // Slight delay for smoother shimmer transition visually
+            setTimeout(() => {
+                setIsLoading(false);
+            }, 400);
         }
     };
 
@@ -328,13 +331,93 @@ const UserProfileCom = () => {
         } catch (e) { console.error(e); }
     };
 
+    // --- FULL PAGE SHIMMER STATE ---
     if (isLoading) {
         return (
-            <div className="max-w-[1400px] mx-auto space-y-3 p-2 md:p-3 rounded-2xl bg-[#F5F6FC]">
-                <Shimmer className="w-full h-64 rounded-2xl bg-gray-300" />
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
-                    <Shimmer className="h-28 rounded-2xl" />
-                    <Shimmer className="h-28 rounded-2xl" />
+            <div className="max-w-[1400px] mx-auto p-2 md:p-3 rounded-2xl bg-[#F5F6FC] min-h-screen">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
+
+                    {/* LEFT COLUMN SHIMMER */}
+                    <div className="lg:col-span-4 space-y-3">
+                        {/* Profile Card Shimmer */}
+                        <div className="bg-white border border-[#E7E9F7] rounded-2xl p-4 md:p-5 shadow-[0_2px_16px_rgba(30,41,89,0.05)] relative overflow-hidden h-[410px]">
+                            <Shimmer className="absolute top-0 left-0 w-full h-24 bg-gray-200" />
+                            <div className="relative flex flex-col items-center text-center pt-9 mt-4">
+                                <Shimmer className="w-20 h-20 rounded-full bg-gray-200 mb-3" />
+                                <Shimmer className="w-40 h-6 rounded bg-gray-200 mb-2" />
+                                <Shimmer className="w-48 h-4 rounded bg-gray-200 mb-1" />
+                                <Shimmer className="w-32 h-4 rounded bg-gray-200 mb-5" />
+                                <Shimmer className="w-full h-16 rounded-xl bg-gray-200 mb-4" />
+                                <Shimmer className="w-28 h-7 rounded-full bg-gray-200 mb-4" />
+                                <div className="flex w-full gap-2.5">
+                                    <Shimmer className="flex-1 h-10 rounded-xl bg-gray-200" />
+                                    <Shimmer className="flex-1 h-10 rounded-xl bg-gray-200" />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Stats Grid Shimmer */}
+                        <div className="grid grid-cols-2 gap-2">
+                            <Shimmer className="h-[80px] rounded-2xl bg-gray-200" />
+                            <Shimmer className="h-[80px] rounded-2xl bg-gray-200" />
+                        </div>
+
+                        {/* Discover Network Shimmer */}
+                        <div className="bg-white border border-[#E7E9F7] rounded-2xl p-4 shadow-[0_2px_16px_rgba(30,41,89,0.05)]">
+                            <Shimmer className="w-40 h-6 rounded bg-gray-200 mb-4" />
+                            <div className="space-y-3">
+                                {[1, 2, 3, 4].map(i => (
+                                    <div key={i} className="flex justify-between items-center p-2 rounded-xl border border-gray-100">
+                                        <div className="flex gap-2.5 items-center">
+                                            <Shimmer className="w-9 h-9 rounded-full bg-gray-200" />
+                                            <div>
+                                                <Shimmer className="w-24 h-4 rounded bg-gray-200 mb-1.5" />
+                                                <Shimmer className="w-16 h-3 rounded bg-gray-200" />
+                                            </div>
+                                        </div>
+                                        <div className="flex gap-1.5">
+                                            <Shimmer className="w-8 h-8 rounded-full bg-gray-200" />
+                                            <Shimmer className="w-8 h-8 rounded-full bg-gray-200" />
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* RIGHT COLUMN SHIMMER */}
+                    <div className="lg:col-span-8">
+                        <div className="bg-white border border-[#E7E9F7] rounded-2xl p-4 shadow-[0_2px_16px_rgba(30,41,89,0.05)] h-full min-h-screen">
+                            <div className="flex justify-between items-center mb-4 pb-3 border-b border-[#E7E9F7]">
+                                <Shimmer className="w-32 h-7 rounded bg-gray-200" />
+                                <Shimmer className="w-20 h-7 rounded-full bg-gray-200" />
+                            </div>
+
+                            <div className="space-y-4">
+                                {[1, 2].map(i => (
+                                    <div key={i} className="p-4 rounded-2xl border border-[#E7E9F7]">
+                                        <div className="flex gap-3 mb-3 items-center">
+                                            <Shimmer className="w-10 h-10 rounded-full bg-gray-200" />
+                                            <div>
+                                                <Shimmer className="w-32 h-4 rounded bg-gray-200 mb-1.5" />
+                                                <Shimmer className="w-24 h-3 rounded bg-gray-200" />
+                                            </div>
+                                        </div>
+                                        <Shimmer className="w-full h-4 rounded bg-gray-200 mb-1.5" />
+                                        <Shimmer className="w-5/6 h-4 rounded bg-gray-200 mb-4" />
+                                        <Shimmer className="w-full h-64 md:h-80 rounded-xl bg-gray-200 mb-4" />
+                                        <div className="flex justify-between border-t border-gray-100 pt-3">
+                                            <div className="flex gap-3">
+                                                <Shimmer className="w-16 h-8 rounded-lg bg-gray-200" />
+                                                <Shimmer className="w-16 h-8 rounded-lg bg-gray-200" />
+                                            </div>
+                                            <Shimmer className="w-20 h-6 rounded bg-gray-200" />
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         );
@@ -406,7 +489,7 @@ const UserProfileCom = () => {
                                     <p className="text-sm text-gray-400 font-medium mb-2.5">{profile.phone}</p>
 
                                     <div className="flex gap-3 mb-3 bg-[#F5F6FC] px-4 py-2 rounded-xl border border-[#E7E9F7]">
-                                        <div 
+                                        <div
                                             className="text-center cursor-pointer hover:opacity-70 transition-opacity flex-1"
                                             onClick={() => navigate('/user-dashboard/my-network', { state: { activeTab: 'followers' } })}
                                             title="View Followers"
@@ -415,7 +498,7 @@ const UserProfileCom = () => {
                                             <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Followers</span>
                                         </div>
                                         <div className="w-px bg-[#E7E9F7]"></div>
-                                        <div 
+                                        <div
                                             className="text-center cursor-pointer hover:opacity-70 transition-opacity flex-1"
                                             onClick={() => navigate('/user-dashboard/my-network', { state: { activeTab: 'following' } })}
                                             title="View Following"

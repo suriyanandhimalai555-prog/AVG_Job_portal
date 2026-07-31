@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
     FaSearch, FaMapMarkerAlt, FaHeart, FaRegHeart, FaStar, FaTh, FaList,
     FaMap, FaCheckCircle, FaGlobe, FaEnvelope, FaPhone, FaShareAlt,
-    FaDirections, FaTimes, FaImage, FaPaperPlane, FaUserCircle, FaCrown
+    FaDirections, FaTimes, FaImage, FaPaperPlane, FaUserCircle
 } from 'react-icons/fa';
 import { toast, Toaster } from 'react-hot-toast';
 import Button from '../../ui/Button';
@@ -45,7 +45,10 @@ const UserDirectoryCom = () => {
                 console.error('Error fetching directory data:', error);
                 toast.error('Failed to load businesses.');
             } finally {
-                setIsLoading(false);
+                // Added a slight timeout for smoother shimmer transition visually
+                setTimeout(() => {
+                    setIsLoading(false);
+                }, 400);
             }
         };
 
@@ -104,6 +107,72 @@ const UserDirectoryCom = () => {
         return matchesSearch && matchesLocation && matchesCategory && matchesNearby;
     });
 
+    // --- FULL PAGE SHIMMER STATE ---
+    if (isLoading) {
+        return (
+            <div className="max-w-[1400px] mx-auto p-2 md:p-3 rounded-2xl bg-[#F5F6FC] relative">
+                {/* Header / Search Banner Shimmer */}
+                <div className="relative overflow-hidden rounded-2xl px-4 py-4 md:px-6 md:py-4 bg-gray-200 mb-2.5 h-[160px] md:h-[84px] shadow-sm">
+                    <Shimmer className="absolute inset-0 w-full h-full" />
+                </div>
+
+                {/* Filters Shimmer */}
+                <div className="flex gap-1.5 py-2 overflow-hidden mb-2">
+                    {[1, 2, 3, 4, 5, 6].map((i) => (
+                        <Shimmer key={i} className="w-24 h-8 rounded-lg shrink-0 bg-gray-200" />
+                    ))}
+                </div>
+
+                {/* Results Count & View Toggles Shimmer */}
+                <div className="flex justify-between items-center mb-3 px-0.5">
+                    <div className="flex items-center gap-2">
+                        <Shimmer className="w-32 h-5 rounded bg-gray-200" />
+                        <Shimmer className="w-16 h-5 rounded bg-gray-200" />
+                    </div>
+                    <Shimmer className="w-24 h-8 rounded-lg bg-gray-200" />
+                </div>
+
+                {/* Results Grid Shimmer */}
+                <div className={viewMode === 'grid' ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2" : "flex flex-col gap-2"}>
+                    {[1, 2, 3, 4, 5, 6].map((i) => (
+                        <div key={i} className={`bg-white border border-[#E4E7F2] p-3 rounded-2xl shadow-[0_2px_16px_rgba(30,41,89,0.02)] ${viewMode === 'list' ? 'flex items-center gap-4 h-[80px]' : 'flex flex-col h-[112px]'}`}>
+                            {viewMode === 'list' ? (
+                                <>
+                                    <Shimmer className="w-10 h-10 rounded-xl bg-gray-200 shrink-0" />
+                                    <div className="flex-1">
+                                        <Shimmer className="w-1/3 h-4 rounded mb-2 bg-gray-200" />
+                                        <Shimmer className="w-1/4 h-3 rounded bg-gray-200" />
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <Shimmer className="w-8 h-8 rounded-full bg-gray-200" />
+                                        <Shimmer className="w-8 h-8 rounded-full bg-gray-200" />
+                                    </div>
+                                </>
+                            ) : (
+                                <>
+                                    <div className="flex items-start gap-2.5 mb-2.5">
+                                        <Shimmer className="w-10 h-10 rounded-xl bg-gray-200 shrink-0" />
+                                        <div className="flex-1">
+                                            <Shimmer className="w-3/4 h-4 rounded mb-1.5 bg-gray-200" />
+                                            <Shimmer className="w-1/2 h-3 rounded bg-gray-200" />
+                                        </div>
+                                    </div>
+                                    <div className="mt-auto pt-2.5 border-t border-[#EDEFF7] flex justify-between items-center">
+                                        <Shimmer className="w-24 h-3 rounded bg-gray-200" />
+                                        <div className="flex gap-1.5">
+                                            <Shimmer className="w-6 h-6 rounded-full bg-gray-200" />
+                                            <Shimmer className="w-6 h-6 rounded-full bg-gray-200" />
+                                        </div>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="max-w-[1400px] mx-auto p-2 md:p-3 rounded-2xl bg-[#F5F6FC] relative">
             <Toaster position="top-right" />
@@ -154,24 +223,18 @@ const UserDirectoryCom = () => {
             </div>
 
             <div className="flex gap-1.5 py-2 overflow-x-auto custom-scrollbar">
-                {!isLoading ? (
-                    filterOptions.map((filter) => (
-                        <button
-                            key={filter}
-                            onClick={() => setActiveCategory(filter)}
-                            className={`whitespace-nowrap rounded-lg px-3.5 py-1.5 text-xs font-bold transition-all ${activeCategory === filter
-                                ? 'bg-gradient-to-r from-[#2A45C2] to-[#5B4FE0] text-white shadow-[0_4px_12px_rgba(42,69,194,0.25)]'
-                                : 'bg-white border border-[#E4E7F2] text-gray-500 hover:bg-gray-50'
-                                }`}
-                        >
-                            {filter}
-                        </button>
-                    ))
-                ) : (
-                    Array(5).fill(0).map((_, idx) => (
-                        <Shimmer key={idx} className="w-24 h-8 rounded-lg shrink-0" />
-                    ))
-                )}
+                {filterOptions.map((filter) => (
+                    <button
+                        key={filter}
+                        onClick={() => setActiveCategory(filter)}
+                        className={`whitespace-nowrap rounded-lg px-3.5 py-1.5 text-xs font-bold transition-all ${activeCategory === filter
+                            ? 'bg-gradient-to-r from-[#2A45C2] to-[#5B4FE0] text-white shadow-[0_4px_12px_rgba(42,69,194,0.25)]'
+                            : 'bg-white border border-[#E4E7F2] text-gray-500 hover:bg-gray-50'
+                            }`}
+                    >
+                        {filter}
+                    </button>
+                ))}
             </div>
 
             <div>
@@ -179,7 +242,7 @@ const UserDirectoryCom = () => {
                     <div className="flex items-center gap-2">
                         <h2 className="text-sm font-extrabold text-gray-900 uppercase tracking-wide">Directory Results</h2>
                         <Badge variant="primary" className="text-[11px] px-2 py-0.5 rounded-md bg-blue-50 text-[#2A45C2] border border-[#E4E7F2] font-bold">
-                            {isLoading ? '...' : filteredBusinesses.length} found
+                            {filteredBusinesses.length} found
                         </Badge>
                     </div>
 
@@ -196,15 +259,7 @@ const UserDirectoryCom = () => {
                     </div>
                 </div>
 
-                {isLoading ? (
-                    <div className={viewMode === 'grid' ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2" : "flex flex-col gap-2"}>
-                        {Array(6).fill(0).map((_, idx) => (
-                            <div key={idx} className="bg-white border border-[#E4E7F2] p-3 rounded-2xl h-[112px] shadow-[0_2px_16px_rgba(30,41,89,0.02)]">
-                                <Shimmer className="w-full h-full rounded-xl" />
-                            </div>
-                        ))}
-                    </div>
-                ) : filteredBusinesses.length > 0 ? (
+                {filteredBusinesses.length > 0 ? (
                     viewMode === 'map' ? (
                         <div className="bg-white border border-[#E4E7F2] rounded-xl h-[520px] flex overflow-hidden shadow-[0_2px_16px_rgba(30,41,89,0.05)]">
                             <div className="w-1/3 border-r border-[#E4E7F2] overflow-y-auto custom-scrollbar p-2 space-y-1.5 bg-[#F7F8FC]">
@@ -337,10 +392,10 @@ const UserDirectoryCom = () => {
 
                                 <div className="flex gap-2 sm:mb-1 w-full sm:w-auto">
                                     <Button onClick={(e) => handleShare(e, selectedBiz.name)} variant="outline" className="flex-1 sm:flex-none border-[#E4E7F2] text-gray-700 font-bold py-1.5 text-sm">
-                                        <FaShareAlt size={13} className='me-1'/> Share
+                                        <FaShareAlt size={13} className='me-1' /> Share
                                     </Button>
                                     <Button onClick={(e) => toggleFavorite(e, selectedBiz.id)} className={`flex-1 sm:flex-none py-1.5 font-bold text-sm ${favorites.has(selectedBiz.id) ? 'bg-red-50 text-red-600 border-red-200' : 'bg-gradient-to-r from-[#2A45C2] to-[#5B4FE0] text-white border-0'}`}>
-                                        {favorites.has(selectedBiz.id) ? <><FaHeart size={13} className='me-1'/> Saved</> : <><FaRegHeart size={13} className='me-1'/> Save</>}
+                                        {favorites.has(selectedBiz.id) ? <><FaHeart size={13} className='me-1' /> Saved</> : <><FaRegHeart size={13} className='me-1' /> Save</>}
                                     </Button>
                                 </div>
                             </div>

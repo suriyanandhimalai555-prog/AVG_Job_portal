@@ -75,7 +75,10 @@ const UserAcademyCom = () => {
                 console.error('Error fetching academy data:', error);
                 toast.error('Failed to load academy data.');
             } finally {
-                setIsLoading(false);
+                // Added a slight timeout for smoother shimmer transition visually
+                setTimeout(() => {
+                    setIsLoading(false);
+                }, 400);
             }
         };
 
@@ -188,6 +191,76 @@ const UserAcademyCom = () => {
         return 'Curriculum Catalog';
     };
 
+    // --- FULL PAGE SHIMMER STATE ---
+    if (isLoading) {
+        return (
+            <div className="max-w-[1400px] mx-auto space-y-2.5 p-2 md:p-3 rounded-2xl bg-[#F5F6FC] relative">
+                {/* Header Banner Shimmer */}
+                <div className="relative overflow-hidden rounded-2xl px-4 py-4 md:px-6 md:py-4 bg-gray-200 h-[80px] shadow-sm">
+                    <Shimmer className="absolute inset-0 w-full h-full" />
+                </div>
+
+                {/* Tabs Shimmer */}
+                <div className="flex bg-white border border-[#EBEBEB] p-1 rounded-xl shadow-sm gap-1.5 h-[46px]">
+                    <Shimmer className="flex-1 rounded-lg bg-gray-200" />
+                    <Shimmer className="flex-1 rounded-lg bg-gray-200" />
+                    <Shimmer className="flex-1 rounded-lg bg-gray-200" />
+                </div>
+
+                {/* Search & Filters Block Shimmer */}
+                <div className="bg-white p-3 rounded-xl shadow-sm border border-[#EBEBEB] space-y-2.5">
+                    <Shimmer className="w-full h-[38px] rounded-lg bg-gray-200" />
+                    <div className="flex flex-col sm:flex-row gap-2.5">
+                        <Shimmer className="flex-1 h-[38px] rounded-lg bg-gray-200" />
+                        <Shimmer className="flex-1 h-[38px] rounded-lg bg-gray-200" />
+                    </div>
+                    <div className="flex gap-1.5 overflow-hidden pt-0.5">
+                        {[1, 2, 3, 4, 5, 6].map((i) => (
+                            <Shimmer key={i} className="w-20 h-8 rounded-lg shrink-0 bg-gray-200" />
+                        ))}
+                    </div>
+                </div>
+
+                {/* Results Count & View Toggles Shimmer */}
+                <div>
+                    <div className="flex justify-between items-center mb-2.5 px-0.5">
+                        <Shimmer className="w-40 h-5 rounded bg-gray-200" />
+                        <div className="flex items-center gap-2">
+                            <Shimmer className="w-20 h-6 rounded bg-gray-200 hidden sm:block" />
+                            <Shimmer className="w-[68px] h-[34px] rounded-lg bg-gray-200" />
+                        </div>
+                    </div>
+
+                    {/* Results Grid/List Shimmer */}
+                    <div className={viewMode === 'grid' ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3" : "flex flex-col gap-2.5"}>
+                        {[1, 2, 3, 4, 5, 6].map((i) => (
+                            <div key={i} className={`bg-white border border-[#EBEBEB] rounded-xl overflow-hidden flex shadow-sm ${viewMode === 'grid' ? 'flex-col h-[340px]' : 'flex-col sm:flex-row h-auto sm:h-40'}`}>
+                                <Shimmer className={`${viewMode === 'grid' ? 'w-full h-36' : 'w-full sm:w-56 h-40 sm:h-full'} shrink-0 bg-gray-200`} />
+                                <div className="flex-1 flex flex-col justify-between p-3.5 sm:p-4">
+                                    <div>
+                                        <div className="flex justify-between mb-2">
+                                            <Shimmer className="w-16 h-4 rounded bg-gray-200" />
+                                            <Shimmer className="w-16 h-4 rounded bg-gray-200" />
+                                        </div>
+                                        <Shimmer className="w-full h-5 rounded mb-2 bg-gray-200" />
+                                        <Shimmer className="w-3/4 h-5 rounded mb-3 bg-gray-200" />
+
+                                        <Shimmer className="w-1/2 h-3 rounded mb-2 bg-gray-200" />
+                                        <Shimmer className="w-2/3 h-3 rounded mb-2 bg-gray-200" />
+                                    </div>
+                                    <div className="mt-auto pt-2.5 border-t border-[#EBEBEB] flex justify-between items-center">
+                                        <Shimmer className="w-16 h-6 rounded bg-gray-200" />
+                                        <Shimmer className="w-24 h-8 rounded-lg bg-gray-200" />
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="max-w-[1400px] mx-auto space-y-2.5 p-2 md:p-3 rounded-2xl bg-[#F5F6FC] relative">
             <Toaster position="top-right" />
@@ -267,24 +340,18 @@ const UserAcademyCom = () => {
                 </div>
 
                 <div className="flex gap-1.5 overflow-x-auto pt-0.5 custom-scrollbar">
-                    {!isLoading ? (
-                        categories.map((filter) => (
-                            <button
-                                key={filter}
-                                onClick={() => setActiveCategory(filter)}
-                                className={`whitespace-nowrap rounded-lg px-3.5 py-1.5 text-xs font-bold transition-all ${activeCategory === filter
-                                    ? 'bg-blue-50 text-[#2A45C2] border border-[#2A45C2]/20'
-                                    : 'bg-white border border-[#EBEBEB] text-gray-500 hover:bg-gray-50'
-                                    }`}
-                            >
-                                {filter}
-                            </button>
-                        ))
-                    ) : (
-                        Array(5).fill(0).map((_, idx) => (
-                            <Shimmer key={idx} className="w-20 h-8 rounded-lg shrink-0" />
-                        ))
-                    )}
+                    {categories.map((filter) => (
+                        <button
+                            key={filter}
+                            onClick={() => setActiveCategory(filter)}
+                            className={`whitespace-nowrap rounded-lg px-3.5 py-1.5 text-xs font-bold transition-all ${activeCategory === filter
+                                ? 'bg-blue-50 text-[#2A45C2] border border-[#2A45C2]/20'
+                                : 'bg-white border border-[#EBEBEB] text-gray-500 hover:bg-gray-50'
+                                }`}
+                        >
+                            {filter}
+                        </button>
+                    ))}
                 </div>
             </div>
 
@@ -294,7 +361,7 @@ const UserAcademyCom = () => {
 
                     <div className="flex items-center gap-2">
                         <span className="text-[#2A45C2] font-bold text-[11px] hidden sm:block bg-blue-50 border border-[#EBEBEB] px-2.5 py-1 rounded-md">
-                            {isLoading ? '...' : filteredCourses.length} results
+                            {filteredCourses.length} results
                         </span>
                         <div className="flex bg-white border border-[#EBEBEB] p-0.5 rounded-lg">
                             <button onClick={() => setViewMode('grid')} className={`p-1.5 rounded-md transition-colors ${viewMode === 'grid' ? 'bg-blue-50 text-[#2A45C2]' : 'text-gray-400'}`}>
@@ -307,15 +374,7 @@ const UserAcademyCom = () => {
                     </div>
                 </div>
 
-                {isLoading ? (
-                    <div className={viewMode === 'grid' ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3" : "flex flex-col gap-2.5"}>
-                        {Array(6).fill(0).map((_, idx) => (
-                            <div key={idx} className="bg-white border border-[#EBEBEB] rounded-xl h-64 shadow-[0_2px_16px_rgba(30,41,89,0.02)]">
-                                <Shimmer className="w-full h-full rounded-xl" />
-                            </div>
-                        ))}
-                    </div>
-                ) : filteredCourses.length > 0 ? (
+                {filteredCourses.length > 0 ? (
                     <div className={viewMode === 'grid' ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3" : "flex flex-col gap-2.5"}>
                         {filteredCourses.map((course) => (
                             <div

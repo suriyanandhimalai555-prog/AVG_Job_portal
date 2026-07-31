@@ -5,6 +5,7 @@ import {
     FaUserCheck, FaUsers
 } from 'react-icons/fa';
 import { toast, Toaster } from 'react-hot-toast';
+import Shimmer from '../../ui/Shimmer';
 
 const MyNetworkCom = () => {
     const [activeTab, setActiveTab] = useState('discover');
@@ -65,7 +66,9 @@ const MyNetworkCom = () => {
             console.error("Failed to fetch network data:", error);
             toast.error("Failed to load network data.");
         } finally {
-            setIsLoading(false);
+            setTimeout(() => {
+                setIsLoading(false);
+            }, 400);
         }
     };
 
@@ -117,6 +120,62 @@ const MyNetworkCom = () => {
 
     // Helper to check if we are already following a specific user
     const isFollowingUser = (userId) => followingData.some(u => u.id === userId);
+
+    // --- FULL PAGE SHIMMER STATE ---
+    if (isLoading) {
+        return (
+            <div className="max-w-[1400px] mx-auto p-2 md:p-3 rounded-2xl bg-[#F5F6FC] min-h-screen">
+                <div className="max-w-7xl mx-auto flex flex-col lg:flex-row gap-4">
+
+                    {/* Left Sidebar Shimmer */}
+                    <div className="w-full lg:w-72 shrink-0 space-y-3">
+                        <div className="bg-white rounded-2xl p-4 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-[#E7E9F7]">
+                            <Shimmer className="w-32 h-5 rounded mb-4 bg-gray-200" />
+                            <div className="space-y-2">
+                                {[1, 2, 3].map(i => (
+                                    <Shimmer key={i} className="w-full h-11 rounded-xl bg-gray-200" />
+                                ))}
+                            </div>
+                        </div>
+                        <Shimmer className="w-full h-40 rounded-2xl bg-gray-200" />
+                    </div>
+
+                    {/* Main Content Area Shimmer */}
+                    <div className="flex-1 space-y-3">
+                        {/* Header / Search Bar Shimmer */}
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-white p-3 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-[#E7E9F7]">
+                            <Shimmer className="w-full sm:w-96 h-10 rounded-xl bg-gray-200" />
+                            <Shimmer className="w-20 h-8 rounded-lg bg-gray-200" />
+                        </div>
+
+                        <div>
+                            {/* Title Shimmer */}
+                            <div className="flex justify-between items-center mb-2.5 mt-6 px-1">
+                                <Shimmer className="w-40 h-6 rounded bg-gray-200" />
+                                <Shimmer className="w-32 h-4 rounded bg-gray-200 hidden sm:block" />
+                            </div>
+
+                            {/* Discover Grid Shimmer */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+                                {[1, 2, 3, 4, 5, 6].map(i => (
+                                    <div key={i} className="bg-white rounded-2xl p-4 shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-[#E7E9F7] flex flex-col items-center">
+                                        <div className="w-full flex justify-end mb-1">
+                                            <Shimmer className="w-6 h-4 rounded bg-gray-200" />
+                                        </div>
+                                        <Shimmer className="w-16 h-16 rounded-full bg-gray-200 mb-3" />
+                                        <Shimmer className="w-3/4 h-5 rounded bg-gray-200 mb-2" />
+                                        <Shimmer className="w-1/2 h-4 rounded bg-gray-200 mb-4" />
+                                        <Shimmer className="w-2/3 h-6 rounded-full bg-gray-200 mb-4" />
+                                        <Shimmer className="w-full h-10 rounded-xl bg-gray-200" />
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="max-w-[1400px] mx-auto p-2 md:p-3 rounded-2xl bg-[#F5F6FC] min-h-screen">
@@ -212,132 +271,77 @@ const MyNetworkCom = () => {
                         </button>
                     </div>
 
-                    {isLoading ? (
-                        <div className="flex items-center justify-center py-20 text-[#2A45C2]">
-                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#2A45C2]"></div>
-                        </div>
-                    ) : (
-                        <>
-                            {/* --- TAB: DISCOVER --- */}
-                            {activeTab === 'discover' && (
-                                <div>
-                                    <div className="flex justify-between items-center mb-2.5 mt-6">
-                                        <h2 className="text-lg font-bold text-gray-900">Discover People</h2>
-                                        <p className="text-sm text-gray-500 font-medium">Based on your profile</p>
-                                    </div>
+                    {/* --- TAB: DISCOVER --- */}
+                    {activeTab === 'discover' && (
+                        <div>
+                            <div className="flex justify-between items-center mb-2.5 mt-6">
+                                <h2 className="text-lg font-bold text-gray-900">Discover People</h2>
+                                <p className="text-sm text-gray-500 font-medium">Based on your profile</p>
+                            </div>
 
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
-                                        {discoverUsers.map(user => (
-                                            <div key={user.id} className="bg-white rounded-2xl p-4 shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-[#E7E9F7] flex flex-col items-center text-center hover:-translate-y-1 hover:border-[#2A45C2]/30 hover:shadow-[0_10px_40px_rgba(42,69,194,0.1)] transition-all duration-300 group">
-                                                <div className="w-full flex justify-end mb-1">
-                                                    <button className="text-gray-400 hover:text-gray-600">
-                                                        <FaEllipsisH />
-                                                    </button>
-                                                </div>
-                                                <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-[#2A45C2] to-[#5B4FE0] flex items-center justify-center text-white font-bold text-xl shadow-md mb-3 relative group-hover:scale-105 transition-transform overflow-hidden">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+                                {discoverUsers.map(user => (
+                                    <div key={user.id} className="bg-white rounded-2xl p-4 shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-[#E7E9F7] flex flex-col items-center text-center hover:-translate-y-1 hover:border-[#2A45C2]/30 hover:shadow-[0_10px_40px_rgba(42,69,194,0.1)] transition-all duration-300 group">
+                                        <div className="w-full flex justify-end mb-1">
+                                            <button className="text-gray-400 hover:text-gray-600">
+                                                <FaEllipsisH />
+                                            </button>
+                                        </div>
+                                        <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-[#2A45C2] to-[#5B4FE0] flex items-center justify-center text-white font-bold text-xl shadow-md mb-3 relative group-hover:scale-105 transition-transform overflow-hidden">
+                                            {user.profile_picture ? (
+                                                <img src={user.profile_picture} alt={getDisplayName(user)} className="w-full h-full object-cover" />
+                                            ) : (
+                                                getDisplayName(user).charAt(0).toUpperCase()
+                                            )}
+                                            <div className="absolute bottom-0 right-0 w-4 h-4 bg-green-400 border-2 border-white rounded-full"></div>
+                                        </div>
+                                        <h4 className="font-bold text-gray-900 text-base leading-tight mb-1">{getDisplayName(user)}</h4>
+                                        <p className="text-xs text-gray-500 font-medium mb-2 h-8 line-clamp-2 px-2">{user.role || 'Member'}</p>
+                                        <div className="flex items-center gap-1 text-[11px] text-gray-400 mb-3.5 bg-gray-50 px-3 py-1 rounded-full">
+                                            <FaUserFriends size={10} />
+                                            <span>0 mutual connections</span>
+                                        </div>
+                                        <button
+                                            onClick={() => handleToggleFollow(user)}
+                                            className="w-full flex items-center justify-center gap-2 py-2 rounded-xl font-bold text-sm border-2 border-[#2A45C2] text-[#2A45C2] hover:bg-[#2A45C2] hover:text-white transition-colors"
+                                        >
+                                            <FaUserPlus size={14} />
+                                            Follow
+                                        </button>
+                                    </div>
+                                ))}
+                                {discoverUsers.length === 0 && (
+                                    <p className="text-sm text-gray-400 font-medium col-span-full text-center py-8">No new users found to discover.</p>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* --- TAB: FOLLOWERS --- */}
+                    {activeTab === 'followers' && (
+                        <div className="mt-4">
+                            <h2 className="text-lg font-bold text-gray-900 mb-4">Your Followers</h2>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                {followersData.map(user => {
+                                    const isFollowingBack = isFollowingUser(user.id);
+
+                                    return (
+                                        <div key={user.id} className="bg-white p-4 rounded-2xl flex items-center justify-between shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-[#E7E9F7] hover:border-[#2A45C2]/30 transition-colors">
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-[#8B5CF6] to-[#D946EF] flex items-center justify-center text-white font-bold text-lg shadow-sm overflow-hidden">
                                                     {user.profile_picture ? (
                                                         <img src={user.profile_picture} alt={getDisplayName(user)} className="w-full h-full object-cover" />
                                                     ) : (
                                                         getDisplayName(user).charAt(0).toUpperCase()
                                                     )}
-                                                    <div className="absolute bottom-0 right-0 w-4 h-4 bg-green-400 border-2 border-white rounded-full"></div>
                                                 </div>
-                                                <h4 className="font-bold text-gray-900 text-base leading-tight mb-1">{getDisplayName(user)}</h4>
-                                                <p className="text-xs text-gray-500 font-medium mb-2 h-8 line-clamp-2 px-2">{user.role || 'Member'}</p>
-                                                <div className="flex items-center gap-1 text-[11px] text-gray-400 mb-3.5 bg-gray-50 px-3 py-1 rounded-full">
-                                                    <FaUserFriends size={10} />
-                                                    <span>0 mutual connections</span>
+                                                <div>
+                                                    <h4 className="font-bold text-gray-900 text-sm">{getDisplayName(user)}</h4>
+                                                    <p className="text-xs text-gray-500 font-medium">{user.role || 'Member'}</p>
                                                 </div>
-                                                <button
-                                                    onClick={() => handleToggleFollow(user)}
-                                                    className="w-full flex items-center justify-center gap-2 py-2 rounded-xl font-bold text-sm border-2 border-[#2A45C2] text-[#2A45C2] hover:bg-[#2A45C2] hover:text-white transition-colors"
-                                                >
-                                                    <FaUserPlus size={14} />
-                                                    Follow
-                                                </button>
                                             </div>
-                                        ))}
-                                        {discoverUsers.length === 0 && (
-                                            <p className="text-sm text-gray-400 font-medium col-span-full text-center py-8">No new users found to discover.</p>
-                                        )}
-                                    </div>
-                                </div>
-                            )}
 
-                            {/* --- TAB: FOLLOWERS --- */}
-                            {activeTab === 'followers' && (
-                                <div className="mt-4">
-                                    <h2 className="text-lg font-bold text-gray-900 mb-4">Your Followers</h2>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                        {followersData.map(user => {
-                                            const isFollowingBack = isFollowingUser(user.id);
-
-                                            return (
-                                                <div key={user.id} className="bg-white p-4 rounded-2xl flex items-center justify-between shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-[#E7E9F7] hover:border-[#2A45C2]/30 transition-colors">
-                                                    <div className="flex items-center gap-4">
-                                                        <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-[#8B5CF6] to-[#D946EF] flex items-center justify-center text-white font-bold text-lg shadow-sm overflow-hidden">
-                                                            {user.profile_picture ? (
-                                                                <img src={user.profile_picture} alt={getDisplayName(user)} className="w-full h-full object-cover" />
-                                                            ) : (
-                                                                getDisplayName(user).charAt(0).toUpperCase()
-                                                            )}
-                                                        </div>
-                                                        <div>
-                                                            <h4 className="font-bold text-gray-900 text-sm">{getDisplayName(user)}</h4>
-                                                            <p className="text-xs text-gray-500 font-medium">{user.role || 'Member'}</p>
-                                                        </div>
-                                                    </div>
-
-                                                    {isFollowingBack ? (
-                                                        <button
-                                                            onClick={() => handleToggleFollow(user)}
-                                                            className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg font-bold text-xs bg-[#2A45C2] text-white hover:bg-red-50 hover:text-red-600 hover:border-red-100 hover:shadow-inner border border-transparent transition-all group"
-                                                        >
-                                                            <FaUserCheck size={12} className="group-hover:hidden" />
-                                                            <FaTimes size={12} className="hidden group-hover:block" />
-                                                            <span className="group-hover:hidden">Following</span>
-                                                            <span className="hidden group-hover:block">Unfollow</span>
-                                                        </button>
-                                                    ) : (
-                                                        <button
-                                                            onClick={() => handleToggleFollow(user)}
-                                                            className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg font-bold text-xs border border-[#2A45C2] text-[#2A45C2] hover:bg-[#2A45C2] hover:text-white transition-colors"
-                                                        >
-                                                            <FaUserPlus size={12} />
-                                                            Follow Back
-                                                        </button>
-                                                    )}
-                                                </div>
-                                            );
-                                        })}
-                                        {followersData.length === 0 && (
-                                            <p className="text-sm text-gray-400 font-medium col-span-full py-8 text-center w-full">You don't have any followers yet.</p>
-                                        )}
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* --- TAB: FOLLOWING --- */}
-                            {activeTab === 'following' && (
-                                <div className="mt-4">
-                                    <h2 className="text-lg font-bold text-gray-900 mb-4">People You Follow</h2>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                        {followingData.map(user => (
-                                            <div key={user.id} className="bg-white p-4 rounded-2xl flex items-center justify-between shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-[#E7E9F7] hover:border-[#2A45C2]/30 transition-colors">
-                                                <div className="flex items-center gap-4">
-                                                    <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-[#2A45C2] to-[#5B4FE0] flex items-center justify-center text-white font-bold text-lg shadow-sm overflow-hidden">
-                                                        {user.profile_picture ? (
-                                                            <img src={user.profile_picture} alt={getDisplayName(user)} className="w-full h-full object-cover" />
-                                                        ) : (
-                                                            getDisplayName(user).charAt(0).toUpperCase()
-                                                        )}
-                                                    </div>
-                                                    <div>
-                                                        <h4 className="font-bold text-gray-900 text-sm">{getDisplayName(user)}</h4>
-                                                        <p className="text-xs text-gray-500 font-medium">{user.role || 'Member'}</p>
-                                                    </div>
-                                                </div>
-                                                {/* Filled button to indicate active following state */}
+                                            {isFollowingBack ? (
                                                 <button
                                                     onClick={() => handleToggleFollow(user)}
                                                     className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg font-bold text-xs bg-[#2A45C2] text-white hover:bg-red-50 hover:text-red-600 hover:border-red-100 hover:shadow-inner border border-transparent transition-all group"
@@ -347,17 +351,62 @@ const MyNetworkCom = () => {
                                                     <span className="group-hover:hidden">Following</span>
                                                     <span className="hidden group-hover:block">Unfollow</span>
                                                 </button>
-                                            </div>
-                                        ))}
-                                        {followingData.length === 0 && (
-                                            <p className="text-sm text-gray-400 font-medium col-span-full py-8 text-center w-full">You aren't following anyone yet.</p>
-                                        )}
-                                    </div>
-                                </div>
-                            )}
-                        </>
+                                            ) : (
+                                                <button
+                                                    onClick={() => handleToggleFollow(user)}
+                                                    className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg font-bold text-xs border border-[#2A45C2] text-[#2A45C2] hover:bg-[#2A45C2] hover:text-white transition-colors"
+                                                >
+                                                    <FaUserPlus size={12} />
+                                                    Follow Back
+                                                </button>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                                {followersData.length === 0 && (
+                                    <p className="text-sm text-gray-400 font-medium col-span-full py-8 text-center w-full">You don't have any followers yet.</p>
+                                )}
+                            </div>
+                        </div>
                     )}
 
+                    {/* --- TAB: FOLLOWING --- */}
+                    {activeTab === 'following' && (
+                        <div className="mt-4">
+                            <h2 className="text-lg font-bold text-gray-900 mb-4">People You Follow</h2>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                {followingData.map(user => (
+                                    <div key={user.id} className="bg-white p-4 rounded-2xl flex items-center justify-between shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-[#E7E9F7] hover:border-[#2A45C2]/30 transition-colors">
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-[#2A45C2] to-[#5B4FE0] flex items-center justify-center text-white font-bold text-lg shadow-sm overflow-hidden">
+                                                {user.profile_picture ? (
+                                                    <img src={user.profile_picture} alt={getDisplayName(user)} className="w-full h-full object-cover" />
+                                                ) : (
+                                                    getDisplayName(user).charAt(0).toUpperCase()
+                                                )}
+                                            </div>
+                                            <div>
+                                                <h4 className="font-bold text-gray-900 text-sm">{getDisplayName(user)}</h4>
+                                                <p className="text-xs text-gray-500 font-medium">{user.role || 'Member'}</p>
+                                            </div>
+                                        </div>
+                                        <button
+                                            onClick={() => handleToggleFollow(user)}
+                                            className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg font-bold text-xs bg-[#2A45C2] text-white hover:bg-red-50 hover:text-red-600 hover:border-red-100 hover:shadow-inner border border-transparent transition-all group"
+                                        >
+                                            <FaUserCheck size={12} className="group-hover:hidden" />
+                                            <FaTimes size={12} className="hidden group-hover:block" />
+                                            <span className="group-hover:hidden">Following</span>
+                                            <span className="hidden group-hover:block">Unfollow</span>
+                                        </button>
+                                    </div>
+                                ))}
+                                {followingData.length === 0 && (
+                                    <p className="text-sm text-gray-400 font-medium col-span-full py-8 text-center w-full">You aren't following anyone yet.</p>
+                                )}
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
