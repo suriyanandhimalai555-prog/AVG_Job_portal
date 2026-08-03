@@ -2,37 +2,37 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
     FaRobot, FaPhoneAlt, FaCheckCircle, FaChartPie,
     FaHeadset, FaFileAudio, FaRocket, FaStar, FaBolt,
-    FaPlay, FaPause, FaTimes, FaVolumeUp, FaSpinner
+    FaPlay, FaPause, FaTimes, FaVolumeUp
 } from 'react-icons/fa';
 import { toast, Toaster } from 'react-hot-toast';
 import Button from '../../ui/Button';
 import Badge from '../../ui/Badge';
 import Shimmer from '../../ui/Shimmer';
 
-// The scripted conversation for the demo
+// The scripted conversation using local MP3 files from the public directory
 const CONVERSATION = [
     {
         speaker: 'AI Recruiter',
         isAI: true,
-        voiceId: "pNInz6obpgDQGcFmaJgB", // Adam (Guaranteed Free Tier Voice)
+        audioSrc: "/audio/sample-calling/adam-1.mp3",
         text: "Hi, am I speaking with Alex? I'm calling from the AI recruitment team regarding your application for the Bioinformatics Analyst position. Do you have a couple of minutes for a brief screening?"
     },
     {
         speaker: 'Candidate',
         isAI: false,
-        voiceId: "EXAVITQu4vr4xnSDxMaL", // Bella (Guaranteed Free Tier Voice)
+        audioSrc: "/audio/sample-calling/belle-1.mp3",
         text: "Yes, hi! I have a few minutes, that sounds great."
     },
     {
         speaker: 'AI Recruiter',
         isAI: true,
-        voiceId: "pNInz6obpgDQGcFmaJgB",
+        audioSrc: "/audio/sample-calling/adam-2.mp3",
         text: "Excellent. To start, could you briefly describe your hands-on experience with PCR techniques and analyzing large biological datasets using Python or R?"
     },
     {
         speaker: 'Candidate',
         isAI: false,
-        voiceId: "EXAVITQu4vr4xnSDxMaL",
+        audioSrc: "/audio/sample-calling/belle-2.mp3",
         text: "Sure! During my second year in college, I spent a lot of time in the lab running PCR assays. I also used Python scripts to parse the output data for my final project."
     }
 ];
@@ -41,10 +41,9 @@ const AICallingCom = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [billingCycle, setBillingCycle] = useState('monthly');
 
-    // States for the Sample Call Modal & ElevenLabs Audio
+    // States for the Sample Call Modal & Audio
     const [showSampleModal, setShowSampleModal] = useState(false);
     const [isPlaying, setIsPlaying] = useState(false);
-    const [isAudioFetching, setIsAudioFetching] = useState(false);
     const [progress, setProgress] = useState(0);
     const [currentTimeDisplay, setCurrentTimeDisplay] = useState('00:00');
     const [durationDisplay, setDurationDisplay] = useState('00:00');
@@ -52,7 +51,6 @@ const AICallingCom = () => {
     // Sequence tracking
     const [currentTurnIndex, setCurrentTurnIndex] = useState(0);
     const currentTurnRef = useRef(0);
-    const audioUrlsRef = useRef({});
     const audioRef = useRef(null);
 
     useEffect(() => {
@@ -63,57 +61,13 @@ const AICallingCom = () => {
         return () => clearTimeout(timer);
     }, []);
 
-    // Cleanup object URLs to prevent memory leaks when component unmounts
-    useEffect(() => {
-        return () => {
-            Object.values(audioUrlsRef.current).forEach(url => {
-                if (url) URL.revokeObjectURL(url);
-            });
-        };
-    }, []);
-
     const handleSubscribe = (planName) => {
         toast.loading(`Redirecting to checkout for the ${planName} plan...`, {
             duration: 2000
         });
     };
 
-    // --- ELEVENLABS API INTEGRATION ---
-    const fetchTurnAudio = async (textToSpeak, voiceId) => {
-        const apiKey = import.meta.env.VITE_ELEVENLABS_API_KEY;
-
-        if (!apiKey) {
-            toast.error("ElevenLabs API key is missing in .env");
-            return null;
-        }
-
-        try {
-            const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
-                method: 'POST',
-                headers: {
-                    'Accept': 'audio/mpeg',
-                    'xi-api-key': apiKey,
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    text: textToSpeak,
-                    // Standard model to ensure free tier compatibility
-                    model_id: "eleven_multilingual_v2"
-                })
-            });
-
-            if (!response.ok) throw new Error('Failed to generate audio from ElevenLabs');
-
-            const blob = await response.blob();
-            return URL.createObjectURL(blob);
-        } catch (error) {
-            console.error(error);
-            toast.error("Failed to load AI voice. Check API key and quota.");
-            return null;
-        }
-    };
-
-    // Orchestrates playing a specific part of the conversation
+    // Orchestrates playing a specific part of the conversation using local files
     const playTurn = async (index) => {
         if (index >= CONVERSATION.length) {
             setIsPlaying(false);
@@ -125,27 +79,14 @@ const AICallingCom = () => {
         setCurrentTurnIndex(index);
         currentTurnRef.current = index;
 
-        let url = audioUrlsRef.current[index];
-
-        // Fetch audio if we haven't already generated it for this turn
-        if (!url) {
-            setIsAudioFetching(true);
-            const turnData = CONVERSATION[index];
-            url = await fetchTurnAudio(turnData.text, turnData.voiceId);
-            setIsAudioFetching(false);
-
-            if (!url) {
-                setIsPlaying(false);
-                return;
-            }
-            audioUrlsRef.current[index] = url;
-        }
+        const url = CONVERSATION[index].audioSrc;
 
         if (audioRef.current) {
             audioRef.current.src = url;
             audioRef.current.play().catch(e => {
                 console.error("Play error:", e);
                 setIsPlaying(false);
+                toast.error("Failed to play audio file. Check file paths.");
             });
         }
     };
@@ -222,7 +163,6 @@ const AICallingCom = () => {
         }
         setShowSampleModal(false);
         setIsPlaying(false);
-        setIsAudioFetching(false);
         setProgress(0);
         setCurrentTimeDisplay('00:00');
         currentTurnRef.current = 0;
@@ -491,12 +431,9 @@ const AICallingCom = () => {
                             <div className="flex items-center gap-4">
                                 <button
                                     onClick={togglePlay}
-                                    disabled={isAudioFetching}
-                                    className="w-14 h-14 rounded-full bg-white text-[#2A45C2] flex items-center justify-center hover:scale-105 transition-transform shadow-lg flex-shrink-0 disabled:opacity-50 disabled:hover:scale-100"
+                                    className="w-14 h-14 rounded-full bg-white text-[#2A45C2] flex items-center justify-center hover:scale-105 transition-transform shadow-lg flex-shrink-0"
                                 >
-                                    {isAudioFetching ? (
-                                        <FaSpinner className="animate-spin" size={20} />
-                                    ) : isPlaying ? (
+                                    {isPlaying ? (
                                         <FaPause size={20} />
                                     ) : (
                                         <FaPlay size={20} className="ml-1" />
@@ -506,7 +443,7 @@ const AICallingCom = () => {
                                 <div className="flex-1">
                                     <div className="flex justify-between text-xs font-bold text-blue-200 mb-2">
                                         <span>{currentTimeDisplay}</span>
-                                        <span>{isAudioFetching ? 'Loading API...' : durationDisplay}</span>
+                                        <span>{durationDisplay}</span>
                                     </div>
                                     {/* Real Progress Bar */}
                                     <div
