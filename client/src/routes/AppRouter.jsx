@@ -25,6 +25,7 @@ import AdminAcademy from "../pages/admin/AdminAcademy";
 import AdminLogin from "../pages/auth/AdminLogin";
 import AdminProtectedRoute from "./AdminProtectedRoute";
 import ProfileList from "../pages/admin/ProfileList";
+import UserAICalling from "../pages/user/UserAICalling";
 
 
 const AppRouter = () => {
@@ -48,6 +49,9 @@ const AppRouter = () => {
                         <Route path="refer" element={<UserReferral />} />
                         <Route path="my-network" element={<UserMyNetwork />} />
                         <Route path="profile" element={<UserProfile />} />
+
+                        <Route path="ai-calling" element={<UserAICalling />} />
+
                     </Route>
                 </Route>
 
