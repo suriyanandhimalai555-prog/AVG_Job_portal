@@ -26,6 +26,7 @@ import AdminLogin from "../pages/auth/AdminLogin";
 import AdminProtectedRoute from "./AdminProtectedRoute";
 import ProfileList from "../pages/admin/ProfileList";
 import UserAICalling from "../pages/user/UserAICalling";
+import ActiveAICallingDashboard from "../components/user/ai-calling/ActiveAICallingDashboard";
 
 
 const AppRouter = () => {
@@ -51,6 +52,7 @@ const AppRouter = () => {
                         <Route path="profile" element={<UserProfile />} />
 
                         <Route path="ai-calling" element={<UserAICalling />} />
+                        <Route path="ai-calling-dashboard" element={<ActiveAICallingDashboard />} />
 
                     </Route>
                 </Route>
