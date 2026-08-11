@@ -1,14 +1,12 @@
 import express from 'express';
-import pool from '../../config/db.js'; // Adjust path if needed
-import { verifyToken } from '../../middleware/auth.middleware.js'; // Adjust path if needed
+import pool from '../../config/db.js'; 
+import { verifyToken } from '../../middleware/auth.middleware.js'; 
 
 const router = express.Router();
 
-// 1. Fetch historical contacts for a user (Fixes the Dashboard Live Messages issue)
 router.get('/contacts/:userId', verifyToken, async (req, res) => {
     const { userId } = req.params;
     try {
-        // Safe query: Requests u.* instead of forcing strict column names that might crash
         const query = `
             WITH RecentChats AS (
                 SELECT 
@@ -46,7 +44,6 @@ router.get('/contacts/:userId', verifyToken, async (req, res) => {
     }
 });
 
-// 2. Fetch ordered chat history between two specific users
 router.get('/history/:user1/:user2', verifyToken, async (req, res) => {
     const { user1, user2 } = req.params;
     try {
