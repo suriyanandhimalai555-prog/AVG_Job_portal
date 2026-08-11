@@ -7,7 +7,9 @@ export const initializeSocket = (server) => {
         cors: {
             origin: "*",
             methods: ["GET", "POST"]
-        }
+        },
+        // IMPORTANT: Increase buffer size to handle base64 audio strings (default is 1MB, set to 100MB)
+        maxHttpBufferSize: 1e8
     });
 
     const userSockets = new Map();

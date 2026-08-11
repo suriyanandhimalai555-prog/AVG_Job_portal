@@ -50,6 +50,7 @@ app.use(cors({
     allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
+// Body parsing limits already allow large media files
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
@@ -61,7 +62,7 @@ app.use('/api/courses', courseRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/applications', jobApplicationRoutes);
 app.use('/api/posts', postRoutes);
-app.use('/api/chat', chatRoutes); // 3. Registered the chat routes
+app.use('/api/chat', chatRoutes);
 
 app.get('/', (req, res) => {
     res.send('AVG Portal API is running cleanly.');
