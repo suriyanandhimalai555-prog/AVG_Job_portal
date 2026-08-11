@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
     FaRobot, FaPhoneAlt, FaCheckCircle, FaChartPie,
     FaHeadset, FaFileAudio, FaRocket, FaStar, FaBolt,
@@ -38,6 +39,7 @@ const CONVERSATION = [
 ];
 
 const AICallingCom = () => {
+    const navigate = useNavigate();
     const [isLoading, setIsLoading] = useState(true);
     const [billingCycle, setBillingCycle] = useState('monthly');
 
@@ -61,10 +63,20 @@ const AICallingCom = () => {
         return () => clearTimeout(timer);
     }, []);
 
+    // Simulated Payment Integration + Navigation Redirect
     const handleSubscribe = (planName) => {
-        toast.loading(`Redirecting to checkout for the ${planName} plan...`, {
-            duration: 2000
-        });
+        const toastId = toast.loading(`Processing payment for the ${planName} plan...`);
+
+        // Simulate an API call to a payment provider (e.g., Stripe)
+        setTimeout(() => {
+            toast.success(`Payment successful! Welcome to the ${planName} plan.`, {
+                id: toastId,
+                duration: 3000
+            });
+
+            // Redirect to the new dedicated Active AI Calling Dashboard route
+            navigate('/user-dashboard/ai-calling-dashboard');
+        }, 2000);
     };
 
     // Orchestrates playing a specific part of the conversation using local files
@@ -317,7 +329,7 @@ const AICallingCom = () => {
                     </div>
 
                     {/* Growth Plan (Recommended) */}
-                    <div className="bg-gradient-to-b from-[#141B3C] to-[#2A45C2] rounded-3xl p-5 md:p-6 shadow-2xl relative transform md:-translate-y-3 flex flex-col">
+                    <div className="bg-linear-to-b from-[#141B3C] to-[#2A45C2] rounded-3xl p-5 md:p-6 shadow-2xl relative transform md:-translate-y-3 flex flex-col">
                         <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-gradient-to-r from-yellow-400 to-[#F2C14E] text-[#141B3C] text-[10px] font-black uppercase tracking-widest px-4 py-1.5 rounded-full flex items-center gap-1.5 shadow-lg">
                             <FaStar /> Most Popular
                         </div>
@@ -342,7 +354,7 @@ const AICallingCom = () => {
                             ))}
                         </ul>
 
-                        <Button className="w-full py-3 rounded-xl bg-white text-[#2A45C2] border-0 font-extrabold hover:bg-gray-50 transition-colors shadow-lg" onClick={() => handleSubscribe('Growth')}>
+                        <Button variant='secondary' className="w-full py-3 rounded-xl bg-white text-[#2A45C2] border-0 font-extrabold hover:bg-gray-50 transition-colors shadow-lg" onClick={() => handleSubscribe('Growth')}>
                             Subscribe to Growth
                         </Button>
                     </div>

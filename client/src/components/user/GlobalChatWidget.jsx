@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
     FaCommentDots, FaTimes, FaChevronLeft, FaPaperPlane,
-    FaSearch, FaLock
+    FaSearch, FaLock, FaBell
 } from 'react-icons/fa';
 import { io } from 'socket.io-client';
 import CryptoJS from 'crypto-js';
+import { toast, Toaster } from 'react-hot-toast';
 
 // --- LocalStorage Helpers for Persistent Unread Counts ---
 const getUnreadCounts = (userId) => {
@@ -46,7 +47,7 @@ const GlobalChatWidget = () => {
     const messagesEndRef = useRef(null);
     const activeChatRef = useRef(activeChat);
     const currentUserRef = useRef(currentUser);
-    const isOpenRef = useRef(isOpen); // Tracks actual visibility
+    const isOpenRef = useRef(isOpen);
 
     const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5001';
 
@@ -83,6 +84,13 @@ const GlobalChatWidget = () => {
         }
     };
 
+    // --- Request Browser Notification Permission on Mount ---
+    useEffect(() => {
+        if ('Notification' in window && Notification.permission !== 'granted' && Notification.permission !== 'denied') {
+            Notification.requestPermission();
+        }
+    }, []);
+
     // 2. Initialize User & Socket Connection
     useEffect(() => {
         const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
@@ -98,28 +106,72 @@ const GlobalChatWidget = () => {
             newSocket.on('receive_message', (encryptedPayload) => {
                 const { senderId, senderName, senderRole, text, time } = encryptedPayload;
 
-                // Prevent echoing your own messages if backend broadcasts to sender
+                // Prevent echoing your own messages
                 if (senderId === payload.id) return;
 
                 const decryptedText = decryptMessage(text, payload.id, senderId);
-
-                // FIX: Calculate "currently active" based on BOTH the active chat AND whether the widget is open.
                 const isCurrentlyActive = isOpenRef.current && activeChatRef.current && activeChatRef.current.id === senderId;
 
-                // FIX: Execute localStorage mutation outside of React's state updater function 
-                // to prevent StrictMode from doubling the increment.
                 let newUnreadCount = 0;
+
                 if (!isCurrentlyActive) {
                     newUnreadCount = incrementUnreadCount(payload.id, senderId);
+
+                    // --- OUT-OF-APP BACKGROUND NOTIFICATION ---
+                    if (document.hidden && 'Notification' in window && Notification.permission === 'granted') {
+                        const notification = new Notification(`New message from ${senderName}`, {
+                            body: decryptedText,
+                            icon: '/favicon.ico'
+                        });
+
+                        notification.onclick = () => {
+                            window.focus();
+                            setIsOpen(true);
+                            const incomingContact = { id: senderId, name: senderName, role: senderRole, online: true, unreadCount: 0, lastMsg: decryptedText };
+                            setActiveChat(incomingContact);
+                            setUnreadCount(payload.id, senderId, 0);
+                            setContacts(prev => prev.map(c => c.id === senderId ? { ...c, unreadCount: 0 } : c));
+                            notification.close();
+                        };
+                    }
+                    // --- IN-APP TOAST NOTIFICATION ---
+                    else {
+                        toast.custom((t) => (
+                            <div
+                                className={`${t.visible ? 'animate-fade-in-up' : 'opacity-0'} max-w-sm w-full bg-white shadow-xl rounded-2xl pointer-events-auto flex border border-[#E7E9F7] cursor-pointer hover:border-[#2A45C2]/30 transition-all`}
+                                onClick={() => {
+                                    toast.dismiss(t.id);
+                                    setIsOpen(true);
+                                    const incomingContact = { id: senderId, name: senderName, role: senderRole, online: true, unreadCount: 0, lastMsg: decryptedText };
+                                    setActiveChat(incomingContact);
+                                    setUnreadCount(payload.id, senderId, 0);
+                                    setContacts(prev => prev.map(c => c.id === senderId ? { ...c, unreadCount: 0 } : c));
+                                }}
+                            >
+                                <div className="flex-1 w-0 p-4">
+                                    <div className="flex items-start">
+                                        <div className="flex-shrink-0 pt-0.5">
+                                            <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#2A45C2] to-[#8B5CF6] flex items-center justify-center text-white font-bold shadow-md">
+                                                {senderName.charAt(0).toUpperCase()}
+                                            </div>
+                                        </div>
+                                        <div className="ml-3 flex-1">
+                                            <p className="text-sm font-black text-gray-900">{senderName}</p>
+                                            <p className="mt-1 text-xs font-medium text-gray-500 truncate">{decryptedText}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        ), { duration: 5000, position: 'bottom-right' });
+                    }
                 } else {
                     setUnreadCount(payload.id, senderId, 0);
                 }
 
                 setContacts(prev => {
                     const exists = prev.find(c => c.id === senderId);
-
-                    // Move the contact with the new message to the top of the list
                     let updatedContacts = [];
+
                     if (!exists) {
                         updatedContacts = [{
                             id: senderId,
@@ -138,17 +190,14 @@ const GlobalChatWidget = () => {
                         };
                         updatedContacts = [updatedContact, ...otherContacts];
                     }
-
                     return updatedContacts;
                 });
 
                 setActiveChat(currentActive => {
                     if (currentActive && currentActive.id === senderId) {
                         setMessages(prev => {
-                            // Deduplication logic for overlapping socket emits
                             const isDuplicate = prev.some(m => m.sender === 'them' && m.text === decryptedText && m.time === time);
                             if (isDuplicate) return prev;
-
                             return [...prev, { id: Date.now() + Math.random(), sender: 'them', text: decryptedText, time }];
                         });
                     }
@@ -192,8 +241,6 @@ const GlobalChatWidget = () => {
                     });
 
                     setContacts(decryptedContacts);
-                } else {
-                    console.error("Failed to fetch historical contacts, status:", res.status);
                 }
             } catch (err) {
                 console.error("Failed to load historical contacts", err);
@@ -217,7 +264,6 @@ const GlobalChatWidget = () => {
 
                 if (res.ok) {
                     const history = await res.json();
-
                     const decryptedHistory = history.map(msg => {
                         const isMe = msg.sender_id === currentUser.id;
                         const decryptionTargetId = isMe ? activeChat.id : msg.sender_id;
@@ -229,7 +275,6 @@ const GlobalChatWidget = () => {
                             time: new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                         };
                     });
-
                     setMessages(decryptedHistory);
                 }
             } catch (err) {
@@ -290,7 +335,6 @@ const GlobalChatWidget = () => {
         const newMsg = { id: Date.now(), sender: 'me', text: messageInput, time: timeString };
         setMessages(prev => [...prev, newMsg]);
 
-        // Update contact last message and move it to top
         setContacts(prev => {
             const exists = prev.find(c => c.id === activeChat.id);
             const others = prev.filter(c => c.id !== activeChat.id);
@@ -314,7 +358,6 @@ const GlobalChatWidget = () => {
         setMessageInput('');
     };
 
-    // Handler when user clicks a contact to open the chat
     const handleContactClick = (contact) => {
         setActiveChat(contact);
         if (currentUser) {
@@ -325,7 +368,6 @@ const GlobalChatWidget = () => {
 
     const handleOpenWidget = () => {
         setIsOpen(true);
-        // If we open and an active chat was already lingering, clear its count immediately
         if (activeChat && currentUser) {
             setUnreadCount(currentUser.id, activeChat.id, 0);
             setContacts(prev => prev.map(c => c.id === activeChat.id ? { ...c, unreadCount: 0 } : c));
@@ -334,8 +376,6 @@ const GlobalChatWidget = () => {
 
     const handleCloseWidget = () => {
         setIsOpen(false);
-        // Optional: clear active chat so they start at the contact list again next time.
-        // setActiveChat(null); 
     };
 
     const filteredContacts = contacts.filter(contact =>
@@ -344,6 +384,18 @@ const GlobalChatWidget = () => {
     );
 
     const totalUnreadCount = contacts.reduce((sum, contact) => sum + (contact.unreadCount || 0), 0);
+
+    // --- NEW: Update Document Title & Broadcast Unread Count to Navbar ---
+    useEffect(() => {
+        // Dispatch event for Navbar to pick up
+        window.dispatchEvent(new CustomEvent('chat-unread-update', { detail: totalUnreadCount }));
+
+        if (totalUnreadCount > 0) {
+            document.title = `(${totalUnreadCount}) AVG | Job Portal`;
+        } else {
+            document.title = 'AVG | Job Portal';
+        }
+    }, [totalUnreadCount]);
 
     return (
         <div className={`fixed z-[100] transition-all ${isOpen

@@ -14,10 +14,11 @@ const Navbar = () => {
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const [isMenuDrawerOpen, setIsMenuDrawerOpen] = useState(false);
 
-    // Updated States for Profile Data
+    // Updated States for Profile Data & Notifications
     const [userFullName, setUserFullName] = useState('User');
     const [userProfilePic, setUserProfilePic] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [hasUnreadMsgs, setHasUnreadMsgs] = useState(false);
 
     const dropdownRef = useRef(null);
 
@@ -30,6 +31,29 @@ const Navbar = () => {
         { name: 'Referrals', path: '/user-dashboard/refer', icon: <FaUserPlus /> },
         { name: 'AI Calling', path: '/user-dashboard/ai-calling', icon: <FaRobot /> }
     ];
+
+    // Listen for custom events from the GlobalChatWidget to toggle the red dot
+    useEffect(() => {
+        const handleUnreadUpdate = (event) => {
+            setHasUnreadMsgs(event.detail > 0);
+        };
+
+        // Fallback: Check local storage initially on mount in case event fires too fast
+        try {
+            const token = localStorage.getItem('token');
+            if (token) {
+                const payload = JSON.parse(atob(token.split('.')[1]));
+                const counts = JSON.parse(localStorage.getItem(`unread_msgs_${payload.id}`)) || {};
+                const total = Object.values(counts).reduce((a, b) => a + b, 0);
+                if (total > 0) setHasUnreadMsgs(true);
+            }
+        } catch (e) {
+            console.error("Failed to parse initial unread count:", e);
+        }
+
+        window.addEventListener('chat-unread-update', handleUnreadUpdate);
+        return () => window.removeEventListener('chat-unread-update', handleUnreadUpdate);
+    }, []);
 
     // Fetch user details from Database to guarantee Profile Picture is loaded
     useEffect(() => {
@@ -170,11 +194,13 @@ const Navbar = () => {
                             </>
                         ) : (
                             <>
-                                {/* Notification Bell */}
-                                <button className="relative p-2 text-gray-500 hover:text-[#2A45C2] hover:bg-blue-50 rounded-full transition-all focus:outline-none hidden sm:block">
+                                {/* Notification Bell Link with dynamic dot */}
+                                <Link to="/user-dashboard/notifications" className="relative p-2 text-gray-500 hover:text-[#2A45C2] hover:bg-blue-50 rounded-full transition-all focus:outline-none hidden sm:block">
                                     <FaBell size={17} />
-                                    <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 border-2 border-white rounded-full"></span>
-                                </button>
+                                    {hasUnreadMsgs && (
+                                        <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 border-2 border-white rounded-full"></span>
+                                    )}
+                                </Link>
 
                                 <div className="relative h-full flex items-center ml-0.5 sm:ml-0" ref={dropdownRef}>
                                     <button onClick={() => setIsDropdownOpen(!isDropdownOpen)} className="flex items-center gap-2.5 pl-1 pr-2.5 py-1 rounded-full hover:bg-gray-100/80 border border-transparent hover:border-gray-200/80 transition-all focus:outline-none group">
