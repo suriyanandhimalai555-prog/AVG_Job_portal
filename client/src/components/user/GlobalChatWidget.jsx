@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
     FaCommentDots, FaTimes, FaChevronLeft, FaPaperPlane,
-    FaSearch, FaLock, FaBell
+    FaSearch, FaLock, FaBell, FaMicrophone, FaStopCircle, FaCircle
 } from 'react-icons/fa';
 import { io } from 'socket.io-client';
 import CryptoJS from 'crypto-js';
@@ -40,6 +40,7 @@ const GlobalChatWidget = () => {
     const [contacts, setContacts] = useState([]);
     const [messages, setMessages] = useState([]);
     const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+    const [isRecording, setIsRecording] = useState(false);
 
     const [currentUser, setCurrentUser] = useState(null);
     const [socket, setSocket] = useState(null);
@@ -48,6 +49,8 @@ const GlobalChatWidget = () => {
     const activeChatRef = useRef(activeChat);
     const currentUserRef = useRef(currentUser);
     const isOpenRef = useRef(isOpen);
+    const mediaRecorderRef = useRef(null);
+    const audioChunksRef = useRef([]);
 
     const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5001';
 
@@ -84,6 +87,12 @@ const GlobalChatWidget = () => {
         }
     };
 
+    // --- Format messages for notifications / previews ---
+    const formatPreviewText = (text) => {
+        if (text.startsWith('data:audio')) return '🎤 Voice Message';
+        return text;
+    };
+
     // --- Request Browser Notification Permission on Mount ---
     useEffect(() => {
         if ('Notification' in window && Notification.permission !== 'granted' && Notification.permission !== 'denied') {
@@ -110,6 +119,7 @@ const GlobalChatWidget = () => {
                 if (senderId === payload.id) return;
 
                 const decryptedText = decryptMessage(text, payload.id, senderId);
+                const previewText = formatPreviewText(decryptedText);
                 const isCurrentlyActive = isOpenRef.current && activeChatRef.current && activeChatRef.current.id === senderId;
 
                 let newUnreadCount = 0;
@@ -120,14 +130,14 @@ const GlobalChatWidget = () => {
                     // --- OUT-OF-APP BACKGROUND NOTIFICATION ---
                     if (document.hidden && 'Notification' in window && Notification.permission === 'granted') {
                         const notification = new Notification(`New message from ${senderName}`, {
-                            body: decryptedText,
+                            body: previewText,
                             icon: '/favicon.ico'
                         });
 
                         notification.onclick = () => {
                             window.focus();
                             setIsOpen(true);
-                            const incomingContact = { id: senderId, name: senderName, role: senderRole, online: true, unreadCount: 0, lastMsg: decryptedText };
+                            const incomingContact = { id: senderId, name: senderName, role: senderRole, online: true, unreadCount: 0, lastMsg: previewText };
                             setActiveChat(incomingContact);
                             setUnreadCount(payload.id, senderId, 0);
                             setContacts(prev => prev.map(c => c.id === senderId ? { ...c, unreadCount: 0 } : c));
@@ -142,7 +152,7 @@ const GlobalChatWidget = () => {
                                 onClick={() => {
                                     toast.dismiss(t.id);
                                     setIsOpen(true);
-                                    const incomingContact = { id: senderId, name: senderName, role: senderRole, online: true, unreadCount: 0, lastMsg: decryptedText };
+                                    const incomingContact = { id: senderId, name: senderName, role: senderRole, online: true, unreadCount: 0, lastMsg: previewText };
                                     setActiveChat(incomingContact);
                                     setUnreadCount(payload.id, senderId, 0);
                                     setContacts(prev => prev.map(c => c.id === senderId ? { ...c, unreadCount: 0 } : c));
@@ -157,7 +167,7 @@ const GlobalChatWidget = () => {
                                         </div>
                                         <div className="ml-3 flex-1">
                                             <p className="text-sm font-black text-gray-900">{senderName}</p>
-                                            <p className="mt-1 text-xs font-medium text-gray-500 truncate">{decryptedText}</p>
+                                            <p className="mt-1 text-xs font-medium text-gray-500 truncate">{previewText}</p>
                                         </div>
                                     </div>
                                 </div>
@@ -178,14 +188,14 @@ const GlobalChatWidget = () => {
                             name: senderName,
                             role: senderRole,
                             online: true,
-                            lastMsg: decryptedText,
+                            lastMsg: previewText,
                             unreadCount: newUnreadCount
                         }, ...prev];
                     } else {
                         const otherContacts = prev.filter(c => c.id !== senderId);
                         const updatedContact = {
                             ...exists,
-                            lastMsg: decryptedText,
+                            lastMsg: previewText,
                             unreadCount: newUnreadCount
                         };
                         updatedContacts = [updatedContact, ...otherContacts];
@@ -228,15 +238,20 @@ const GlobalChatWidget = () => {
 
                     const decryptedContacts = data.map(contact => {
                         const cid = contact.id || contact.contact_id;
+                        let lastMessageText = 'Click to view history';
+
+                        if (contact.lastMessage) {
+                            const decrypted = decryptMessage(contact.lastMessage, currentUser.id, cid);
+                            lastMessageText = formatPreviewText(decrypted);
+                        }
+
                         return {
                             id: cid,
                             name: contact.full_name || contact.name || 'Unknown User',
                             role: contact.role || 'Member',
                             online: false,
                             unreadCount: unreadMap[cid] || 0,
-                            lastMsg: contact.lastMessage
-                                ? decryptMessage(contact.lastMessage, currentUser.id, cid)
-                                : 'Click to view history'
+                            lastMsg: lastMessageText
                         };
                     });
 
@@ -325,26 +340,23 @@ const GlobalChatWidget = () => {
         }
     }, [messages, activeChat, isOpen]);
 
-    // 7. Send Message
-    const handleSendMessage = (e) => {
-        e.preventDefault();
-        if (!messageInput.trim() || !socket || !currentUser || !activeChat) return;
-
+    // 7. Send Message Helper
+    const transmitMessage = (messagePayload) => {
         const timeString = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-        const newMsg = { id: Date.now(), sender: 'me', text: messageInput, time: timeString };
+        const newMsg = { id: Date.now(), sender: 'me', text: messagePayload, time: timeString };
         setMessages(prev => [...prev, newMsg]);
 
         setContacts(prev => {
             const exists = prev.find(c => c.id === activeChat.id);
             const others = prev.filter(c => c.id !== activeChat.id);
             if (exists) {
-                return [{ ...exists, lastMsg: messageInput }, ...others];
+                return [{ ...exists, lastMsg: formatPreviewText(messagePayload) }, ...others];
             }
             return prev;
         });
 
-        const encryptedText = encryptMessage(messageInput, currentUser.id, activeChat.id);
+        const encryptedText = encryptMessage(messagePayload, currentUser.id, activeChat.id);
 
         socket.emit('send_message', {
             receiverId: activeChat.id,
@@ -354,8 +366,56 @@ const GlobalChatWidget = () => {
             text: encryptedText,
             time: timeString
         });
+    }
 
+    const handleSendText = (e) => {
+        e.preventDefault();
+        if (!messageInput.trim() || !socket || !currentUser || !activeChat) return;
+        transmitMessage(messageInput);
         setMessageInput('');
+    };
+
+    // --- VOICE RECORDING LOGIC ---
+    const startRecording = async () => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            const mediaRecorder = new MediaRecorder(stream);
+            mediaRecorderRef.current = mediaRecorder;
+            audioChunksRef.current = [];
+
+            mediaRecorder.ondataavailable = (event) => {
+                if (event.data.size > 0) {
+                    audioChunksRef.current.push(event.data);
+                }
+            };
+
+            mediaRecorder.onstop = () => {
+                const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+                const reader = new FileReader();
+                reader.readAsDataURL(audioBlob);
+                reader.onloadend = () => {
+                    const base64Audio = reader.result;
+                    if (socket && currentUser && activeChat) {
+                        transmitMessage(base64Audio);
+                    }
+                };
+                // Turn off microphone after capturing
+                stream.getTracks().forEach(track => track.stop());
+            };
+
+            mediaRecorder.start();
+            setIsRecording(true);
+        } catch (error) {
+            console.error("Error accessing microphone:", error);
+            toast.error("Microphone access denied or unavailable.");
+        }
+    };
+
+    const stopRecording = () => {
+        if (mediaRecorderRef.current && isRecording) {
+            mediaRecorderRef.current.stop();
+            setIsRecording(false);
+        }
     };
 
     const handleContactClick = (contact) => {
@@ -385,11 +445,8 @@ const GlobalChatWidget = () => {
 
     const totalUnreadCount = contacts.reduce((sum, contact) => sum + (contact.unreadCount || 0), 0);
 
-    // --- NEW: Update Document Title & Broadcast Unread Count to Navbar ---
     useEffect(() => {
-        // Dispatch event for Navbar to pick up
         window.dispatchEvent(new CustomEvent('chat-unread-update', { detail: totalUnreadCount }));
-
         if (totalUnreadCount > 0) {
             document.title = `(${totalUnreadCount}) AVG | Job Portal`;
         } else {
@@ -513,7 +570,12 @@ const GlobalChatWidget = () => {
                                                     ? 'bg-gradient-to-r from-[#2A45C2] to-[#5B4FE0] text-white rounded-2xl rounded-tr-sm'
                                                     : 'bg-white border border-[#E7E9F7] text-gray-800 rounded-2xl rounded-tl-sm'
                                                     }`}>
-                                                    {msg.text}
+                                                    {/* Detect if the message is a base64 audio string or standard text */}
+                                                    {msg.text.startsWith('data:audio') ? (
+                                                        <audio src={msg.text} controls className="max-w-full h-10 outline-none" />
+                                                    ) : (
+                                                        <span style={{ wordBreak: 'break-word' }}>{msg.text}</span>
+                                                    )}
                                                 </div>
                                                 <span className="text-[9px] text-gray-400 mt-1 font-medium px-1">{msg.time}</span>
                                             </div>
@@ -521,25 +583,45 @@ const GlobalChatWidget = () => {
                                     )}
                                     <div ref={messagesEndRef} />
                                 </div>
+
+                                {/* Form Layout Adjusted for Voice and Text Input */}
                                 <form
-                                    onSubmit={handleSendMessage}
+                                    onSubmit={handleSendText}
                                     className="p-3 bg-white border-t border-[#E7E9F7] flex gap-2 items-center shrink-0"
                                     style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))' }}
                                 >
-                                    <input
-                                        type="text"
-                                        value={messageInput}
-                                        onChange={(e) => setMessageInput(e.target.value)}
-                                        placeholder={`Message ${activeChat.name}...`}
-                                        className="flex-1 bg-[#F5F6FC] border border-[#E7E9F7] focus:bg-white focus:border-[#2A45C2] rounded-xl px-4 py-2.5 text-sm outline-none transition-all font-medium text-gray-700"
-                                    />
-                                    <button
-                                        type="submit"
-                                        disabled={!messageInput.trim()}
-                                        className="bg-[#2A45C2] text-white w-10 h-10 rounded-xl flex items-center justify-center disabled:opacity-50 hover:bg-[#5B4FE0] transition-colors shrink-0 shadow-sm"
-                                    >
-                                        <FaPaperPlane size={12} />
-                                    </button>
+                                    {isRecording ? (
+                                        <div className="flex-1 bg-red-50 border border-red-200 rounded-xl px-4 py-2.5 flex items-center justify-center gap-2 text-red-500 font-bold text-sm shadow-inner animate-pulse">
+                                            <FaCircle size={10} /> Recording Voice Note...
+                                        </div>
+                                    ) : (
+                                        <input
+                                            type="text"
+                                            value={messageInput}
+                                            onChange={(e) => setMessageInput(e.target.value)}
+                                            placeholder={`Message ${activeChat.name}...`}
+                                            className="flex-1 bg-[#F5F6FC] border border-[#E7E9F7] focus:bg-white focus:border-[#2A45C2] rounded-xl px-4 py-2.5 text-sm outline-none transition-all font-medium text-gray-700"
+                                        />
+                                    )}
+
+                                    {/* Toggle between Send Text and Voice Recording actions */}
+                                    {messageInput.trim() ? (
+                                        <button
+                                            type="submit"
+                                            className="bg-[#2A45C2] text-white w-10 h-10 rounded-xl flex items-center justify-center hover:bg-[#5B4FE0] transition-colors shrink-0 shadow-sm"
+                                        >
+                                            <FaPaperPlane size={12} />
+                                        </button>
+                                    ) : (
+                                        <button
+                                            type="button"
+                                            onClick={isRecording ? stopRecording : startRecording}
+                                            className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors shrink-0 shadow-sm ${isRecording ? 'bg-red-500 text-white hover:bg-red-600' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                                }`}
+                                        >
+                                            {isRecording ? <FaStopCircle size={16} /> : <FaMicrophone size={14} />}
+                                        </button>
+                                    )}
                                 </form>
                             </div>
                         )}
