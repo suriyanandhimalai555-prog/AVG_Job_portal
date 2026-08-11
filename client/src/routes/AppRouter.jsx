@@ -15,6 +15,9 @@ import UserProfile from "../pages/user/UserProfile";
 import UserProtectedRoute from "./UserProtectedRoute";
 import UserLogin from "../pages/auth/UserLogin";
 import UserRegister from "../pages/auth/UserRegister";
+import UserAICalling from "../pages/user/UserAICalling";
+import ActiveAICallingDashboard from "../components/user/ai-calling/ActiveAICallingDashboard";
+import NotificationCenter from "../components/user/NotificationCenter";
 
 // Admin Dashboard Imports
 import AdminLayout from "../layouts/AdminLayout";
@@ -25,8 +28,6 @@ import AdminAcademy from "../pages/admin/AdminAcademy";
 import AdminLogin from "../pages/auth/AdminLogin";
 import AdminProtectedRoute from "./AdminProtectedRoute";
 import ProfileList from "../pages/admin/ProfileList";
-import UserAICalling from "../pages/user/UserAICalling";
-import ActiveAICallingDashboard from "../components/user/ai-calling/ActiveAICallingDashboard";
 
 
 const AppRouter = () => {
@@ -53,6 +54,7 @@ const AppRouter = () => {
 
                         <Route path="ai-calling" element={<UserAICalling />} />
                         <Route path="ai-calling-dashboard" element={<ActiveAICallingDashboard />} />
+                        <Route path="notifications" element={<NotificationCenter />} />
 
                     </Route>
                 </Route>
