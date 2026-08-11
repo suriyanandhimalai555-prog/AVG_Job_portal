@@ -7,7 +7,7 @@ import Shimmer from '../ui/Shimmer';
 import Button from '../ui/Button';
 import Badge from '../ui/Badge';
 
-// --- Helpers for Decryption and Unread Counts ---
+// --- Helpers for Decryption, Formatting, and Unread Counts ---
 const getUnreadCounts = (userId) => {
     try {
         return JSON.parse(localStorage.getItem(`unread_msgs_${userId}`)) || {};
@@ -29,6 +29,14 @@ const decryptMessage = (cipherText, myId, senderId) => {
     } catch (e) {
         return "🔒 [Encrypted message]";
     }
+};
+
+// FIX: Added formatter to prevent Base64 audio strings from displaying as raw text
+const formatPreviewText = (text) => {
+    if (typeof text === 'string' && text.startsWith('data:audio')) {
+        return '🎤 Voice Message';
+    }
+    return text;
 };
 
 const NotificationCenter = () => {
@@ -72,13 +80,16 @@ const NotificationCenter = () => {
                             ? decryptMessage(contact.lastMessage, userId, cid)
                             : `You have ${unreadMap[cid]} new message(s)`;
 
+                        // FIX: Apply the preview formatter to hide the raw Base64 data
+                        const previewMessage = formatPreviewText(decryptedMsg);
+
                         return {
                             id: `chat_${cid}`,
                             contactId: cid,
                             rawContact: contact, // Store raw data to pass to the chat widget
                             type: 'chat',
                             title: `New message from ${contactName}`,
-                            message: decryptedMsg,
+                            message: previewMessage,
                             time: "New",
                             isRead: false,
                             icon: <FaCommentDots />,
@@ -278,7 +289,7 @@ const NotificationCenter = () => {
                                         </span>
                                     </div>
                                     <p className={`text-sm leading-relaxed ${notification.isRead ? 'text-gray-500 font-medium' : 'text-gray-700 font-bold'}`}>
-                                        "{notification.message}"
+                                        {notification.message}
                                     </p>
                                 </div>
                                 {!notification.isRead && (
