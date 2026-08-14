@@ -488,7 +488,7 @@ const PostCom = ({ userName, userIdState, apiUrl }) => {
                 </div>
             )}
 
-            <div className="lg:col-span-5 xl:col-span-5 lg:sticky lg:h-[calc(180vh-100px)] lg:overflow-y-auto hidden-scrollbar space-y-4 pb-10">
+            <div className="lg:col-span-5 xl:col-span-5 lg:sticky lg:h-[calc(150vh-100px)] lg:overflow-y-auto hidden-scrollbar space-y-4 pb-10">
 
                 {/* START POST SECTION LINKEDIN STYLE */}
                 <div className="bg-white rounded-xl shadow-[0_2px_12px_rgba(15,23,42,0.04)] border border-gray-200 p-4">
