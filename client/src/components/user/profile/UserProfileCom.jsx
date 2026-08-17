@@ -20,6 +20,7 @@ const UserProfileCom = () => {
 
     const [isEditPopupOpen, setIsEditPopupOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
+    const [isSavingImage, setIsSavingImage] = useState(false);
 
     const [profile, setProfile] = useState({
         id: null,
@@ -275,17 +276,19 @@ const UserProfileCom = () => {
 
     const handleCropSave = async () => {
         if (!cropImageSrc || !croppedAreaPixels) return;
-
+        setIsSavingImage(true);
         try {
             const base64Image = await getCroppedImageBase64(cropImageSrc, croppedAreaPixels);
             setAvatarBase64(base64Image);
             setPreviewAvatarUrl(base64Image);
             setCropImageSrc(null);
 
-            handleAvatarSave(base64Image);
+            await handleAvatarSave(base64Image);
         } catch (e) {
             console.error("Crop error:", e);
             toast.error("Failed to crop image.");
+        } finally {
+            setIsSavingImage(false);
         }
     };
 
@@ -509,7 +512,7 @@ const UserProfileCom = () => {
 
                         <div className="flex items-center justify-between p-5 border-b border-[#E7E9F7] bg-gray-50">
                             <h3 className="font-extrabold text-gray-900 text-lg">Crop Profile Picture</h3>
-                            <button onClick={() => setCropImageSrc(null)} className="w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:bg-gray-200 hover:text-gray-700 transition-colors">
+                            <button onClick={() => setCropImageSrc(null)} disabled={isSavingImage} className="w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:bg-gray-200 hover:text-gray-700 transition-colors disabled:opacity-50">
                                 <FaTimes />
                             </button>
                         </div>
@@ -544,11 +547,11 @@ const UserProfileCom = () => {
                                 />
                             </div>
                             <div className="flex justify-end gap-3 pt-2 border-t border-gray-100">
-                                <Button variant="outline" onClick={() => setCropImageSrc(null)} className="rounded-xl font-bold bg-white border-gray-300 text-gray-700 hover:bg-gray-50">
+                                <Button variant="outline" onClick={() => setCropImageSrc(null)} disabled={isSavingImage} className="rounded-xl font-bold bg-white border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50">
                                     Cancel
                                 </Button>
-                                <Button className="rounded-xl font-bold bg-[#2A45C2] text-white hover:bg-[#1a2b7a]" onClick={handleCropSave}>
-                                    Apply & Save
+                                <Button disabled={isSavingImage} className="rounded-xl font-bold bg-[#2A45C2] text-white hover:bg-[#1a2b7a] disabled:opacity-50" onClick={handleCropSave}>
+                                    {isSavingImage ? 'Saving...' : 'Apply & Save'}
                                 </Button>
                             </div>
                         </div>
@@ -572,9 +575,10 @@ const UserProfileCom = () => {
 
                             {/* Avatar Section */}
                             <div className="relative group shrink-0">
-                                <div 
+                                <div
                                     className="w-[140px] h-[140px] md:w-[160px] md:h-[160px] bg-white rounded-full p-1.5 shadow-md border border-[#E7E9F7] transition-transform duration-300 group-hover:scale-[1.02] cursor-pointer"
                                     onClick={handleEditExistingPhoto}
+                                    title="Click to edit profile picture"
                                 >
                                     <div className="w-full h-full rounded-full overflow-hidden bg-gradient-to-tr from-[#2A45C2] to-[#8B5CF6] flex items-center justify-center text-5xl font-extrabold text-white shadow-inner relative">
                                         {currentDisplayAvatar ? (
@@ -661,8 +665,9 @@ const UserProfileCom = () => {
                                             target="_blank"
                                             rel="noopener noreferrer"
                                             className="bg-gradient-to-r from-[#2A45C2] to-[#5B4FE0] text-white hover:shadow-md hover:-translate-y-0.5 transition-all rounded-xl px-4 py-2 flex items-center gap-2 font-bold text-sm shadow-sm"
+                                            title={portfolioLink}
                                         >
-                                            <FaLink size={12} /> {profile.websiteLinkText || 'View Portfolio'}
+                                            <FaLink size={12} /> {portfolioLink.replace(/^https?:\/\//, '')}
                                         </a>
                                     )}
                                 </div>
@@ -701,8 +706,8 @@ const UserProfileCom = () => {
                                 <p className="text-sm text-blue-100 font-medium mt-0.5">Keep your network updated with your latest insights.</p>
                             </div>
                             <Button
-                                variant='secondary'
                                 onClick={() => navigate('/user-dashboard')}
+                                className="bg-white text-[#2A45C2] hover:bg-gray-50 font-bold rounded-xl whitespace-nowrap shadow-sm"
                             >
                                 Create a Post
                             </Button>
@@ -934,7 +939,7 @@ const UserProfileCom = () => {
                                         value={commentText}
                                         onChange={(e) => setCommentText(e.target.value)}
                                         placeholder="Add a comment..."
-                                        className="flex-1 bg-gray-50 border border-gray-200 rounded-full px-4 py-1.5 text-sm outline-none focus:border-blue-500 transition-colors"
+                                        className="flex-1 bg-gray-50 border border-gray-200 rounded-full px-4 py-1.5 text-sm outline-none focus:border-blue-50 transition-colors"
                                         onKeyDown={(e) => e.key === 'Enter' && submitComment(expandedPost.id)}
                                     />
                                     <button onClick={() => submitComment(expandedPost.id)} className="bg-blue-600 text-white px-3 py-1.5 rounded-full text-sm font-bold hover:bg-blue-700 transition-colors">

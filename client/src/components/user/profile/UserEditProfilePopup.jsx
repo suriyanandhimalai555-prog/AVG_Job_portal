@@ -29,8 +29,7 @@ const UserEditProfilePopup = ({ isOpen, onClose, profileData, onSave }) => {
         phoneType: 'Mobile',
         address: '',
         birthday: '',
-        websiteUrl: '',
-        websiteLinkText: ''
+        websiteUrl: ''
     });
 
     useEffect(() => {
@@ -53,8 +52,7 @@ const UserEditProfilePopup = ({ isOpen, onClose, profileData, onSave }) => {
                 phoneType: profileData.phoneType || 'Mobile',
                 address: profileData.address || '',
                 birthday: profileData.birthday || '',
-                websiteUrl: profileData.websiteUrl || '',
-                websiteLinkText: profileData.websiteLinkText || ''
+                websiteUrl: profileData.websiteUrl || profileData.profileUrl || ''
             }));
         }
     }, [isOpen, profileData]);
@@ -87,7 +85,7 @@ const UserEditProfilePopup = ({ isOpen, onClose, profileData, onSave }) => {
             address: formData.address,
             birthday: formData.birthday,
             websiteUrl: formData.websiteUrl,
-            websiteLinkText: formData.websiteLinkText
+            websiteLinkText: '' // Clearing out the old link text feature to safely maintain DB structure
         });
     };
 
@@ -185,10 +183,6 @@ const UserEditProfilePopup = ({ isOpen, onClose, profileData, onSave }) => {
                     <section className="space-y-4 bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
                         <h3 className="text-lg font-extrabold text-[#2A45C2] border-b border-gray-100 pb-2">Contact info</h3>
                         <div>
-                            <label className="block text-sm font-bold text-gray-700 mb-1.5">Profile URL</label>
-                            <input type="text" name="profileUrl" value={formData.profileUrl} onChange={handleChange} className="w-full p-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-[#2A45C2]/30 focus:border-[#2A45C2] outline-none transition-all text-sm bg-gray-50" placeholder="linkedin.com/in/yourname" />
-                        </div>
-                        <div>
                             <label className="block text-sm font-bold text-gray-700 mb-1.5">Email</label>
                             <input type="email" name="email" value={formData.email} onChange={handleChange} className="w-full p-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-[#2A45C2]/30 focus:border-[#2A45C2] outline-none transition-all text-sm" />
                         </div>
@@ -216,18 +210,12 @@ const UserEditProfilePopup = ({ isOpen, onClose, profileData, onSave }) => {
                         </div>
                     </section>
 
-                    {/* Website Section */}
+                    {/* Portfolio Section */}
                     <section className="space-y-4 bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
-                        <h3 className="text-lg font-extrabold text-[#2A45C2] border-b border-gray-100 pb-2">Website</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-sm font-bold text-gray-700 mb-1.5">URL</label>
-                                <input type="url" name="websiteUrl" value={formData.websiteUrl} onChange={handleChange} className="w-full p-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-[#2A45C2]/30 focus:border-[#2A45C2] outline-none transition-all text-sm" placeholder="https://..." />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-bold text-gray-700 mb-1.5">Link text (optional)</label>
-                                <input type="text" name="websiteLinkText" value={formData.websiteLinkText} onChange={handleChange} className="w-full p-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-[#2A45C2]/30 focus:border-[#2A45C2] outline-none transition-all text-sm" placeholder="e.g. My Portfolio" />
-                            </div>
+                        <h3 className="text-lg font-extrabold text-[#2A45C2] border-b border-gray-100 pb-2">Portfolio</h3>
+                        <div>
+                            <label className="block text-sm font-bold text-gray-700 mb-1.5">Portfolio Link</label>
+                            <input type="url" name="websiteUrl" value={formData.websiteUrl} onChange={handleChange} className="w-full p-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-[#2A45C2]/30 focus:border-[#2A45C2] outline-none transition-all text-sm" placeholder="https://yourportfolio.com" />
                         </div>
                     </section>
                 </form>
