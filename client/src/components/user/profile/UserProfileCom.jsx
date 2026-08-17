@@ -5,7 +5,7 @@ import {
     FaEnvelope, FaTimes, FaPaperPlane, FaUsers, FaRegFileAlt,
     FaHeart, FaRegComment, FaThumbsUp, FaSignLanguage, FaHandHoldingHeart,
     FaLightbulb, FaLaughBeam, FaChevronLeft, FaChevronRight, FaRegCommentDots, FaCamera,
-    FaLink, FaMapMarkerAlt, FaGraduationCap, FaBriefcase, FaPen, FaShieldAlt, FaExternalLinkAlt
+    FaLink, FaMapMarkerAlt, FaGraduationCap, FaBriefcase, FaPen, FaShieldAlt, FaExternalLinkAlt, FaPlus
 } from 'react-icons/fa';
 import { toast, Toaster } from 'react-hot-toast';
 import Cropper from 'react-easy-crop';
