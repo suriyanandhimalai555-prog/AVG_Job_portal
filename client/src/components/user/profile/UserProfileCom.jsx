@@ -4,19 +4,21 @@ import {
     FaCheck, FaSignOutAlt, FaUserEdit, FaUserPlus, FaUserCheck,
     FaEnvelope, FaTimes, FaPaperPlane, FaUsers, FaRegFileAlt,
     FaHeart, FaRegComment, FaThumbsUp, FaSignLanguage, FaHandHoldingHeart,
-    FaLightbulb, FaLaughBeam, FaChevronLeft, FaChevronRight, FaRegCommentDots, FaCamera
+    FaLightbulb, FaLaughBeam, FaChevronLeft, FaChevronRight, FaRegCommentDots, FaCamera,
+    FaLink, FaMapMarkerAlt, FaGraduationCap, FaBriefcase, FaPen, FaShieldAlt, FaExternalLinkAlt
 } from 'react-icons/fa';
 import { toast, Toaster } from 'react-hot-toast';
+import Cropper from 'react-easy-crop';
 import Button from '../../ui/Button';
-import Input from '../../ui/Input';
 import Badge from '../../ui/Badge';
 import Shimmer from '../../ui/Shimmer';
+import UserEditProfilePopup from './UserEditProfilePopup';
 
 const UserProfileCom = () => {
     const navigate = useNavigate();
     const myPostsRef = useRef(null);
 
-    const [isEditing, setIsEditing] = useState(false);
+    const [isEditPopupOpen, setIsEditPopupOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
 
     const [profile, setProfile] = useState({
@@ -28,29 +30,39 @@ const UserProfileCom = () => {
         status: 'Active',
         profile_picture: '',
         followers: 0,
-        following: 0
+        following: 0,
+        pronouns: '',
+        headline: '',
+        position: '',
+        industry: '',
+        school: '',
+        country: '',
+        city: '',
+        profileUrl: '',
+        phoneType: 'Mobile',
+        address: '',
+        birthday: '',
+        websiteUrl: '',
+        websiteLinkText: ''
     });
 
     const [avatarBase64, setAvatarBase64] = useState(null);
     const [previewAvatarUrl, setPreviewAvatarUrl] = useState(null);
+    const [cropImageSrc, setCropImageSrc] = useState(null);
+    const [crop, setCrop] = useState({ x: 0, y: 0 });
+    const [zoom, setZoom] = useState(1);
+    const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
 
     const [allUsers, setAllUsers] = useState([]);
     const [userPosts, setUserPosts] = useState([]);
     const [followingMap, setFollowingMap] = useState({});
-
-    // Users Map for quick profile picture lookups
     const [usersMap, setUsersMap] = useState({});
-
-    // Read More State
     const [expandedText, setExpandedText] = useState({});
-
-    // Dynamic Stats State
-    const [dashboardStats, setDashboardStats] = useState({ applied: 0, saved: 0 });
-
-    // Theater Mode States
     const [expandedPost, setExpandedPost] = useState(null);
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
     const [commentText, setCommentText] = useState('');
+
+    const [dashboardStats, setDashboardStats] = useState({ applied: 0, saved: 0 });
 
     const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5001';
     const getAuthToken = () => localStorage.getItem('token') || localStorage.getItem('adminToken') || '';
@@ -104,7 +116,6 @@ const UserProfileCom = () => {
                 const usersList = await usersRes.json();
                 const currentUser = usersList.find(u => u.id === userId);
 
-                // Setup the Users Map to correctly show pictures in comments
                 const uMap = {};
                 usersList.forEach(u => {
                     if (u.id) uMap[u.id] = u.profile_picture || '';
@@ -114,6 +125,8 @@ const UserProfileCom = () => {
 
                 if (currentUser) {
                     currentUserName = currentUser.full_name || currentUser.name || '';
+                    const formattedBirthday = currentUser.birthday ? currentUser.birthday.split('T')[0] : '';
+
                     setProfile(prev => ({
                         ...prev,
                         id: currentUser.id,
@@ -122,27 +135,37 @@ const UserProfileCom = () => {
                         phone: currentUser.phone || '',
                         role: currentUser.role || 'User',
                         status: currentUser.status || 'Active',
-                        profile_picture: currentUser.profile_picture || ''
+                        profile_picture: currentUser.profile_picture || '',
+                        pronouns: currentUser.pronouns || '',
+                        headline: currentUser.headline || '',
+                        position: currentUser.position || '',
+                        industry: currentUser.industry || '',
+                        school: currentUser.school || '',
+                        country: currentUser.country || '',
+                        city: currentUser.city || '',
+                        profileUrl: currentUser.profile_url || '',
+                        phoneType: currentUser.phone_type || 'Mobile',
+                        address: currentUser.address || '',
+                        birthday: formattedBirthday,
+                        websiteUrl: currentUser.website_url || '',
+                        websiteLinkText: currentUser.website_link_text || ''
                     }));
 
-                    // Force sync local storage so other components (PostCom, Navbar) instantly get the picture
                     const storedUserStr = localStorage.getItem('user');
                     if (storedUserStr) {
                         const storedUser = JSON.parse(storedUserStr);
                         if (storedUser.profile_picture !== currentUser.profile_picture) {
                             storedUser.profile_picture = currentUser.profile_picture || '';
                             localStorage.setItem('user', JSON.stringify(storedUser));
-                            window.dispatchEvent(new Event('storage')); // Triggers re-render in Navbar and PostCom
+                            window.dispatchEvent(new Event('storage'));
                         }
                     }
                 }
 
-                // EXPLICITLY REMOVE ADMINS AND CURRENT USER FROM DISCOVER NETWORK
                 const filteredUsers = usersList.filter(u => u.id !== userId && u.role?.toLowerCase() !== 'admin');
                 setAllUsers(filteredUsers);
             }
 
-            // Fetch Actual Follow Stats
             const statsRes = await fetch(`${apiUrl}/api/users/${userId}/follow-stats`, { headers }).catch(() => null);
             if (statsRes && statsRes.ok) {
                 const statsData = await statsRes.json();
@@ -159,7 +182,6 @@ const UserProfileCom = () => {
                 setFollowingMap(fMap);
             }
 
-            // Fetch Applications Count
             try {
                 const jobsRes = await fetch(`${apiUrl}/api/applications/my-applications`, { headers });
                 let appliedCount = 0;
@@ -178,7 +200,6 @@ const UserProfileCom = () => {
             console.error("Fetch data error:", error);
             toast.error("Failed to load profile details.");
         } finally {
-            // Slight delay for smoother shimmer transition visually
             setTimeout(() => {
                 setIsLoading(false);
             }, 400);
@@ -196,37 +217,137 @@ const UserProfileCom = () => {
         }
     };
 
-    const handleChange = (e) => setProfile({ ...profile, [e.target.name]: e.target.value });
-
-    // Handle Image File selection via Base64 FileReader (no Multer flow)
     const handleAvatarSelect = (e) => {
         const file = e.target.files[0];
         if (file) {
             const reader = new FileReader();
             reader.onloadend = () => {
-                setAvatarBase64(reader.result);
-                setPreviewAvatarUrl(reader.result);
+                setCropImageSrc(reader.result);
+                setCrop({ x: 0, y: 0 });
+                setZoom(1);
             };
             reader.readAsDataURL(file);
         }
+        e.target.value = '';
     };
 
-    const handleSave = async () => {
-        if (!profile.name || !profile.email || !profile.phone) {
-            toast.error("All fields are required.");
-            return;
+    const handleEditExistingPhoto = () => {
+        if (profile.profile_picture) {
+            setCropImageSrc(profile.profile_picture);
+            setCrop({ x: 0, y: 0 });
+            setZoom(1);
+        } else {
+            document.getElementById('avatar-upload').click();
         }
-        const loadingToast = toast.loading('Updating profile...');
+    };
+
+    const onCropComplete = (croppedArea, croppedAreaPixels) => {
+        setCroppedAreaPixels(croppedAreaPixels);
+    };
+
+    const getCroppedImageBase64 = async (imageSrc, pixelCrop) => {
+        const image = new Image();
+        image.crossOrigin = "anonymous";
+        image.src = imageSrc;
+        await new Promise((resolve) => {
+            image.onload = resolve;
+        });
+
+        const canvas = document.createElement('canvas');
+        canvas.width = pixelCrop.width;
+        canvas.height = pixelCrop.height;
+        const ctx = canvas.getContext('2d');
+
+        ctx.drawImage(
+            image,
+            pixelCrop.x,
+            pixelCrop.y,
+            pixelCrop.width,
+            pixelCrop.height,
+            0,
+            0,
+            pixelCrop.width,
+            pixelCrop.height
+        );
+
+        return canvas.toDataURL('image/jpeg', 0.9);
+    };
+
+    const handleCropSave = async () => {
+        if (!cropImageSrc || !croppedAreaPixels) return;
+
+        try {
+            const base64Image = await getCroppedImageBase64(cropImageSrc, croppedAreaPixels);
+            setAvatarBase64(base64Image);
+            setPreviewAvatarUrl(base64Image);
+            setCropImageSrc(null);
+
+            handleAvatarSave(base64Image);
+        } catch (e) {
+            console.error("Crop error:", e);
+            toast.error("Failed to crop image.");
+        }
+    };
+
+    const handleAvatarSave = async (base64Image) => {
+        const loadingToast = toast.loading('Uploading new profile picture...');
         try {
             const token = getAuthToken();
 
             const payload = {
-                full_name: profile.name,
-                email: profile.email,
-                phone: profile.phone,
+                profile_picture: base64Image
+            };
+
+            const res = await fetch(`${apiUrl}/api/users/${profile.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify(payload)
+            });
+
+            if (!res.ok) throw new Error('Failed to update picture.');
+            const updatedUser = await res.json();
+
+            setProfile(prev => ({ ...prev, profile_picture: updatedUser.profile_picture }));
+            setAvatarBase64(null);
+
+            const storedUserStr = localStorage.getItem('user');
+            if (storedUserStr) {
+                const storedUser = JSON.parse(storedUserStr);
+                storedUser.profile_picture = updatedUser.profile_picture;
+                localStorage.setItem('user', JSON.stringify(storedUser));
+                window.dispatchEvent(new Event('storage'));
+            }
+            toast.success('Profile picture updated successfully!', { id: loadingToast });
+        } catch (error) {
+            toast.error("Failed to update picture.", { id: loadingToast });
+        }
+    };
+
+    const handleSaveProfile = async (updatedData) => {
+        const loadingToast = toast.loading('Updating profile info...');
+        try {
+            const token = getAuthToken();
+
+            const payload = {
+                full_name: updatedData.name,
+                email: updatedData.email,
+                phone: updatedData.phone,
                 role: profile.role,
                 status: profile.status,
-                profile_picture: avatarBase64 || profile.profile_picture
+                profile_picture: profile.profile_picture,
+                pronouns: updatedData.pronouns,
+                headline: updatedData.headline,
+                position: updatedData.position,
+                industry: updatedData.industry,
+                school: updatedData.school,
+                country: updatedData.country,
+                city: updatedData.city,
+                profile_url: updatedData.profileUrl,
+                phone_type: updatedData.phoneType,
+                address: updatedData.address,
+                birthday: updatedData.birthday,
+                website_url: updatedData.websiteUrl,
+                website_link_text: updatedData.websiteLinkText
             };
 
             const res = await fetch(`${apiUrl}/api/users/${profile.id}`, {
@@ -239,23 +360,19 @@ const UserProfileCom = () => {
             });
 
             if (!res.ok) throw new Error('Failed to update profile.');
-            const updatedUser = await res.json();
 
             setProfile(prev => ({
                 ...prev,
-                profile_picture: updatedUser.profile_picture || prev.profile_picture
+                ...updatedData
             }));
-            setAvatarBase64(null);
-            setPreviewAvatarUrl(null);
-            setIsEditing(false);
 
+            setIsEditPopupOpen(false);
             toast.success('Profile updated successfully!', { id: loadingToast });
 
             const storedUserStr = localStorage.getItem('user');
             if (storedUserStr) {
                 const storedUser = JSON.parse(storedUserStr);
-                storedUser.fullName = profile.name;
-                storedUser.profile_picture = updatedUser.profile_picture || profile.profile_picture;
+                storedUser.fullName = updatedData.name;
                 localStorage.setItem('user', JSON.stringify(storedUser));
                 window.dispatchEvent(new Event('storage'));
             }
@@ -334,88 +451,28 @@ const UserProfileCom = () => {
     // --- FULL PAGE SHIMMER STATE ---
     if (isLoading) {
         return (
-            <div className="max-w-[1400px] mx-auto p-2 md:p-3 rounded-2xl bg-[#F5F6FC] min-h-screen">
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
-
-                    {/* LEFT COLUMN SHIMMER */}
-                    <div className="lg:col-span-4 space-y-3">
-                        {/* Profile Card Shimmer */}
-                        <div className="bg-white border border-[#E7E9F7] rounded-2xl p-4 md:p-5 shadow-[0_2px_16px_rgba(30,41,89,0.05)] relative overflow-hidden h-[410px]">
-                            <Shimmer className="absolute top-0 left-0 w-full h-24 bg-gray-200" />
-                            <div className="relative flex flex-col items-center text-center pt-9 mt-4">
-                                <Shimmer className="w-20 h-20 rounded-full bg-gray-200 mb-3" />
-                                <Shimmer className="w-40 h-6 rounded bg-gray-200 mb-2" />
-                                <Shimmer className="w-48 h-4 rounded bg-gray-200 mb-1" />
-                                <Shimmer className="w-32 h-4 rounded bg-gray-200 mb-5" />
-                                <Shimmer className="w-full h-16 rounded-xl bg-gray-200 mb-4" />
-                                <Shimmer className="w-28 h-7 rounded-full bg-gray-200 mb-4" />
-                                <div className="flex w-full gap-2.5">
-                                    <Shimmer className="flex-1 h-10 rounded-xl bg-gray-200" />
-                                    <Shimmer className="flex-1 h-10 rounded-xl bg-gray-200" />
-                                </div>
-                            </div>
+            <div className="max-w-[1400px] mx-auto p-2 md:p-6 min-h-screen">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                    <div className="lg:col-span-8 space-y-6">
+                        <div className="bg-white border border-[#E7E9F7] rounded-3xl overflow-hidden shadow-sm h-[320px]">
+                            <Shimmer className="w-full h-full bg-gray-200" />
                         </div>
-
-                        {/* Stats Grid Shimmer */}
-                        <div className="grid grid-cols-2 gap-2">
-                            <Shimmer className="h-[80px] rounded-2xl bg-gray-200" />
-                            <Shimmer className="h-[80px] rounded-2xl bg-gray-200" />
+                        <div className="grid grid-cols-2 gap-4">
+                            <Shimmer className="h-24 rounded-2xl bg-gray-200" />
+                            <Shimmer className="h-24 rounded-2xl bg-gray-200" />
                         </div>
-
-                        {/* Discover Network Shimmer */}
-                        <div className="bg-white border border-[#E7E9F7] rounded-2xl p-4 shadow-[0_2px_16px_rgba(30,41,89,0.05)]">
-                            <Shimmer className="w-40 h-6 rounded bg-gray-200 mb-4" />
-                            <div className="space-y-3">
-                                {[1, 2, 3, 4].map(i => (
-                                    <div key={i} className="flex justify-between items-center p-2 rounded-xl border border-gray-100">
-                                        <div className="flex gap-2.5 items-center">
-                                            <Shimmer className="w-9 h-9 rounded-full bg-gray-200" />
-                                            <div>
-                                                <Shimmer className="w-24 h-4 rounded bg-gray-200 mb-1.5" />
-                                                <Shimmer className="w-16 h-3 rounded bg-gray-200" />
-                                            </div>
-                                        </div>
-                                        <div className="flex gap-1.5">
-                                            <Shimmer className="w-8 h-8 rounded-full bg-gray-200" />
-                                            <Shimmer className="w-8 h-8 rounded-full bg-gray-200" />
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
+                        <div className="bg-white border border-[#E7E9F7] rounded-3xl p-6 shadow-sm">
+                            <Shimmer className="w-48 h-6 rounded bg-gray-200 mb-4" />
+                            <Shimmer className="w-full h-40 rounded-xl bg-gray-200" />
                         </div>
                     </div>
 
-                    {/* RIGHT COLUMN SHIMMER */}
-                    <div className="lg:col-span-8">
-                        <div className="bg-white border border-[#E7E9F7] rounded-2xl p-4 shadow-[0_2px_16px_rgba(30,41,89,0.05)] h-full min-h-screen">
-                            <div className="flex justify-between items-center mb-4 pb-3 border-b border-[#E7E9F7]">
-                                <Shimmer className="w-32 h-7 rounded bg-gray-200" />
-                                <Shimmer className="w-20 h-7 rounded-full bg-gray-200" />
-                            </div>
-
-                            <div className="space-y-4">
-                                {[1, 2].map(i => (
-                                    <div key={i} className="p-4 rounded-2xl border border-[#E7E9F7]">
-                                        <div className="flex gap-3 mb-3 items-center">
-                                            <Shimmer className="w-10 h-10 rounded-full bg-gray-200" />
-                                            <div>
-                                                <Shimmer className="w-32 h-4 rounded bg-gray-200 mb-1.5" />
-                                                <Shimmer className="w-24 h-3 rounded bg-gray-200" />
-                                            </div>
-                                        </div>
-                                        <Shimmer className="w-full h-4 rounded bg-gray-200 mb-1.5" />
-                                        <Shimmer className="w-5/6 h-4 rounded bg-gray-200 mb-4" />
-                                        <Shimmer className="w-full h-64 md:h-80 rounded-xl bg-gray-200 mb-4" />
-                                        <div className="flex justify-between border-t border-gray-100 pt-3">
-                                            <div className="flex gap-3">
-                                                <Shimmer className="w-16 h-8 rounded-lg bg-gray-200" />
-                                                <Shimmer className="w-16 h-8 rounded-lg bg-gray-200" />
-                                            </div>
-                                            <Shimmer className="w-20 h-6 rounded bg-gray-200" />
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
+                    <div className="lg:col-span-4 space-y-6">
+                        <div className="bg-white border border-[#E7E9F7] rounded-3xl p-6 shadow-sm">
+                            <Shimmer className="w-32 h-5 rounded bg-gray-200 mb-4" />
+                            <Shimmer className="w-full h-16 rounded-xl bg-gray-200 mb-3" />
+                            <Shimmer className="w-full h-16 rounded-xl bg-gray-200 mb-3" />
+                            <Shimmer className="w-full h-16 rounded-xl bg-gray-200" />
                         </div>
                     </div>
                 </div>
@@ -424,193 +481,242 @@ const UserProfileCom = () => {
     }
 
     const currentDisplayAvatar = previewAvatarUrl || profile.profile_picture;
+    const portfolioLink = profile.websiteUrl || profile.profileUrl;
 
     return (
-        <div className="max-w-[1400px] mx-auto p-2 md:p-3 rounded-2xl bg-[#F5F6FC] min-h-screen">
+        <div className="max-w-[1400px] mx-auto p-2 md:p-6 min-h-screen relative bg-gradient-to-b from-[#F5F6FC] to-[#EAEFFA]">
             <Toaster
                 position="top-right"
                 reverseOrder={false}
                 toastOptions={{
                     duration: 3500,
-                    style: {
-                        background: '#fff',
-                        color: '#1f2937',
-                        padding: '12px 20px',
-                        borderRadius: '12px',
-                        boxShadow: '0 4px 24px rgba(0,0,0,0.12)',
-                        border: '1px solid #f3f4f6',
-                        fontSize: '15px',
-                        fontWeight: '500'
-                    },
-                    success: {
-                        iconTheme: {
-                            primary: '#4ade80',
-                            secondary: '#fff',
-                        },
-                    },
+                    style: { background: '#fff', color: '#1f2937', padding: '12px 20px', borderRadius: '12px', boxShadow: '0 4px 24px rgba(0,0,0,0.12)', border: '1px solid #f3f4f6', fontSize: '15px', fontWeight: '500' }
                 }}
             />
 
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
-                {/* LEFT COLUMN: Profile & Network */}
-                <div className="lg:col-span-4 space-y-3">
-                    <div className="bg-white border border-[#E7E9F7] rounded-2xl p-4 md:p-5 shadow-[0_2px_16px_rgba(30,41,89,0.05)] relative overflow-hidden">
-                        <div className="absolute top-0 left-0 w-full h-24 bg-gradient-to-br from-[#141B3C] via-[#2A45C2] to-[#5B4FE0] overflow-hidden">
-                            <div className="pointer-events-none absolute inset-0 opacity-40" style={{ backgroundImage: 'radial-gradient(circle at 15% 20%, rgba(255,255,255,0.14), transparent 45%), radial-gradient(circle at 85% 80%, rgba(255,255,255,0.10), transparent 45%)' }} />
+            {/* INTEGRATE USER EDIT POPUP */}
+            <UserEditProfilePopup
+                isOpen={isEditPopupOpen}
+                onClose={() => setIsEditPopupOpen(false)}
+                profileData={profile}
+                onSave={handleSaveProfile}
+            />
+
+            {/* --- CROPPER MODAL UI --- */}
+            {cropImageSrc && (
+                <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md flex flex-col overflow-hidden">
+
+                        <div className="flex items-center justify-between p-5 border-b border-[#E7E9F7] bg-gray-50">
+                            <h3 className="font-extrabold text-gray-900 text-lg">Crop Profile Picture</h3>
+                            <button onClick={() => setCropImageSrc(null)} className="w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:bg-gray-200 hover:text-gray-700 transition-colors">
+                                <FaTimes />
+                            </button>
                         </div>
 
-                        <div className="relative flex flex-col items-center text-center pt-9">
-                            {/* PROFILE PICTURE WITH BASE64 S3 UPLOAD HOVER OVERLAY */}
-                            <div className="relative group mb-2.5">
-                                <div className="w-20 h-20 bg-white p-1 rounded-full shadow-xl border border-white hover:scale-105 transition-transform duration-200 overflow-hidden relative">
-                                    {currentDisplayAvatar ? (
-                                        <img src={currentDisplayAvatar} alt={profile.name} className="w-full h-full rounded-full object-cover" />
-                                    ) : (
-                                        <div className="w-full h-full rounded-full bg-gradient-to-tr from-[#2A45C2] to-[#8B5CF6] flex items-center justify-center text-2xl font-extrabold text-white shadow-inner">
-                                            {profile.name ? profile.name.charAt(0).toUpperCase() : 'U'}
-                                        </div>
-                                    )}
+                        {/* Cropper Container */}
+                        <div className="relative w-full h-[350px] bg-gray-900">
+                            <Cropper
+                                image={cropImageSrc}
+                                crop={crop}
+                                zoom={zoom}
+                                aspect={1}
+                                cropShape="round"
+                                showGrid={false}
+                                onCropChange={setCrop}
+                                onZoomChange={setZoom}
+                                onCropComplete={onCropComplete}
+                            />
+                        </div>
 
-                                    {isEditing && (
-                                        <label htmlFor="avatar-upload" className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center cursor-pointer text-white opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <FaCamera size={18} />
-                                        </label>
-                                    )}
+                        {/* Zoom Slider and Controls */}
+                        <div className="p-6 bg-white space-y-6">
+                            <div className="flex items-center gap-4">
+                                <span className="text-sm font-bold text-gray-500">Zoom</span>
+                                <input
+                                    type="range"
+                                    value={zoom}
+                                    min={1}
+                                    max={3}
+                                    step={0.1}
+                                    onChange={(e) => setZoom(e.target.value)}
+                                    className="flex-1 accent-[#2A45C2] h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                                />
+                            </div>
+                            <div className="flex justify-end gap-3 pt-2 border-t border-gray-100">
+                                <Button variant="outline" onClick={() => setCropImageSrc(null)} className="rounded-xl font-bold bg-white border-gray-300 text-gray-700 hover:bg-gray-50">
+                                    Cancel
+                                </Button>
+                                <Button className="rounded-xl font-bold bg-[#2A45C2] text-white hover:bg-[#1a2b7a]" onClick={handleCropSave}>
+                                    Apply & Save
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* MAIN LAYOUT */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+                {/* --- LEFT MAIN COLUMN --- */}
+                <div className="lg:col-span-8 space-y-6">
+
+                    {/* CUSTOM DESIGN PROFILE CARD */}
+                    <div className="bg-white border border-[#E7E9F7] rounded-3xl p-6 md:p-8 shadow-[0_2px_20px_rgba(30,41,89,0.04)] relative overflow-hidden">
+
+                        {/* Decorative Background Elements */}
+                        <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-[#2A45C2]/10 to-[#5B4FE0]/5 rounded-bl-full pointer-events-none -z-0 blur-3xl"></div>
+
+                        <div className="relative z-10 flex flex-col md:flex-row gap-6 md:gap-8 items-center md:items-start text-center md:text-left">
+
+                            {/* Avatar Section */}
+                            <div className="relative group shrink-0">
+                                <div 
+                                    className="w-[140px] h-[140px] md:w-[160px] md:h-[160px] bg-white rounded-full p-1.5 shadow-md border border-[#E7E9F7] transition-transform duration-300 group-hover:scale-[1.02] cursor-pointer"
+                                    onClick={handleEditExistingPhoto}
+                                >
+                                    <div className="w-full h-full rounded-full overflow-hidden bg-gradient-to-tr from-[#2A45C2] to-[#8B5CF6] flex items-center justify-center text-5xl font-extrabold text-white shadow-inner relative">
+                                        {currentDisplayAvatar ? (
+                                            <img src={currentDisplayAvatar} alt={profile.name} className="w-full h-full object-cover" />
+                                        ) : (
+                                            profile.name ? profile.name.charAt(0).toUpperCase() : 'U'
+                                        )}
+                                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <FaCamera size={24} />
+                                        </div>
+                                    </div>
                                 </div>
-                                {isEditing && (
-                                    <input type="file" id="avatar-upload" accept="image/*" onChange={handleAvatarSelect} className="hidden" />
-                                )}
+                                <input type="file" id="avatar-upload" accept="image/*" onChange={handleAvatarSelect} className="hidden" />
                             </div>
 
-                            {!isEditing ? (
-                                <>
-                                    <h2 className="text-xl font-extrabold text-gray-900 mb-1">{profile.name}</h2>
-                                    <p className="text-sm text-gray-500 font-medium mb-0.5">{profile.email}</p>
-                                    <p className="text-sm text-gray-400 font-medium mb-2.5">{profile.phone}</p>
+                            {/* Info Section */}
+                            <div className="flex-1 w-full pt-2">
+                                <div className="flex flex-col md:flex-row md:justify-between items-center md:items-start gap-4 mb-3">
+                                    <div>
+                                        <h1 className="text-2xl md:text-3xl font-black text-gray-900 mb-1 flex items-center justify-center md:justify-start gap-2 flex-wrap">
+                                            {profile.name}
+                                            {profile.pronouns && <span className="text-sm font-bold text-[#2A45C2] bg-blue-50 px-2 py-0.5 rounded-lg">({profile.pronouns})</span>}
+                                        </h1>
 
-                                    <div className="flex gap-3 mb-3 bg-[#F5F6FC] px-4 py-2 rounded-xl border border-[#E7E9F7]">
-                                        <div
-                                            className="text-center cursor-pointer hover:opacity-70 transition-opacity flex-1"
-                                            onClick={() => navigate('/user-dashboard/my-network', { state: { activeTab: 'followers' } })}
-                                            title="View Followers"
-                                        >
-                                            <span className="block text-lg font-black text-[#2A45C2]">{profile.followers}</span>
-                                            <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Followers</span>
-                                        </div>
-                                        <div className="w-px bg-[#E7E9F7]"></div>
-                                        <div
-                                            className="text-center cursor-pointer hover:opacity-70 transition-opacity flex-1"
-                                            onClick={() => navigate('/user-dashboard/my-network', { state: { activeTab: 'following' } })}
-                                            title="View Following"
-                                        >
-                                            <span className="block text-lg font-black text-[#2A45C2]">{profile.following}</span>
-                                            <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Following</span>
-                                        </div>
+                                        {profile.headline && (
+                                            <p className="text-base text-gray-700 font-bold mb-2 max-w-lg">
+                                                {profile.headline}
+                                            </p>
+                                        )}
                                     </div>
 
-                                    <Badge variant="success" className="px-3.5 py-1.5 text-xs font-bold gap-2 bg-[#EEF1FE] text-[#2A45C2] border-0 rounded-full shadow-sm mb-3">
-                                        <FaCheck size={12} /> Profile {profile.status}
-                                    </Badge>
-
-                                    <div className="flex w-full gap-2.5 mt-1">
-                                        <Button className="flex-1 py-2.5 text-sm font-bold rounded-xl border border-[#E7E9F7] text-gray-800 shadow-sm hover:border-[#2A45C2] hover:text-[#2A45C2] transition-all flex items-center justify-center gap-2" onClick={() => setIsEditing(true)}>
+                                    {/* Action Buttons Container */}
+                                    <div className="flex items-center gap-2 shrink-0">
+                                        <Button onClick={() => setIsEditPopupOpen(true)} variant="outline" className="rounded-xl border-[#E7E9F7] text-[#2A45C2] font-bold hover:border-[#2A45C2] hover:bg-blue-50 flex items-center gap-2 py-2">
                                             <FaUserEdit /> Edit
                                         </Button>
-                                        <Button variant="outline" onClick={handleLogout} className="flex-1 py-2.5 text-sm font-bold rounded-xl text-red-500 border-[#E7E9F7] bg-white hover:bg-red-50 hover:border-red-200 transition-all flex items-center justify-center gap-2 shadow-sm">
-                                            <FaSignOutAlt /> Log out
-                                        </Button>
-                                    </div>
-                                </>
-                            ) : (
-                                <div className="w-full space-y-3 text-left mt-2 bg-gray-50 p-3.5 rounded-2xl border border-[#E7E9F7]">
-                                    <p className="text-xs text-gray-500 font-medium text-center">Click avatar photo above to change image</p>
-                                    <Input label="Full Name" name="name" value={profile.name} onChange={handleChange} className="bg-white border-[#EBEBEB] rounded-xl focus:ring-[#2A45C2]/20 focus:border-[#2A45C2]" />
-                                    <Input label="Email Address" name="email" type="email" value={profile.email} onChange={handleChange} className="bg-white border-[#EBEBEB] rounded-xl focus:ring-[#2A45C2]/20 focus:border-[#2A45C2]" />
-                                    <Input label="Phone Number" name="phone" value={profile.phone} onChange={handleChange} className="bg-white border-[#EBEBEB] rounded-xl focus:ring-[#2A45C2]/20 focus:border-[#2A45C2]" />
-                                    <div className="flex gap-2 pt-1.5">
-                                        <Button className="flex-1 rounded-xl bg-gradient-to-r from-[#2A45C2] to-[#5B4FE0] text-white border-0 font-bold shadow-md" onClick={handleSave}>Save</Button>
-                                        <Button variant="outline" className="flex-1 rounded-xl border-[#E7E9F7] text-gray-700 bg-white font-bold" onClick={() => { setIsEditing(false); setPreviewAvatarUrl(null); setAvatarBase64(null); }}>Cancel</Button>
                                     </div>
                                 </div>
-                            )}
+
+                                {/* Details Row (Location, Education, Position) */}
+                                <div className="flex flex-wrap items-center justify-center md:justify-start gap-x-6 gap-y-2 mb-5">
+                                    {(profile.city || profile.country) && (
+                                        <div className="flex items-center gap-1.5 text-sm font-semibold text-gray-500">
+                                            <FaMapMarkerAlt className="text-[#2A45C2]" />
+                                            {profile.city ? `${profile.city}, ` : ''}{profile.country}
+                                        </div>
+                                    )}
+                                    {profile.school && (
+                                        <div className="flex items-center gap-1.5 text-sm font-semibold text-gray-500">
+                                            <FaGraduationCap className="text-[#2A45C2]" />
+                                            {profile.school}
+                                        </div>
+                                    )}
+                                    {(profile.position || profile.industry) && (
+                                        <div className="flex items-center gap-1.5 text-sm font-semibold text-gray-500">
+                                            <FaBriefcase className="text-[#2A45C2]" />
+                                            {profile.position}{profile.position && profile.industry ? ' · ' : ''}{profile.industry}
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Stats & Portfolio Integration */}
+                                <div className="flex flex-wrap items-center justify-center md:justify-start gap-4">
+                                    <div
+                                        className="bg-[#F5F6FC] hover:bg-[#EEF1FE] transition-colors rounded-xl px-4 py-2 cursor-pointer border border-[#E7E9F7] flex items-center gap-2 shadow-sm"
+                                        onClick={() => navigate('/user-dashboard/my-network', { state: { activeTab: 'followers' } })}
+                                    >
+                                        <span className="text-lg font-black text-[#2A45C2]">{profile.followers}</span>
+                                        <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Followers</span>
+                                    </div>
+
+                                    <div
+                                        className="bg-[#F5F6FC] hover:bg-[#EEF1FE] transition-colors rounded-xl px-4 py-2 cursor-pointer border border-[#E7E9F7] flex items-center gap-2 shadow-sm"
+                                        onClick={() => navigate('/user-dashboard/my-network', { state: { activeTab: 'following' } })}
+                                    >
+                                        <span className="text-lg font-black text-[#2A45C2]">{profile.following}</span>
+                                        <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Following</span>
+                                    </div>
+
+                                    {/* Prominent Portfolio Button */}
+                                    {portfolioLink && (
+                                        <a
+                                            href={portfolioLink.startsWith('http') ? portfolioLink : `https://${portfolioLink}`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="bg-gradient-to-r from-[#2A45C2] to-[#5B4FE0] text-white hover:shadow-md hover:-translate-y-0.5 transition-all rounded-xl px-4 py-2 flex items-center gap-2 font-bold text-sm shadow-sm"
+                                        >
+                                            <FaLink size={12} /> {profile.websiteLinkText || 'View Portfolio'}
+                                        </a>
+                                    )}
+                                </div>
+
+                            </div>
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2">
+                    {/* Stats Highlights */}
+                    <div className="grid grid-cols-2 gap-4">
                         {[
-                            { label: 'Applied', value: dashboardStats.applied, bar: 'from-[#2A45C2] to-[#5B4FE0]' },
-                            { label: 'Saved', value: dashboardStats.saved, bar: 'from-[#D4A017] to-[#F2C14E]' }
+                            { label: 'Total Applications', value: dashboardStats.applied, color: 'text-[#2A45C2]', border: 'border-[#2A45C2]/30', bg: 'bg-[#EEF1FE]' },
+                            { label: 'Saved Jobs', value: dashboardStats.saved, color: 'text-[#2A45C2]', border: 'border-[#2A45C2]/30', bg: 'bg-white' }
                         ].map((stat, idx) => (
-                            <div key={idx} className="relative bg-white border border-[#E7E9F7] rounded-2xl p-2.5 text-center shadow-[0_2px_16px_rgba(30,41,89,0.05)] overflow-hidden group hover:-translate-y-0.5 transition-all">
-                                <div className={`absolute top-0 left-0 h-1 w-full bg-gradient-to-r ${stat.bar} opacity-100`} />
-                                <h3 className="text-xl font-black text-gray-900 mt-1 mb-0.5">{stat.value}</h3>
-                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{stat.label}</p>
+                            <div key={idx} className={`bg-white border ${stat.border} rounded-3xl p-5 shadow-sm hover:shadow-md transition-shadow flex items-center gap-4`}>
+                                <div className={`w-14 h-14 rounded-2xl ${stat.bg} ${stat.color} flex items-center justify-center font-black text-2xl shrink-0 border border-[#2A45C2]/10`}>
+                                    {stat.value}
+                                </div>
+                                <div>
+                                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">{stat.label}</p>
+                                    <p className="text-xl font-black text-gray-900 mt-0.5">{stat.value}</p>
+                                </div>
                             </div>
                         ))}
                     </div>
 
-                    {/* DISCOVER NETWORK (EXCLUDES ADMIN USERS) */}
-                    <div className="bg-white border border-[#E7E9F7] rounded-2xl p-4 shadow-[0_2px_16px_rgba(30,41,89,0.05)]">
-                        <h3 className="text-base font-extrabold text-gray-900 mb-3 flex items-center gap-2">
-                            <FaUsers className="text-[#2A45C2]" /> Discover Network
-                        </h3>
-                        <div className="space-y-2.5 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
-                            {allUsers.length > 0 ? allUsers.map(user => (
-                                <div key={user.id} className="flex items-center justify-between p-2.5 rounded-xl border border-[#E7E9F7] bg-[#F9FAFF] hover:border-[#2A45C2]/30 transition-colors">
-                                    <div className="flex items-center gap-2.5">
-                                        <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-[#2A45C2] to-[#8B5CF6] flex items-center justify-center font-bold text-white shadow-sm overflow-hidden">
-                                            {user.profile_picture ? (
-                                                <img src={user.profile_picture} alt={user.full_name || user.name} className="w-full h-full object-cover" />
-                                            ) : (
-                                                (user.full_name || user.name || 'U').charAt(0).toUpperCase()
-                                            )}
-                                        </div>
-                                        <div>
-                                            <h4 className="font-bold text-gray-900 text-sm">{user.full_name || user.name}</h4>
-                                            <p className="text-[11px] text-gray-500 font-medium">{user.role || 'Member'}</p>
-                                        </div>
-                                    </div>
-                                    <div className="flex gap-1.5">
-                                        <button onClick={() => openChat(user)} className="w-8 h-8 rounded-full bg-white border border-[#E7E9F7] text-gray-500 flex items-center justify-center hover:text-[#2A45C2] hover:border-[#2A45C2] transition-colors shadow-sm" title="Message">
-                                            <FaEnvelope size={12} />
-                                        </button>
-                                        <button onClick={() => toggleFollow(user.id)} className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors shadow-sm ${followingMap[user.id] ? 'bg-[#EEF1FE] text-[#2A45C2] border border-[#2A45C2]/30' : 'bg-gradient-to-r from-[#2A45C2] to-[#5B4FE0] text-white border-0'}`} title={followingMap[user.id] ? "Unfollow" : "Follow"}>
-                                            {followingMap[user.id] ? <FaUserCheck size={12} /> : <FaUserPlus size={12} />}
-                                        </button>
-                                    </div>
-                                </div>
-                            )) : (
-                                <p className="text-sm text-gray-400 font-medium text-center py-4">No new users to discover.</p>
-                            )}
-                        </div>
-                    </div>
-                </div>
+                    {/* MY POSTS / ACTIVITY SECTION */}
+                    <div className="bg-white border border-[#E7E9F7] rounded-3xl shadow-sm overflow-hidden" ref={myPostsRef}>
 
-                {/* RIGHT COLUMN: Logged-in User's Posts Feed */}
-                <div className="lg:col-span-8" ref={myPostsRef}>
-                    <div className="bg-white border border-[#E7E9F7] rounded-2xl p-4 shadow-[0_2px_16px_rgba(30,41,89,0.05)] h-full">
-                        <div className="flex items-center justify-between mb-3.5 pb-3 border-b border-[#E7E9F7]">
-                            <h2 className="text-xl font-extrabold text-gray-900 flex items-center gap-2">
-                                <FaRegFileAlt className="text-[#2A45C2]" /> My Posts
-                            </h2>
-                            <Badge
-                                variant="success"
-                                className="bg-[#EEF1FE] text-[#2A45C2] border-0 rounded-full font-bold cursor-pointer hover:bg-[#D9E2FC] transition-colors"
-                                onClick={() => myPostsRef.current?.scrollIntoView({ behavior: 'smooth' })}
+                        {/* Blue Brand Header to reduce whitespace */}
+                        <div className="bg-gradient-to-r from-[#141B3C] via-[#2A45C2] to-[#5B4FE0] px-6 py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                            <div>
+                                <h2 className="text-xl md:text-2xl font-black text-white flex items-center gap-2">
+                                    <FaRegFileAlt /> Activity & Posts
+                                </h2>
+                                <p className="text-sm text-blue-100 font-medium mt-0.5">Keep your network updated with your latest insights.</p>
+                            </div>
+                            <Button
+                                variant='secondary'
+                                onClick={() => navigate('/user-dashboard')}
                             >
-                                {userPosts.length} Posts
-                            </Badge>
+                                Create a Post
+                            </Button>
                         </div>
 
-                        <div className="space-y-3">
+                        <div className="p-6 md:p-8 space-y-4">
                             {userPosts.length > 0 ? userPosts.map(post => {
                                 const isLongText = post.content && (post.content.length > 250 || post.content.split('\n').length > 5);
                                 const isExpanded = expandedText[post.id];
 
                                 return (
-                                    <div key={post.id} className="p-4 rounded-2xl border border-[#E7E9F7] bg-white hover:shadow-[0_6px_24px_rgba(30,41,89,0.08)] transition-all">
-                                        <div className="flex items-center gap-2.5 mb-3">
-                                            <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#5B4FE0] to-[#8B5CF6] flex items-center justify-center font-extrabold text-white shadow-md overflow-hidden">
+                                    <div key={post.id} className="p-5 rounded-2xl border border-[#E7E9F7] bg-[#F9FAFF] hover:border-[#2A45C2]/30 transition-all hover:bg-white group">
+                                        <div className="flex items-center gap-3 mb-3">
+                                            <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#5B4FE0] to-[#8B5CF6] flex items-center justify-center font-extrabold text-white shadow-sm overflow-hidden">
                                                 {profile.profile_picture ? (
                                                     <img src={profile.profile_picture} alt={profile.name} className="w-full h-full object-cover" />
                                                 ) : (
@@ -618,64 +724,109 @@ const UserProfileCom = () => {
                                                 )}
                                             </div>
                                             <div>
-                                                <h4 className="font-extrabold text-gray-900 text-[15px]">{post.author_name || profile.name}</h4>
-                                                <p className="text-xs text-gray-400 font-medium">{new Date(post.created_at || Date.now()).toLocaleDateString()}</p>
+                                                <h4 className="font-bold text-gray-900 text-sm group-hover:text-[#2A45C2] transition-colors">{post.author_name || profile.name}</h4>
+                                                <p className="text-[11px] text-gray-500 font-medium">{new Date(post.created_at || Date.now()).toLocaleDateString()}</p>
                                             </div>
                                         </div>
 
-                                        <div className="mb-3">
-                                            <div className={`text-sm text-gray-700 font-medium leading-relaxed whitespace-pre-wrap ${!isExpanded && isLongText ? 'line-clamp-5' : ''}`}>
+                                        <div className="mb-4">
+                                            <div className={`text-sm text-gray-700 font-medium leading-relaxed whitespace-pre-wrap ${!isExpanded && isLongText ? 'line-clamp-4' : ''}`}>
                                                 {post.content}
                                             </div>
                                             {isLongText && (
                                                 <button
                                                     onClick={() => setExpandedText(prev => ({ ...prev, [post.id]: !isExpanded }))}
-                                                    className="text-gray-500 hover:text-gray-800 text-sm font-semibold mt-1 transition-colors"
+                                                    className="text-[#2A45C2] hover:text-[#5B4FE0] text-xs font-bold mt-1.5 transition-colors"
                                                 >
-                                                    {isExpanded ? '...see less' : '...see more'}
+                                                    {isExpanded ? 'Show less' : 'Read more'}
                                                 </button>
                                             )}
                                         </div>
 
                                         {post.images && post.images.length > 0 && (
-                                            <div className="rounded-xl overflow-hidden border border-[#E7E9F7] mb-3">
-                                                <img src={post.images[0]} alt="Post content" className="w-full h-auto max-h-80 object-cover hover:scale-105 transition-transform duration-500" />
+                                            <div className="rounded-xl overflow-hidden border border-[#E7E9F7] mb-4">
+                                                <img src={post.images[0]} alt="Post content" className="w-full h-auto max-h-80 object-cover" />
                                             </div>
                                         )}
 
-                                        <div className="flex items-center justify-between pt-2.5 border-t border-[#E7E9F7]/60">
-                                            <div className="flex gap-3">
-                                                <button className="flex items-center gap-1.5 text-sm font-bold text-gray-500 hover:text-[#e0245e] transition-colors bg-[#F5F6FC] px-3 py-1.5 rounded-lg">
-                                                    <FaHeart /> {post.likes_count || 0}
+                                        <div className="flex items-center justify-between pt-3 border-t border-gray-200">
+                                            <div className="flex gap-2">
+                                                <button className="flex items-center gap-1.5 text-xs font-bold text-gray-500 hover:text-blue-600 transition-colors bg-white px-3 py-1.5 rounded-lg border border-gray-200 shadow-sm">
+                                                    <FaThumbsUp size={12} /> {post.likes_count || 0}
                                                 </button>
-                                                <button className="flex items-center gap-1.5 text-sm font-bold text-gray-500 hover:text-[#2A45C2] transition-colors bg-[#F5F6FC] px-3 py-1.5 rounded-lg">
-                                                    <FaRegComment /> {post.comments_count || 0}
+                                                <button className="flex items-center gap-1.5 text-xs font-bold text-gray-500 hover:text-green-600 transition-colors bg-white px-3 py-1.5 rounded-lg border border-gray-200 shadow-sm">
+                                                    <FaRegCommentDots size={14} /> {post.comments_count || 0}
                                                 </button>
                                             </div>
                                             <button
                                                 onClick={() => { setExpandedPost(post); setCurrentImageIndex(0); }}
-                                                className="text-xs font-bold text-[#2A45C2] hover:underline hover:text-[#5B4FE0] transition-colors"
+                                                className="text-xs font-bold text-gray-500 hover:text-[#2A45C2] transition-colors"
                                             >
-                                                View Post
+                                                Expand Post &rarr;
                                             </button>
                                         </div>
                                     </div>
                                 )
                             }) : (
-                                <div className="text-center py-10 bg-[#F9FAFF] rounded-2xl border border-[#E7E9F7] border-dashed">
-                                    <div className="w-14 h-14 mx-auto bg-[#EEF1FE] text-[#2A45C2] rounded-full flex items-center justify-center mb-2.5">
-                                        <FaRegFileAlt size={22} />
+                                <div className="text-center py-12 bg-white rounded-2xl border border-[#E7E9F7] border-dashed">
+                                    <div className="w-16 h-16 mx-auto bg-blue-50 shadow-sm text-[#2A45C2] rounded-full flex items-center justify-center mb-3 border border-blue-100">
+                                        <FaRegFileAlt size={24} />
                                     </div>
-                                    <h3 className="text-base font-bold text-gray-900">You haven't posted anything yet</h3>
-                                    <p className="text-sm text-gray-500 font-medium mt-1">Share your thoughts from your dashboard feed to see them here!</p>
+                                    <h3 className="text-lg font-black text-gray-900">No recent activity</h3>
+                                    <p className="text-sm text-gray-500 font-medium mt-1">Start sharing updates to build your professional presence.</p>
                                 </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+
+                {/* --- RIGHT SIDEBAR COLUMN --- */}
+                <div className="lg:col-span-4 space-y-6">
+
+                    {/* Discover Network (Who to follow) */}
+                    <div className="bg-white border border-[#E7E9F7] rounded-3xl shadow-sm overflow-hidden">
+
+                        {/* Blue Brand Header to reduce whitespace */}
+                        <div className="bg-[#2A45C2] px-6 py-4 flex justify-between items-center">
+                            <h3 className="text-lg font-black text-white flex items-center gap-2">
+                                <FaUsers /> Build Network
+                            </h3>
+                        </div>
+
+                        <div className="p-6 space-y-3 max-h-[450px] overflow-y-auto pr-4 custom-scrollbar">
+                            {allUsers.length > 0 ? allUsers.slice(0, 6).map(user => (
+                                <div key={user.id} className="flex items-center justify-between p-3 rounded-2xl border border-transparent hover:border-[#E7E9F7] hover:bg-blue-50 transition-colors group">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#2A45C2] to-[#8B5CF6] flex items-center justify-center font-bold text-white shadow-sm overflow-hidden shrink-0 cursor-pointer">
+                                            {user.profile_picture ? (
+                                                <img src={user.profile_picture} alt={user.full_name || user.name} className="w-full h-full object-cover" />
+                                            ) : (
+                                                (user.full_name || user.name || 'U').charAt(0).toUpperCase()
+                                            )}
+                                        </div>
+                                        <div>
+                                            <h4 className="font-bold text-gray-900 text-sm group-hover:text-[#2A45C2] cursor-pointer line-clamp-1 transition-colors">{user.full_name || user.name}</h4>
+                                            <p className="text-[11px] text-gray-500 font-medium line-clamp-1">{user.headline || user.role || 'Platform Member'}</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex gap-1">
+                                        <button onClick={() => openChat(user)} className="w-8 h-8 rounded-full bg-white border border-gray-200 text-gray-500 flex items-center justify-center hover:text-[#2A45C2] hover:border-[#2A45C2] transition-colors shadow-sm" title="Message">
+                                            <FaEnvelope size={12} />
+                                        </button>
+                                        <button onClick={() => toggleFollow(user.id)} className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors shadow-sm ${followingMap[user.id] ? 'bg-[#EEF1FE] text-[#2A45C2] border border-[#2A45C2]/30' : 'bg-gradient-to-r from-[#2A45C2] to-[#5B4FE0] text-white border-0'}`} title={followingMap[user.id] ? "Unfollow" : "Follow"}>
+                                            {followingMap[user.id] ? <FaCheck size={12} /> : <FaPlus size={12} />}
+                                        </button>
+                                    </div>
+                                </div>
+                            )) : (
+                                <p className="text-sm text-gray-400 font-medium text-center py-4">Network search clear.</p>
                             )}
                         </div>
                     </div>
                 </div>
             </div>
 
-            {/* THEATER MODE MODAL FOR EXACT POST VIEW */}
+            {/* THEATER MODE MODAL REMAINS UNCHANGED */}
             {expandedPost && (() => {
                 const isLongText = expandedPost.content && (expandedPost.content.length > 250 || expandedPost.content.split('\n').length > 5);
                 const isExpanded = expandedText[`theater_${expandedPost.id}`];
@@ -710,7 +861,6 @@ const UserProfileCom = () => {
                                         )}
                                     </div>
                                     <div>
-                                        {/* MESSAGE BUTTON IN THEATER MODE */}
                                         <div className="flex items-center gap-2">
                                             <h4 className="font-bold text-gray-900 text-sm">{expandedPost.author_name}</h4>
                                             {expandedPost.user_id !== profile.id && (
@@ -793,7 +943,6 @@ const UserProfileCom = () => {
                                 </div>
 
                                 {expandedPost.comments_data && expandedPost.comments_data.length > 0 && (() => {
-                                    // Ensure latest comments appear on top
                                     const sortedComments = [...expandedPost.comments_data].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
                                     return (
@@ -828,6 +977,13 @@ const UserProfileCom = () => {
                     </div>
                 );
             })()}
+
+            <style>{`
+                .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+                .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+                .custom-scrollbar::-webkit-scrollbar-thumb { background: #E5E7EB; border-radius: 10px; }
+                .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #D1D5DB; }
+            `}</style>
         </div>
     );
 };

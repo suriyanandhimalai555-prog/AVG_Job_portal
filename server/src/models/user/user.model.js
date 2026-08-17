@@ -30,12 +30,30 @@ export const createUserTable = async () => {
     try {
         await pool.query(queryText);
         await pool.query(followTable);
+
+        // Dynamic additions for robust update schemas
         await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(50) DEFAULT 'User';`);
         await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'Active';`);
         await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_picture TEXT;`);
         await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_code VARCHAR(50) UNIQUE;`);
         await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS referred_by INTEGER REFERENCES users(id);`);
         await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_earnings NUMERIC DEFAULT 0;`);
+
+        // NEW SCHEMA COLUMNS FOR ENHANCED PROFILE
+        await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS pronouns VARCHAR(50);`);
+        await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS headline VARCHAR(255);`);
+        await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS position VARCHAR(255);`);
+        await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS industry VARCHAR(255);`);
+        await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS school VARCHAR(255);`);
+        await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS country VARCHAR(100);`);
+        await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS city VARCHAR(100);`);
+        await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_url TEXT;`);
+        await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_type VARCHAR(50);`);
+        await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS address TEXT;`);
+        await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS birthday DATE;`);
+        await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS website_url TEXT;`);
+        await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS website_link_text VARCHAR(255);`);
+
     } catch (error) {
         console.error('❌ Error creating users table:', error);
     }
@@ -43,7 +61,12 @@ export const createUserTable = async () => {
 
 const UserModel = {
     getAll: async () => {
-        const query = 'SELECT id, full_name, email, phone, role, status, profile_picture, created_at FROM users ORDER BY created_at DESC';
+        const query = `
+            SELECT id, full_name, email, phone, role, status, profile_picture, created_at, 
+            pronouns, headline, position, industry, school, country, city, profile_url, 
+            phone_type, address, birthday, website_url, website_link_text 
+            FROM users ORDER BY created_at DESC
+        `;
         const { rows } = await pool.query(query);
         return rows;
     },
@@ -82,15 +105,44 @@ const UserModel = {
     },
 
     update: async (id, data) => {
-        const { full_name, email, phone, role, status, profile_picture } = data;
+        const {
+            full_name, email, phone, role, status, profile_picture,
+            pronouns, headline, position, industry, school, country, city,
+            profile_url, phone_type, address, birthday, website_url, website_link_text
+        } = data;
+
+        // If a field is passed, update it. If it is undefined, fallback to the existing column value using COALESCE.
         const query = `
             UPDATE users 
-            SET full_name = $1, email = $2, phone = $3, role = $4, status = $5,
-                profile_picture = COALESCE($6, profile_picture)
-            WHERE id = $7 
+            SET full_name = COALESCE($1, full_name), 
+                email = COALESCE($2, email), 
+                phone = COALESCE($3, phone), 
+                role = COALESCE($4, role), 
+                status = COALESCE($5, status),
+                profile_picture = COALESCE($6, profile_picture),
+                pronouns = COALESCE($7, pronouns), 
+                headline = COALESCE($8, headline), 
+                position = COALESCE($9, position), 
+                industry = COALESCE($10, industry),
+                school = COALESCE($11, school), 
+                country = COALESCE($12, country), 
+                city = COALESCE($13, city), 
+                profile_url = COALESCE($14, profile_url),
+                phone_type = COALESCE($15, phone_type), 
+                address = COALESCE($16, address), 
+                birthday = COALESCE($17, birthday), 
+                website_url = COALESCE($18, website_url), 
+                website_link_text = COALESCE($19, website_link_text)
+            WHERE id = $20 
             RETURNING id, full_name, email, phone, role, status, profile_picture;
         `;
-        const { rows } = await pool.query(query, [full_name, email, phone, role, status, profile_picture || null, id]);
+        
+        const { rows } = await pool.query(query, [
+            full_name, email, phone, role, status, profile_picture || null,
+            pronouns, headline, position, industry, school, country, city,
+            profile_url, phone_type, address, birthday || null, website_url, website_link_text,
+            id
+        ]);
         return rows[0];
     },
 
@@ -144,14 +196,12 @@ const UserModel = {
         const following = await pool.query('SELECT COUNT(*) FROM user_followers WHERE follower_id = $1', [userId]);
         const followingList = await pool.query('SELECT following_id FROM user_followers WHERE follower_id = $1', [userId]);
 
-        // Fetch the IDs of users who are following the current user
         const followerList = await pool.query('SELECT follower_id FROM user_followers WHERE following_id = $1', [userId]);
 
         return {
             followers_count: parseInt(followers.rows[0].count),
             following_count: parseInt(following.rows[0].count),
             following_ids: followingList.rows.map(r => r.following_id),
-            // Return the follower IDs back to the frontend
             follower_ids: followerList.rows.map(r => r.follower_id)
         };
     }
