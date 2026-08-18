@@ -114,9 +114,19 @@ const UserProfileCom = () => {
                 cache: 'no-store'
             });
             if (res.status === 404) {
-                const err = new Error('User not found');
-                err.notFound = true;
-                throw err;
+                // Only trust this as "the user genuinely doesn't exist" if it's
+                // OUR JSON 404 (from getUserById). A non-JSON 404 body means the
+                // route itself doesn't exist on the server yet — e.g. the
+                // backend hasn't been redeployed with the latest routes — and
+                // should be retried/surfaced as an error, not treated as a
+                // real "not found" that silently redirects the user away.
+                const contentType = res.headers.get('content-type') || '';
+                if (contentType.includes('application/json')) {
+                    const err = new Error('User not found');
+                    err.notFound = true;
+                    throw err;
+                }
+                throw new Error('GET /api/users/:id returned a non-JSON 404 — the backend route is likely not deployed yet.');
             }
             if (!res.ok) throw new Error(`Request failed with status ${res.status}`);
             return await res.json();

@@ -79,6 +79,14 @@ export const updateUser = async (req, res) => {
         res.status(200).json(updatedUser);
     } catch (error) {
         console.error('Update User Error:', error);
+        if (error.code === '23502') {
+            // not_null_violation
+            return res.status(422).json({ error: `This account is missing a required field (${error.column || 'unknown'}) and couldn't be saved.` });
+        }
+        if (error.code === '23505') {
+            // unique_violation (e.g. email already taken by another account)
+            return res.status(409).json({ error: 'That email is already in use by another account.' });
+        }
         res.status(500).json({ error: 'Failed to update user' });
     }
 };
