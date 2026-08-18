@@ -23,7 +23,6 @@ const UserEditProfilePopup = ({ isOpen, onClose, profileData, onSave }) => {
         school: '',
         country: '',
         city: '',
-        profileUrl: '',
         email: profileData?.email || '',
         phone: profileData?.phone || '',
         phoneType: 'Mobile',
@@ -62,10 +61,8 @@ const UserEditProfilePopup = ({ isOpen, onClose, profileData, onSave }) => {
     const handleSubmit = (e) => {
         e.preventDefault();
 
-        // Re-combine first and last name for the main profile state
         const combinedName = `${formData.firstName} ${formData.lastName}`.trim();
 
-        // Pass the fully updated data back to the main component
         onSave({
             ...profileData,
             name: combinedName,
@@ -78,12 +75,11 @@ const UserEditProfilePopup = ({ isOpen, onClose, profileData, onSave }) => {
             school: formData.school,
             country: formData.country,
             city: formData.city,
-            profileUrl: formData.websiteUrl, // Ensure both are synced to the Portfolio link
             phoneType: formData.phoneType,
             address: formData.address,
             birthday: formData.birthday,
             websiteUrl: formData.websiteUrl,
-            websiteLinkText: ''
+            profileUrl: formData.websiteUrl // Keep synced
         });
     };
 
@@ -108,7 +104,6 @@ const UserEditProfilePopup = ({ isOpen, onClose, profileData, onSave }) => {
                 {/* Scrollable Form Body */}
                 <form id="profile-edit-form" onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-5 custom-scrollbar space-y-8 bg-gray-50/50">
 
-                    {/* Basic Info Section */}
                     <section className="space-y-4 bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
                         <h3 className="text-lg font-extrabold text-[#2A45C2] border-b border-gray-100 pb-2">Basic info</h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -137,7 +132,6 @@ const UserEditProfilePopup = ({ isOpen, onClose, profileData, onSave }) => {
                         </div>
                     </section>
 
-                    {/* Current Position Section */}
                     <section className="space-y-4 bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
                         <h3 className="text-lg font-extrabold text-[#2A45C2] border-b border-gray-100 pb-2">Current position</h3>
                         <div>
@@ -153,7 +147,6 @@ const UserEditProfilePopup = ({ isOpen, onClose, profileData, onSave }) => {
                         </div>
                     </section>
 
-                    {/* Education Section */}
                     <section className="space-y-4 bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
                         <h3 className="text-lg font-extrabold text-[#2A45C2] border-b border-gray-100 pb-2">Education</h3>
                         <div>
@@ -162,7 +155,6 @@ const UserEditProfilePopup = ({ isOpen, onClose, profileData, onSave }) => {
                         </div>
                     </section>
 
-                    {/* Location Section */}
                     <section className="space-y-4 bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
                         <h3 className="text-lg font-extrabold text-[#2A45C2] border-b border-gray-100 pb-2">Location</h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -177,7 +169,6 @@ const UserEditProfilePopup = ({ isOpen, onClose, profileData, onSave }) => {
                         </div>
                     </section>
 
-                    {/* Contact Info Section */}
                     <section className="space-y-4 bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
                         <h3 className="text-lg font-extrabold text-[#2A45C2] border-b border-gray-100 pb-2">Contact info</h3>
                         <div>
@@ -208,7 +199,6 @@ const UserEditProfilePopup = ({ isOpen, onClose, profileData, onSave }) => {
                         </div>
                     </section>
 
-                    {/* Portfolio Section */}
                     <section className="space-y-4 bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
                         <h3 className="text-lg font-extrabold text-[#2A45C2] border-b border-gray-100 pb-2">Portfolio</h3>
                         <div>

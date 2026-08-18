@@ -61,6 +61,7 @@ export const createUserTable = async () => {
 
 const UserModel = {
     getAll: async () => {
+        // Fetching all fields to keep payload consistent across network
         const query = `
             SELECT id, full_name, email, phone, role, status, profile_picture, created_at, 
             pronouns, headline, position, industry, school, country, city, profile_url, 
@@ -75,17 +76,6 @@ const UserModel = {
         const query = 'SELECT * FROM users WHERE email = $1';
         const { rows } = await pool.query(query, [email]);
         return rows[0];
-    },
-
-    getById: async (id) => {
-        const query = `
-            SELECT id, full_name, email, phone, role, status, profile_picture, created_at,
-            pronouns, headline, position, industry, school, country, city, profile_url,
-            phone_type, address, birthday, website_url, website_link_text
-            FROM users WHERE id = $1
-        `;
-        const { rows } = await pool.query(query, [id]);
-        return rows[0] || null;
     },
 
     create: async (userData) => {
@@ -120,15 +110,15 @@ const UserModel = {
         const values = [];
         let idx = 1;
 
-        // full_name & email are handled separately below (always), since they're
-        // NOT NULL at the DB level.
+        // Valid columns mapping to ensure SQL injection protection and clean updates
         const validColumns = [
-            'phone', 'role', 'status', 'profile_picture',
+            'full_name', 'email', 'phone', 'role', 'status', 'profile_picture',
             'pronouns', 'headline', 'position', 'industry', 'school', 'country', 'city',
             'profile_url', 'phone_type', 'address', 'birthday', 'website_url', 'website_link_text'
         ];
 
-        // DYNAMIC QUERY BUILDER
+        // DYNAMIC QUERY BUILDER: Only update fields that exist in the payload!
+        // This ensures saving an Avatar doesn't delete your headline/school data.
         for (const [key, value] of Object.entries(data)) {
             if (validColumns.includes(key) && value !== undefined) {
                 fields.push(`${key} = $${idx}`);
@@ -138,14 +128,7 @@ const UserModel = {
             }
         }
 
-        
-        fields.push(`full_name = COALESCE(NULLIF($${idx}::text, ''), full_name, $${idx + 1})`);
-        values.push(data.full_name !== undefined ? data.full_name : null, 'Unnamed User');
-        idx += 2;
-
-        fields.push(`email = COALESCE(NULLIF($${idx}::text, ''), email, $${idx + 1})`);
-        values.push(data.email !== undefined ? data.email : null, `user-${id}@placeholder.invalid`);
-        idx += 2;
+        if (fields.length === 0) return null; // Prevent crash if empty update payload
 
         values.push(id);
         const query = `UPDATE users SET ${fields.join(', ')} WHERE id = $${idx} RETURNING *`;

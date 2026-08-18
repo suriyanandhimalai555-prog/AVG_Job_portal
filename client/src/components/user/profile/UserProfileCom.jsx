@@ -21,14 +21,10 @@ const UserProfileCom = () => {
     const [isEditPopupOpen, setIsEditPopupOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [isSavingImage, setIsSavingImage] = useState(false);
-    const [timestamp, setTimestamp] = useState(Date.now());
+    const [timestamp, setTimestamp] = useState(Date.now()); // Cache busting
 
     const [isOwnProfile, setIsOwnProfile] = useState(true);
     const [authUserId, setAuthUserId] = useState(null);
-    // True only once we've confirmed we hold the server's real copy of the
-    // profile. Saving (avatar or edit-popup) is blocked while this is false so
-    // we can never overwrite real DB data with the component's blank initial state.
-    const [profileLoadFailed, setProfileLoadFailed] = useState(false);
 
     const [profile, setProfile] = useState({
         id: null,
@@ -51,8 +47,7 @@ const UserProfileCom = () => {
         phoneType: 'Mobile',
         address: '',
         birthday: '',
-        websiteUrl: '',
-        websiteLinkText: ''
+        websiteUrl: ''
     });
 
     const [previewAvatarUrl, setPreviewAvatarUrl] = useState(null);
@@ -104,45 +99,6 @@ const UserProfileCom = () => {
         }
     }, [userPosts]);
 
-    // Fetches a single user record straight from the DB (no caching, retried on
-    // transient failure). This is the ONLY source that populates `profile`, so
-    // save actions can never fire against blank/stale local state.
-    const fetchUserById = async (id, token, attempt = 1) => {
-        try {
-            const res = await fetch(`${apiUrl}/api/users/${id}`, {
-                headers: { 'Authorization': `Bearer ${token}` },
-                cache: 'no-store'
-            });
-            if (res.status === 404) {
-                // Only trust this as "the user genuinely doesn't exist" if it's
-                // OUR JSON 404 (from getUserById). A non-JSON 404 body means the
-                // route itself doesn't exist on the server yet — e.g. the
-                // backend hasn't been redeployed with the latest routes — and
-                // should be retried/surfaced as an error, not treated as a
-                // real "not found" that silently redirects the user away.
-                const contentType = res.headers.get('content-type') || '';
-                if (contentType.includes('application/json')) {
-                    const err = new Error('User not found');
-                    err.notFound = true;
-                    throw err;
-                }
-                throw new Error('GET /api/users/:id returned a non-JSON 404 — the backend route is likely not deployed yet.');
-            }
-            if (!res.ok) throw new Error(`Request failed with status ${res.status}`);
-            return await res.json();
-        } catch (error) {
-            if (error.notFound) throw error;
-            // Retry a couple of times with backoff — production hosts (cold
-            // starts, flaky first connection) fail transiently far more often
-            // than a local dev server does.
-            if (attempt < 3) {
-                await new Promise(r => setTimeout(r, 700 * attempt));
-                return fetchUserById(id, token, attempt + 1);
-            }
-            throw error;
-        }
-    };
-
     const fetchInitialData = async () => {
         setIsLoading(true);
         try {
@@ -168,68 +124,8 @@ const UserProfileCom = () => {
             setIsOwnProfile(isSelf);
 
             const headers = { 'Authorization': `Bearer ${token}` };
+            const usersRes = await fetch(`${apiUrl}/api/users`, { headers }).catch(() => null);
             let targetUserName = '';
-
-            let targetUser = null;
-            try {
-                targetUser = await fetchUserById(targetId, token);
-                setProfileLoadFailed(false);
-            } catch (error) {
-                if (error.notFound) {
-                    toast.error("User profile not found.");
-                    navigate('/user-dashboard');
-                    return;
-                }
-                console.error('Failed to load profile from server:', error);
-                setProfileLoadFailed(true);
-                toast.error("Couldn't load your profile from the server. Please refresh — editing is disabled until this succeeds so nothing gets overwritten.");
-            }
-
-            if (targetUser) {
-                targetUserName = targetUser.full_name || '';
-                const formattedBirthday = targetUser.birthday ? targetUser.birthday.split('T')[0] : '';
-
-                setProfile(prev => ({
-                    ...prev,
-                    id: targetUser.id,
-                    name: targetUserName,
-                    email: targetUser.email || '',
-                    phone: targetUser.phone || '',
-                    role: targetUser.role || 'User',
-                    status: targetUser.status || 'Active',
-                    profile_picture: targetUser.profile_picture || '',
-                    pronouns: targetUser.pronouns || '',
-                    headline: targetUser.headline || '',
-                    position: targetUser.position || '',
-                    industry: targetUser.industry || '',
-                    school: targetUser.school || '',
-                    country: targetUser.country || '',
-                    city: targetUser.city || '',
-                    profileUrl: targetUser.profile_url || '',
-                    phoneType: targetUser.phone_type || 'Mobile',
-                    address: targetUser.address || '',
-                    birthday: formattedBirthday,
-                    websiteUrl: targetUser.website_url || ''
-                }));
-
-                if (isSelf) {
-                    const storedUserStr = localStorage.getItem('user');
-                    if (storedUserStr) {
-                        const storedUser = JSON.parse(storedUserStr);
-                        if (storedUser.profile_picture !== targetUser.profile_picture) {
-                            storedUser.profile_picture = targetUser.profile_picture || '';
-                            localStorage.setItem('user', JSON.stringify(storedUser));
-                            window.dispatchEvent(new Event('storage'));
-                        }
-                    }
-                }
-            }
-
-            // Secondary, non-critical data for the sidebar/discovery list & avatar
-            // lookups. This one is fine to fail quietly since it never drives a
-            // save — it only decorates other people's cards.
-            const usersRes = await fetch(`${apiUrl}/api/users`, { headers, cache: 'no-store' })
-                .catch((err) => { console.warn('Failed to load users list:', err); return null; });
 
             if (usersRes && usersRes.ok) {
                 const usersList = await usersRes.json();
@@ -240,6 +136,52 @@ const UserProfileCom = () => {
                     if (u.full_name || u.name) uMap[u.full_name || u.name] = u.profile_picture || '';
                 });
                 setUsersMap(uMap);
+
+                const targetUser = usersList.find(u => String(u.id) === String(targetId));
+
+                if (targetUser) {
+                    targetUserName = targetUser.full_name || targetUser.name || '';
+                    const formattedBirthday = targetUser.birthday ? targetUser.birthday.split('T')[0] : '';
+
+                    setProfile(prev => ({
+                        ...prev,
+                        id: targetUser.id,
+                        name: targetUserName,
+                        email: targetUser.email || '',
+                        phone: targetUser.phone || '',
+                        role: targetUser.role || 'User',
+                        status: targetUser.status || 'Active',
+                        profile_picture: targetUser.profile_picture || '',
+                        pronouns: targetUser.pronouns || '',
+                        headline: targetUser.headline || '',
+                        position: targetUser.position || '',
+                        industry: targetUser.industry || '',
+                        school: targetUser.school || '',
+                        country: targetUser.country || '',
+                        city: targetUser.city || '',
+                        profileUrl: targetUser.profile_url || '',
+                        phoneType: targetUser.phone_type || 'Mobile',
+                        address: targetUser.address || '',
+                        birthday: formattedBirthday,
+                        websiteUrl: targetUser.website_url || ''
+                    }));
+
+                    if (isSelf) {
+                        const storedUserStr = localStorage.getItem('user');
+                        if (storedUserStr) {
+                            const storedUser = JSON.parse(storedUserStr);
+                            if (storedUser.profile_picture !== targetUser.profile_picture) {
+                                storedUser.profile_picture = targetUser.profile_picture || '';
+                                localStorage.setItem('user', JSON.stringify(storedUser));
+                                window.dispatchEvent(new Event('storage'));
+                            }
+                        }
+                    }
+                } else {
+                    toast.error("User profile not found.");
+                    navigate('/user-dashboard');
+                    return;
+                }
 
                 const filteredUsers = usersList.filter(u => String(u.id) !== String(loggedInId) && u.role?.toLowerCase() !== 'admin');
                 setAllUsers(filteredUsers);
@@ -310,30 +252,15 @@ const UserProfileCom = () => {
         e.target.value = '';
     };
 
-    // ROBUST CORS BYPASS: Try Backend Proxy first, fallback to Public CORS Proxy
     const handleEditExistingPhoto = async () => {
         if (!isOwnProfile) return;
-        if (!profile.id || profileLoadFailed) {
-            toast.error("Still loading your profile — please wait a moment.");
-            return;
-        }
         if (profile.profile_picture) {
             const toastId = toast.loading("Preparing editor...");
             try {
-                const baseUrl = apiUrl.replace(/\/$/, '');
-                const proxyUrl = `${baseUrl}/api/users/proxy-image?url=${encodeURIComponent(profile.profile_picture)}`;
-
-                let response = await fetch(proxyUrl);
-
-                // If the backend proxy fails (404/500 in live server), use public proxy fallback!
-                if (!response.ok) {
-                    console.warn("Backend proxy failed. Falling back to public proxy...");
-                    const fallbackProxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(profile.profile_picture)}`;
-                    response = await fetch(fallbackProxyUrl);
-                }
-
-                if (!response.ok) throw new Error("Image load failed completely");
-
+                // Fetch through proxy so the Canvas can load the image without S3 CORS blocks
+                const proxyUrl = `${apiUrl}/api/users/proxy-image?url=${encodeURIComponent(profile.profile_picture)}`;
+                const response = await fetch(proxyUrl);
+                if (!response.ok) throw new Error("Proxy load failed");
                 const blob = await response.blob();
                 const localBlobUrl = URL.createObjectURL(blob);
 
@@ -347,7 +274,6 @@ const UserProfileCom = () => {
                 setEditorTab('crop');
             } catch (error) {
                 console.error("Editor load error:", error);
-                toast.error("Unable to load image. Please upload a new one.", { duration: 3000 });
                 document.getElementById('avatar-upload').click();
             } finally {
                 toast.dismiss(toastId);
@@ -422,14 +348,6 @@ const UserProfileCom = () => {
 
     const handleCropSave = async () => {
         if (!cropImageSrc || !croppedAreaPixels) return;
-
-        // Same guard as handleSaveProfile: if we don't yet have a confirmed
-        // profile.id, bail rather than risk a write.
-        if (!profile.id || profileLoadFailed) {
-            toast.error("Your profile hasn't finished loading yet. Please wait a moment and try again.");
-            return;
-        }
-
         setIsSavingImage(true);
         const loadingToast = toast.loading('Saving and applying filters...');
 
@@ -437,17 +355,10 @@ const UserProfileCom = () => {
             const finalBase64Image = await generateFinalCompositedImage(cropImageSrc, croppedAreaPixels);
             const token = getAuthToken();
 
-            // FIX: only send the field we're actually changing. The backend's
-            // update() does a full column overwrite for every key it receives,
-            // so previously sending the whole `profile` object here meant that
-            // ANY time this component's local state hadn't yet caught up with
-            // the server (slow/first network request, a transient fetch
-            // failure, etc.) every other profile field — headline, position,
-            // industry, school, address, birthday, and so on — got silently
-            // overwritten with blanks. That's what made saved details
-            // disappear after a refresh. Editing the photo should only ever
-            // touch the photo.
-            const payload = { profile_picture: finalBase64Image };
+            // ONLY send the profile picture. Database dynamic query will leave other fields untouched.
+            const payload = {
+                profile_picture: finalBase64Image
+            };
 
             const res = await fetch(`${apiUrl}/api/users/${profile.id}`, {
                 method: 'PUT',
@@ -473,7 +384,6 @@ const UserProfileCom = () => {
             setCropImageSrc(null);
             toast.success('Profile picture updated successfully!', { id: loadingToast });
         } catch (error) {
-            console.error("Save Image Error:", error);
             toast.error("Unable to update profile picture. Please try again.", { id: loadingToast });
         } finally {
             setIsSavingImage(false);
@@ -487,13 +397,6 @@ const UserProfileCom = () => {
     };
 
     const handleSaveProfile = async (updatedData) => {
-        // Never let a save fire against an unconfirmed/blank profile — that's
-        // exactly what was silently wiping saved fields on refresh.
-        if (!profile.id || profileLoadFailed) {
-            toast.error("Your profile hasn't finished loading yet. Please wait a moment and try again.");
-            return;
-        }
-
         const loadingToast = toast.loading('Updating profile info...');
         try {
             const token = getAuthToken();
@@ -526,41 +429,19 @@ const UserProfileCom = () => {
             });
 
             if (!res.ok) throw new Error('Failed to update profile.');
-            const updatedUser = await res.json();
 
-            // Trust what the server actually persisted, not what we sent —
-            // this is what the UI (and a subsequent refresh) should show.
-            const formattedBirthday = updatedUser.birthday ? updatedUser.birthday.split('T')[0] : '';
-            setProfile(prev => ({
-                ...prev,
-                name: updatedUser.full_name || '',
-                email: updatedUser.email || '',
-                phone: updatedUser.phone || '',
-                pronouns: updatedUser.pronouns || '',
-                headline: updatedUser.headline || '',
-                position: updatedUser.position || '',
-                industry: updatedUser.industry || '',
-                school: updatedUser.school || '',
-                country: updatedUser.country || '',
-                city: updatedUser.city || '',
-                profileUrl: updatedUser.profile_url || '',
-                phoneType: updatedUser.phone_type || 'Mobile',
-                address: updatedUser.address || '',
-                birthday: formattedBirthday,
-                websiteUrl: updatedUser.website_url || ''
-            }));
+            setProfile(prev => ({ ...prev, ...updatedData }));
             setIsEditPopupOpen(false);
             toast.success('Profile updated successfully!', { id: loadingToast });
 
             const storedUserStr = localStorage.getItem('user');
             if (storedUserStr) {
                 const storedUser = JSON.parse(storedUserStr);
-                storedUser.fullName = updatedUser.full_name;
+                storedUser.fullName = updatedData.name;
                 localStorage.setItem('user', JSON.stringify(storedUser));
                 window.dispatchEvent(new Event('storage'));
             }
         } catch (error) {
-            console.error('Update Profile Error:', error);
             toast.error("Failed to update profile.", { id: loadingToast });
         }
     };
@@ -631,7 +512,7 @@ const UserProfileCom = () => {
 
     if (isLoading) {
         return (
-            <div className="max-w-[1400px] mx-auto p-4 md:p-8 min-h-screen">
+            <div className="max-w-[1200px] mx-auto p-4 md:p-8 min-h-screen">
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                     <div className="lg:col-span-8 space-y-6">
                         <Shimmer className="w-full h-[280px] rounded-3xl bg-gray-200" />
@@ -669,13 +550,13 @@ const UserProfileCom = () => {
             {/* --- CROPPER MODAL UI --- */}
             {cropImageSrc && isOwnProfile && (
                 <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
-                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md flex flex-col overflow-hidden max-h-[95vh]">
+                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl flex flex-col overflow-hidden max-h-[95vh]">
 
                         <div className="flex items-center justify-between p-5 border-b border-[#E7E9F7] bg-gradient-to-r from-[#141B3C] via-[#2A45C2] to-[#5B4FE0] text-white shrink-0">
                             <h3 className="font-extrabold text-lg flex items-center gap-2"><FaCamera /> Profile Photo Editor</h3>
                             <div className="flex items-center gap-3">
-                                {/* Upload New Image Button */}
-                                <label htmlFor="avatar-upload-editor" className="cursor-pointer px-3 py-1.5 bg-white text-[#2A45C2] font-black rounded-lg hover:bg-gray-100 transition-colors text-xs shadow-sm">
+                                {/* Explicit "Upload New Image" Button */}
+                                <label htmlFor="avatar-upload-editor" className="cursor-pointer px-4 py-1.5 bg-white/20 text-white font-bold rounded-xl hover:bg-white/30 transition-colors text-sm border border-white/40">
                                     Upload New
                                 </label>
                                 <input type="file" id="avatar-upload-editor" accept="image/*" onChange={handleAvatarSelect} className="hidden" />
@@ -757,14 +638,7 @@ const UserProfileCom = () => {
                                             { id: 'grayscale', label: 'B&W', css: 'grayscale(100%)' },
                                             { id: 'sepia', label: 'Sepia', css: 'sepia(100%)' }
                                         ].map(f => (
-                                            <div
-                                                key={f.id}
-                                                onClick={() => {
-                                                    setImageFilter(f.id);
-                                                    if (f.id === 'none') setAdjustments({ brightness: 100, contrast: 100, saturation: 100 });
-                                                }}
-                                                className={`cursor-pointer flex flex-col items-center gap-2 group`}
-                                            >
+                                            <div key={f.id} onClick={() => setImageFilter(f.id)} className={`cursor-pointer flex flex-col items-center gap-2 group`}>
                                                 <div className={`w-14 h-14 rounded-full overflow-hidden border-2 transition-all ${imageFilter === f.id ? 'border-[#2A45C2] shadow-md scale-110' : 'border-gray-200 group-hover:border-[#2A45C2]/50'}`}>
                                                     <img src={cropImageSrc} style={{ filter: f.css, objectFit: 'cover', width: '100%', height: '100%' }} alt="filter preview" />
                                                 </div>
@@ -840,25 +714,18 @@ const UserProfileCom = () => {
                         {/* Edit Button */}
                         {isOwnProfile && (
                             <button
-                                onClick={() => {
-                                    if (!profile.id || profileLoadFailed) {
-                                        toast.error("Still loading your profile — please wait a moment.");
-                                        return;
-                                    }
-                                    setIsEditPopupOpen(true);
-                                }}
-                                disabled={!profile.id || profileLoadFailed}
-                                className="absolute top-6 right-6 flex items-center gap-2 px-4 py-1.5 rounded-xl border border-gray-200 text-gray-700 font-bold hover:bg-gray-50 transition-colors text-sm shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                onClick={() => setIsEditPopupOpen(true)}
+                                className="absolute top-6 right-6 flex items-center gap-2 px-4 py-1.5 rounded-xl border border-gray-200 text-gray-700 font-bold hover:bg-gray-50 transition-colors text-sm shadow-sm"
                             >
                                 <FaPen size={12} /> Edit
                             </button>
                         )}
 
-                        <div className="flex flex-col md:flex-row gap-6 items-center md:items-start text-center md:text-left">
+                        <div className="flex flex-col md:flex-row gap-6 md:gap-8 items-center md:items-start text-center md:text-left">
                             {/* Avatar Section */}
                             <div className="relative group shrink-0">
                                 <div
-                                    className={`w-[130px] h-[130px] md:w-[150px] md:h-[150px] bg-white rounded-full p-1 shadow-sm border border-gray-100 ${isOwnProfile ? 'cursor-pointer hover:scale-[1.02] transition-transform' : ''}`}
+                                    className={`w-[140px] h-[140px] bg-white rounded-full p-1 shadow-sm border border-gray-100 ${isOwnProfile ? 'cursor-pointer hover:scale-[1.02] transition-transform' : ''}`}
                                     onClick={isOwnProfile ? handleEditExistingPhoto : undefined}
                                     title={isOwnProfile ? "Click to edit profile picture" : ""}
                                 >
@@ -881,32 +748,16 @@ const UserProfileCom = () => {
 
                             {/* Info Section */}
                             <div className="flex-1 w-full pt-1">
-                                <div className="flex justify-between items-start mb-3">
-                                    <div>
-                                        <h1 className="text-2xl md:text-[28px] font-black text-gray-900 mb-1 flex items-center justify-center md:justify-start gap-2 flex-wrap pr-0 md:pr-24">
-                                            {profile.name}
-                                            {profile.pronouns && <span className="text-[15px] font-black text-[#2A45C2]">({profile.pronouns})</span>}
-                                        </h1>
+                                <h1 className="text-[28px] font-black text-gray-900 mb-1 flex items-center justify-center md:justify-start gap-2 flex-wrap pr-0 md:pr-24">
+                                    {profile.name}
+                                    {profile.pronouns && <span className="text-[15px] font-black text-[#2A45C2]">({profile.pronouns})</span>}
+                                </h1>
 
-                                        {profile.headline && (
-                                            <p className="text-[15px] text-gray-700 font-bold mb-4">
-                                                {profile.headline}
-                                            </p>
-                                        )}
-                                    </div>
-
-                                    {/* Follow/Message Actions for External View */}
-                                    {!isOwnProfile && (
-                                        <div className="flex gap-2 shrink-0">
-                                            <Button onClick={() => toggleFollow(profile.id)} className={`rounded-xl font-bold flex items-center gap-2 py-2 shadow-sm ${followingMap[profile.id] ? 'bg-blue-50 border border-[#2A45C2] text-[#2A45C2] hover:bg-blue-100' : 'bg-[#2A45C2] text-white hover:bg-[#1a2b7a]'}`}>
-                                                {followingMap[profile.id] ? <FaCheck /> : <FaPlus />} {followingMap[profile.id] ? 'Following' : 'Follow'}
-                                            </Button>
-                                            <Button onClick={() => openChat(profile)} variant="outline" className="rounded-xl border-[#E7E9F7] text-[#2A45C2] font-bold hover:border-[#2A45C2] hover:bg-blue-50 flex items-center gap-2 py-2 shadow-sm">
-                                                <FaEnvelope /> Message
-                                            </Button>
-                                        </div>
-                                    )}
-                                </div>
+                                {profile.headline && (
+                                    <p className="text-[15px] text-gray-700 font-bold mb-4">
+                                        {profile.headline}
+                                    </p>
+                                )}
 
                                 {/* Details Row Grid */}
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-y-3 gap-x-4 mb-6">
