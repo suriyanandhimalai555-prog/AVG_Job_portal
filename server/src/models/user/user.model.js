@@ -1,4 +1,4 @@
-import { pool } from '../../config/db.js';
+import pool from '../../config/db.js';
 
 export const createUserTable = async () => {
     const queryText = `
@@ -61,7 +61,6 @@ export const createUserTable = async () => {
 
 const UserModel = {
     getAll: async () => {
-        // Fetching all fields to keep payload consistent across network
         const query = `
             SELECT id, full_name, email, phone, role, status, profile_picture, created_at, 
             pronouns, headline, position, industry, school, country, city, profile_url, 
@@ -110,17 +109,24 @@ const UserModel = {
         const values = [];
         let idx = 1;
 
-        // Valid columns mapping to ensure SQL injection protection and clean updates
         const validColumns = [
             'full_name', 'email', 'phone', 'role', 'status', 'profile_picture',
             'pronouns', 'headline', 'position', 'industry', 'school', 'country', 'city',
             'profile_url', 'phone_type', 'address', 'birthday', 'website_url', 'website_link_text'
         ];
 
-        // DYNAMIC QUERY BUILDER: Only update fields that exist in the payload!
-        // This ensures saving an Avatar doesn't delete your headline/school data.
+        // Ensure these critical fields are never accidentally wiped
+        const notNullColumns = ['full_name', 'email'];
+
+        // DYNAMIC QUERY BUILDER
         for (const [key, value] of Object.entries(data)) {
             if (validColumns.includes(key) && value !== undefined) {
+
+                // CRITICAL SAFETY CHECK: Prevent setting required fields to null/empty string
+                if (notNullColumns.includes(key) && (value === null || value === '' || String(value).trim() === '')) {
+                    continue; // Skip this field, keep the original database value
+                }
+
                 fields.push(`${key} = $${idx}`);
                 // Handle empty string mapping to null for dates
                 values.push(value === '' && key === 'birthday' ? null : value);
@@ -128,7 +134,11 @@ const UserModel = {
             }
         }
 
-        if (fields.length === 0) return null; // Prevent crash if empty update payload
+        if (fields.length === 0) {
+            // Nothing to update, return the current user data
+            const { rows } = await pool.query('SELECT * FROM users WHERE id = $1', [id]);
+            return rows[0] || null;
+        }
 
         values.push(id);
         const query = `UPDATE users SET ${fields.join(', ')} WHERE id = $${idx} RETURNING *`;

@@ -253,7 +253,6 @@ const UserProfileCom = () => {
         e.target.value = '';
     };
 
-    // ROBUST CORS BYPASS: Try Backend Proxy first, fallback to Public CORS Proxy
     const handleEditExistingPhoto = async () => {
         if (!isOwnProfile) return;
         if (profile.profile_picture) {
@@ -264,7 +263,6 @@ const UserProfileCom = () => {
 
                 let response = await fetch(proxyUrl);
 
-                // If the backend proxy fails (404/500 in live server), use public proxy fallback!
                 if (!response.ok) {
                     console.warn("Backend proxy failed. Falling back to public proxy...");
                     const fallbackProxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(profile.profile_picture)}`;
@@ -368,28 +366,10 @@ const UserProfileCom = () => {
             const finalBase64Image = await generateFinalCompositedImage(cropImageSrc, croppedAreaPixels);
             const token = getAuthToken();
 
-            // CRITICAL FIX: Send the ENTIRE profile payload to prevent your live backend from 
-            // crashing (500 error) or setting missing details to NULL.
+            // FIX: ONLY send the profile picture! The backend dynamic query builder 
+            // will now update ONLY this field and keep your headline/position data safe.
             const payload = {
-                full_name: profile.name,
-                email: profile.email,
-                phone: profile.phone,
-                role: profile.role,
-                status: profile.status,
-                profile_picture: finalBase64Image,
-                pronouns: profile.pronouns,
-                headline: profile.headline,
-                position: profile.position,
-                industry: profile.industry,
-                school: profile.school,
-                country: profile.country,
-                city: profile.city,
-                profile_url: profile.profileUrl,
-                phone_type: profile.phoneType,
-                address: profile.address,
-                birthday: profile.birthday,
-                website_url: profile.websiteUrl,
-                website_link_text: profile.websiteLinkText
+                profile_picture: finalBase64Image
             };
 
             const res = await fetch(`${apiUrl}/api/users/${profile.id}`, {
@@ -570,7 +550,6 @@ const UserProfileCom = () => {
         <div className="max-w-[1200px] mx-auto p-4 md:p-8 min-h-screen relative bg-[#F5F6FC]">
             <Toaster position="top-right" />
 
-            {/* INTEGRATE USER EDIT POPUP */}
             {isOwnProfile && (
                 <UserEditProfilePopup
                     isOpen={isEditPopupOpen}
@@ -580,16 +559,15 @@ const UserProfileCom = () => {
                 />
             )}
 
-            {/* --- CROPPER MODAL UI --- */}
             {cropImageSrc && isOwnProfile && (
                 <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
-                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md flex flex-col overflow-hidden max-h-[95vh]">
+                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl flex flex-col overflow-hidden max-h-[95vh]">
 
                         <div className="flex items-center justify-between p-5 border-b border-[#E7E9F7] bg-gradient-to-r from-[#141B3C] via-[#2A45C2] to-[#5B4FE0] text-white shrink-0">
                             <h3 className="font-extrabold text-lg flex items-center gap-2"><FaCamera /> Profile Photo Editor</h3>
                             <div className="flex items-center gap-3">
                                 {/* Upload New Image Button */}
-                                <label htmlFor="avatar-upload-editor" className="cursor-pointer px-3 py-1.5 bg-white text-[#2A45C2] font-black rounded-lg hover:bg-gray-100 transition-colors text-xs shadow-sm">
+                                <label htmlFor="avatar-upload-editor" className="cursor-pointer px-4 py-1.5 bg-white text-[#2A45C2] font-black rounded-lg hover:bg-gray-100 transition-colors text-xs shadow-sm">
                                     Upload New
                                 </label>
                                 <input type="file" id="avatar-upload-editor" accept="image/*" onChange={handleAvatarSelect} className="hidden" />
@@ -742,14 +720,11 @@ const UserProfileCom = () => {
                 </div>
             )}
 
-            {/* MAIN LAYOUT */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-
-                {/* --- LEFT MAIN COLUMN --- */}
                 <div className="lg:col-span-8 space-y-6">
 
                     {/* REDESIGNED PROFILE CARD MATCHING REFERENCE EXACTLY */}
-                    <div className="bg-white border border-[#E7E9F7] rounded-[24px] p-6 shadow-sm relative">
+                    <div className="bg-white border border-[#E7E9F7] rounded-[24px] p-6 md:p-8 shadow-[0_2px_20px_rgba(30,41,89,0.04)] relative flex flex-col items-center text-center">
 
                         {/* Edit Button */}
                         {isOwnProfile && (
@@ -761,114 +736,111 @@ const UserProfileCom = () => {
                             </button>
                         )}
 
-                        <div className="flex flex-col md:flex-row gap-6 items-center md:items-start text-center md:text-left">
-                            {/* Avatar Section */}
-                            <div className="relative group shrink-0">
-                                <div
-                                    className={`w-[130px] h-[130px] md:w-[150px] md:h-[150px] bg-white rounded-full p-1 shadow-sm border border-gray-100 ${isOwnProfile ? 'cursor-pointer hover:scale-[1.02] transition-transform' : ''}`}
-                                    onClick={isOwnProfile ? handleEditExistingPhoto : undefined}
-                                    title={isOwnProfile ? "Click to edit profile picture" : ""}
+                        {/* Avatar Section */}
+                        <div className="relative group shrink-0 mb-4">
+                            <div
+                                className={`w-[130px] h-[130px] md:w-[150px] md:h-[150px] bg-white rounded-full p-1 shadow-sm border border-gray-100 ${isOwnProfile ? 'cursor-pointer hover:scale-[1.02] transition-transform' : ''}`}
+                                onClick={isOwnProfile ? handleEditExistingPhoto : undefined}
+                                title={isOwnProfile ? "Click to edit profile picture" : ""}
+                            >
+                                <div className="w-full h-full rounded-full overflow-hidden bg-gray-100 flex items-center justify-center text-5xl font-extrabold text-[#2A45C2] relative">
+                                    {currentDisplayAvatar ? (
+                                        <img src={`${currentDisplayAvatar}?t=${timestamp}`} alt={profile.name} className="w-full h-full object-cover" />
+                                    ) : (
+                                        <span>{profile.name ? profile.name.charAt(0).toUpperCase() : 'U'}</span>
+                                    )}
+                                    {isOwnProfile && (
+                                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <FaCamera size={24} />
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                            {isOwnProfile && <input type="file" id="avatar-upload" accept="image/*" onChange={handleAvatarSelect} className="hidden" />}
+                        </div>
+
+                        {/* Name and Pronouns */}
+                        <h1 className="text-[26px] md:text-[30px] font-black text-gray-900 mb-1 flex items-center justify-center gap-2 flex-wrap">
+                            {profile.name}
+                            {profile.pronouns && <span className="text-[15px] font-black text-[#2A45C2]">({profile.pronouns})</span>}
+                        </h1>
+
+                        {/* Headline/Position */}
+                        {profile.headline ? (
+                            <p className="text-[15px] text-gray-700 font-bold mb-4">
+                                {profile.headline}
+                            </p>
+                        ) : (profile.position && (
+                            <p className="text-[15px] text-gray-700 font-bold mb-4">
+                                {profile.position} {profile.industry ? `@ ${profile.industry}` : ''}
+                            </p>
+                        ))}
+
+                        {/* Details Row Grid */}
+                        <div className="flex flex-col md:flex-row items-center justify-center gap-x-8 gap-y-2 mb-6">
+                            {(profile.city || profile.country) && (
+                                <div className="flex items-center gap-2 text-sm font-semibold text-gray-600">
+                                    <FaMapMarkerAlt className="text-[#2A45C2]" />
+                                    {profile.city ? `${profile.city}, ` : ''}{profile.country}
+                                </div>
+                            )}
+                            {profile.school && (
+                                <div className="flex items-center gap-2 text-sm font-semibold text-gray-600">
+                                    <FaGraduationCap className="text-[#2A45C2]" />
+                                    {profile.school}
+                                </div>
+                            )}
+                        </div>
+
+                        {(profile.position || profile.industry) && profile.headline && (
+                            <div className="flex items-center justify-center gap-2 text-sm font-semibold text-gray-600 mb-6">
+                                <FaBriefcase className="text-[#2A45C2]" />
+                                {profile.position}{profile.position && profile.industry ? ' · ' : ''}{profile.industry}
+                            </div>
+                        )}
+
+                        {/* Follow/Message Actions for External View */}
+                        {!isOwnProfile && (
+                            <div className="flex justify-center gap-3 mb-6">
+                                <Button onClick={() => toggleFollow(profile.id)} className={`rounded-xl font-bold flex items-center gap-2 py-2 shadow-sm ${followingMap[profile.id] ? 'bg-blue-50 border border-[#2A45C2] text-[#2A45C2] hover:bg-blue-100' : 'bg-[#2A45C2] text-white hover:bg-[#1a2b7a]'}`}>
+                                    {followingMap[profile.id] ? <FaCheck /> : <FaPlus />} {followingMap[profile.id] ? 'Following' : 'Follow'}
+                                </Button>
+                                <Button onClick={() => openChat(profile)} variant="outline" className="rounded-xl border-[#E7E9F7] text-[#2A45C2] font-bold hover:border-[#2A45C2] hover:bg-blue-50 flex items-center gap-2 py-2 shadow-sm">
+                                    <FaEnvelope /> Message
+                                </Button>
+                            </div>
+                        )}
+
+                        {/* Pills Integration */}
+                        <div className="flex flex-wrap items-center justify-center gap-4">
+                            <div
+                                className="flex items-center gap-2 border border-gray-200 rounded-full px-5 py-2 bg-white hover:bg-gray-50 transition-colors cursor-pointer shadow-sm"
+                                onClick={() => navigate('/user-dashboard/my-network', { state: { activeTab: 'followers' } })}
+                            >
+                                <span className="text-[16px] font-black text-[#2A45C2]">{profile.followers}</span>
+                                <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">Followers</span>
+                            </div>
+
+                            <div
+                                className="flex items-center gap-2 border border-gray-200 rounded-full px-5 py-2 bg-white hover:bg-gray-50 transition-colors cursor-pointer shadow-sm"
+                                onClick={() => navigate('/user-dashboard/my-network', { state: { activeTab: 'following' } })}
+                            >
+                                <span className="text-[16px] font-black text-[#2A45C2]">{profile.following}</span>
+                                <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">Following</span>
+                            </div>
+
+                            {/* Prominent Portfolio Button */}
+                            {portfolioLink && (
+                                <a
+                                    href={portfolioLink.startsWith('http') ? portfolioLink : `https://${portfolioLink}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="bg-[#5B4FE0] text-white hover:bg-[#483bc7] transition-colors rounded-full px-6 py-2.5 flex items-center gap-2 font-bold text-sm shadow-md"
+                                    title={portfolioLink}
                                 >
-                                    <div className="w-full h-full rounded-full overflow-hidden bg-gray-100 flex items-center justify-center text-5xl font-extrabold text-[#2A45C2] relative">
-                                        {currentDisplayAvatar ? (
-                                            /* NO CROSSORIGIN HERE! Prevents S3 CORS errors on normal display */
-                                            <img src={`${currentDisplayAvatar}?t=${timestamp}`} alt={profile.name} className="w-full h-full object-cover" />
-                                        ) : (
-                                            <span>{profile.name ? profile.name.charAt(0).toUpperCase() : 'U'}</span>
-                                        )}
-                                        {isOwnProfile && (
-                                            <div className="absolute inset-0 bg-black/40 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <FaCamera size={24} />
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                                {isOwnProfile && <input type="file" id="avatar-upload" accept="image/*" onChange={handleAvatarSelect} className="hidden" />}
-                            </div>
-
-                            {/* Info Section */}
-                            <div className="flex-1 w-full pt-1">
-                                <div className="flex justify-between items-start mb-3">
-                                    <div>
-                                        <h1 className="text-2xl md:text-[28px] font-black text-gray-900 mb-1 flex items-center justify-center md:justify-start gap-2 flex-wrap pr-0 md:pr-24">
-                                            {profile.name}
-                                            {profile.pronouns && <span className="text-[15px] font-black text-[#2A45C2]">({profile.pronouns})</span>}
-                                        </h1>
-
-                                        {profile.headline && (
-                                            <p className="text-[15px] text-gray-700 font-bold mb-4">
-                                                {profile.headline}
-                                            </p>
-                                        )}
-                                    </div>
-
-                                    {/* Follow/Message Actions for External View */}
-                                    {!isOwnProfile && (
-                                        <div className="flex gap-2 shrink-0">
-                                            <Button onClick={() => toggleFollow(profile.id)} className={`rounded-xl font-bold flex items-center gap-2 py-2 shadow-sm ${followingMap[profile.id] ? 'bg-blue-50 border border-[#2A45C2] text-[#2A45C2] hover:bg-blue-100' : 'bg-[#2A45C2] text-white hover:bg-[#1a2b7a]'}`}>
-                                                {followingMap[profile.id] ? <FaCheck /> : <FaPlus />} {followingMap[profile.id] ? 'Following' : 'Follow'}
-                                            </Button>
-                                            <Button onClick={() => openChat(profile)} variant="outline" className="rounded-xl border-[#E7E9F7] text-[#2A45C2] font-bold hover:border-[#2A45C2] hover:bg-blue-50 flex items-center gap-2 py-2 shadow-sm">
-                                                <FaEnvelope /> Message
-                                            </Button>
-                                        </div>
-                                    )}
-                                </div>
-
-                                {/* Details Row Grid */}
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-y-3 gap-x-4 mb-6">
-                                    {(profile.city || profile.country) && (
-                                        <div className="flex items-center justify-center md:justify-start gap-2 text-sm font-semibold text-gray-600">
-                                            <FaMapMarkerAlt className="text-[#2A45C2]" />
-                                            {profile.city ? `${profile.city}, ` : ''}{profile.country}
-                                        </div>
-                                    )}
-                                    {profile.school && (
-                                        <div className="flex items-center justify-center md:justify-start gap-2 text-sm font-semibold text-gray-600">
-                                            <FaGraduationCap className="text-[#2A45C2]" />
-                                            {profile.school}
-                                        </div>
-                                    )}
-                                    {(profile.position || profile.industry) && (
-                                        <div className="flex items-center justify-center md:justify-start gap-2 text-sm font-semibold text-gray-600">
-                                            <FaBriefcase className="text-[#2A45C2]" />
-                                            {profile.position}{profile.position && profile.industry ? ' · ' : ''}{profile.industry}
-                                        </div>
-                                    )}
-                                </div>
-
-                                {/* Pills Integration */}
-                                <div className="flex flex-wrap items-center justify-center md:justify-start gap-3">
-                                    <div
-                                        className="flex items-center gap-2 border border-gray-200 rounded-full px-4 py-1.5 bg-white hover:bg-gray-50 transition-colors cursor-pointer shadow-sm"
-                                        onClick={() => navigate('/user-dashboard/my-network', { state: { activeTab: 'followers' } })}
-                                    >
-                                        <span className="text-[15px] font-black text-[#2A45C2]">{profile.followers}</span>
-                                        <span className="text-xs font-bold text-gray-500 uppercase">Followers</span>
-                                    </div>
-
-                                    <div
-                                        className="flex items-center gap-2 border border-gray-200 rounded-full px-4 py-1.5 bg-white hover:bg-gray-50 transition-colors cursor-pointer shadow-sm"
-                                        onClick={() => navigate('/user-dashboard/my-network', { state: { activeTab: 'following' } })}
-                                    >
-                                        <span className="text-[15px] font-black text-[#2A45C2]">{profile.following}</span>
-                                        <span className="text-xs font-bold text-gray-500 uppercase">Following</span>
-                                    </div>
-
-                                    {/* Prominent Portfolio Button */}
-                                    {portfolioLink && (
-                                        <a
-                                            href={portfolioLink.startsWith('http') ? portfolioLink : `https://${portfolioLink}`}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="bg-[#5B4FE0] text-white hover:bg-[#483bc7] transition-colors rounded-full px-5 py-1.5 flex items-center gap-2 font-bold text-sm shadow-sm"
-                                            title={portfolioLink}
-                                        >
-                                            <FaLink size={12} /> {portfolioLink.replace(/^https?:\/\//, '')}
-                                        </a>
-                                    )}
-                                </div>
-                            </div>
+                                    <FaLink size={12} /> {portfolioLink.replace(/^https?:\/\//, '')}
+                                </a>
+                            )}
                         </div>
                     </div>
 
@@ -880,12 +852,12 @@ const UserProfileCom = () => {
                                 { label: 'SAVED JOBS', value: dashboardStats.saved }
                             ].map((stat, idx) => (
                                 <div key={idx} className="bg-white border border-[#E7E9F7] rounded-3xl p-5 shadow-sm flex items-center gap-5 hover:shadow-md transition-shadow">
-                                    <div className="w-[60px] h-[60px] rounded-full border-2 border-blue-100 flex items-center justify-center font-black text-2xl text-[#2A45C2] bg-white">
+                                    <div className="w-[60px] h-[60px] rounded-full border-2 border-blue-100 flex items-center justify-center font-black text-2xl text-[#2A45C2] bg-blue-50/30">
                                         {stat.value}
                                     </div>
                                     <div>
                                         <p className="text-[11px] font-black text-gray-500 uppercase tracking-wider mb-0.5">{stat.label}</p>
-                                        <p className="text-xl font-black text-gray-900">{stat.value}</p>
+                                        <p className="text-2xl font-black text-gray-900">{stat.value}</p>
                                     </div>
                                 </div>
                             ))}
@@ -908,7 +880,7 @@ const UserProfileCom = () => {
                             {isOwnProfile && (
                                 <button
                                     onClick={() => navigate('/user-dashboard')}
-                                    className="bg-white text-[#2A45C2] hover:bg-gray-50 font-bold rounded-xl px-5 py-2 whitespace-nowrap shadow-sm text-sm transition-colors"
+                                    className="bg-white text-[#2A45C2] hover:bg-gray-50 font-bold rounded-xl px-5 py-2.5 whitespace-nowrap shadow-sm text-sm transition-colors"
                                 >
                                     Create a Post
                                 </button>
@@ -1001,19 +973,19 @@ const UserProfileCom = () => {
                 <div className="lg:col-span-4 space-y-6">
 
                     {/* Discover Network Card matching reference */}
-                    <div className="bg-white border border-[#E7E9F7] rounded-[24px] shadow-sm overflow-hidden">
+                    <div className="bg-white border border-[#E7E9F7] rounded-[24px] shadow-[0_2px_20px_rgba(30,41,89,0.04)] overflow-hidden">
                         <div className="bg-[#2A45C2] px-5 py-4 flex justify-between items-center">
                             <h3 className="text-[17px] font-black text-white flex items-center gap-2">
                                 <FaUsers /> Build Network
                             </h3>
                         </div>
 
-                        <div className="p-5 space-y-3 max-h-[450px] overflow-y-auto pr-2 custom-scrollbar bg-white">
+                        <div className="p-5 space-y-3 max-h-[450px] overflow-y-auto pr-2 custom-scrollbar">
                             {allUsers.length > 0 ? allUsers.slice(0, 6).map(user => (
-                                <div key={user.id} className="flex items-center justify-between p-3 rounded-2xl border border-gray-100 bg-white hover:border-[#E7E9F7] hover:bg-gray-50 transition-colors shadow-sm group">
+                                <div key={user.id} className="flex items-center justify-between p-3 rounded-2xl border border-transparent hover:border-[#E7E9F7] hover:bg-gray-50 transition-colors group">
                                     <div className="flex items-center gap-3">
                                         <div
-                                            className="w-11 h-11 rounded-full bg-gradient-to-tr from-[#2A45C2] to-[#8B5CF6] flex items-center justify-center font-bold text-white shadow-sm overflow-hidden shrink-0 cursor-pointer border border-gray-100"
+                                            className="w-11 h-11 rounded-full bg-gradient-to-tr from-[#2A45C2] to-[#8B5CF6] flex items-center justify-center font-bold text-white shadow-sm overflow-hidden shrink-0 cursor-pointer"
                                             onClick={() => navigate(`/user-dashboard/profile/${user.id}`)}
                                         >
                                             {user.profile_picture ? (
@@ -1036,7 +1008,7 @@ const UserProfileCom = () => {
                                         <button onClick={() => openChat(user)} className="w-8 h-8 rounded-full bg-white border border-gray-200 text-gray-500 flex items-center justify-center hover:text-[#2A45C2] hover:border-[#2A45C2] transition-colors shadow-sm" title="Message">
                                             <FaEnvelope size={12} />
                                         </button>
-                                        <button onClick={() => toggleFollow(user.id)} className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors shadow-sm ${followingMap[user.id] ? 'bg-blue-50 border border-[#2A45C2] text-[#2A45C2]' : 'bg-white border border-gray-200 text-gray-500 hover:text-[#2A45C2] hover:border-[#2A45C2]'}`} title={followingMap[user.id] ? "Unfollow" : "Follow"}>
+                                        <button onClick={() => toggleFollow(user.id)} className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors shadow-sm ${followingMap[user.id] ? 'bg-[#EEF1FE] text-[#2A45C2] border border-[#2A45C2]/30' : 'bg-white border border-gray-200 text-gray-500 hover:text-[#2A45C2] hover:border-[#2A45C2]'}`} title={followingMap[user.id] ? "Unfollow" : "Follow"}>
                                             {followingMap[user.id] ? <FaCheck size={10} /> : <FaPlus size={10} />}
                                         </button>
                                     </div>
