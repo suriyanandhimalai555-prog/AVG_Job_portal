@@ -51,6 +51,7 @@ const AppRouter = () => {
                         <Route path="refer" element={<UserReferral />} />
                         <Route path="my-network" element={<UserMyNetwork />} />
                         <Route path="profile" element={<UserProfile />} />
+                        <Route path="profile/:userId" element={<UserProfile />} />
 
                         <Route path="ai-calling" element={<UserAICalling />} />
                         <Route path="ai-calling-dashboard" element={<ActiveAICallingDashboard />} />
