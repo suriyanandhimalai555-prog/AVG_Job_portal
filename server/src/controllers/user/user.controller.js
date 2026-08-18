@@ -1,6 +1,28 @@
 import UserModel from '../../models/user/user.model.js';
 import { uploadBase64ToS3 } from '../../config/s3.js';
 
+// --- NEW PROXY TO FIX S3 CORS ISSUE ---
+export const proxyImage = async (req, res) => {
+    try {
+        const { url } = req.query;
+        if (!url) return res.status(400).json({ error: 'URL is required' });
+
+        const response = await fetch(url);
+        if (!response.ok) throw new Error('Failed to fetch image');
+
+        const arrayBuffer = await response.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+
+        // Return image with open CORS headers
+        res.setHeader('Content-Type', response.headers.get('content-type') || 'image/jpeg');
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.send(buffer);
+    } catch (error) {
+        console.error('Proxy Image Error:', error);
+        res.status(500).json({ error: 'Failed to proxy image' });
+    }
+};
+
 export const getUsers = async (req, res) => {
     try {
         const users = await UserModel.getAll();

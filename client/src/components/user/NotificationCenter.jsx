@@ -211,7 +211,7 @@ const NotificationCenter = () => {
     }
 
     return (
-        <div className="max-w-[1000px] mx-auto space-y-4 p-2 md:p-4 rounded-2xl bg-[#F5F6FC] min-h-screen animate-fade-in">
+        <div className="max-w-[1400px] mx-auto space-y-4 p-2 md:p-4 rounded-2xl bg-[#F5F6FC] min-h-screen animate-fade-in">
             <div className="bg-white rounded-3xl p-6 md:p-8 shadow-[0_2px_20px_rgba(30,41,89,0.04)] border border-[#E7E9F7]">
 
                 {/* Header Section */}
