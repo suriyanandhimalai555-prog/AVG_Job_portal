@@ -5,7 +5,7 @@ import {
     FaEnvelope, FaTimes, FaPaperPlane, FaUsers, FaRegFileAlt,
     FaHeart, FaRegComment, FaThumbsUp, FaSignLanguage, FaHandHoldingHeart,
     FaLightbulb, FaLaughBeam, FaChevronLeft, FaChevronRight, FaRegCommentDots, FaCamera,
-    FaLink, FaMapMarkerAlt, FaGraduationCap, FaBriefcase, FaPen, FaSpinner
+    FaLink, FaMapMarkerAlt, FaGraduationCap, FaBriefcase, FaPen, FaSpinner, FaPlus
 } from 'react-icons/fa';
 import { toast, Toaster } from 'react-hot-toast';
 import Cropper from 'react-easy-crop';
@@ -21,7 +21,7 @@ const UserProfileCom = () => {
     const [isEditPopupOpen, setIsEditPopupOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [isSavingImage, setIsSavingImage] = useState(false);
-    const [timestamp, setTimestamp] = useState(Date.now()); // Cache busting
+    const [timestamp, setTimestamp] = useState(Date.now());
 
     const [isOwnProfile, setIsOwnProfile] = useState(true);
     const [authUserId, setAuthUserId] = useState(null);
@@ -47,7 +47,8 @@ const UserProfileCom = () => {
         phoneType: 'Mobile',
         address: '',
         birthday: '',
-        websiteUrl: ''
+        websiteUrl: '',
+        websiteLinkText: ''
     });
 
     const [previewAvatarUrl, setPreviewAvatarUrl] = useState(null);
@@ -252,15 +253,26 @@ const UserProfileCom = () => {
         e.target.value = '';
     };
 
+    // ROBUST CORS BYPASS: Try Backend Proxy first, fallback to Public CORS Proxy
     const handleEditExistingPhoto = async () => {
         if (!isOwnProfile) return;
         if (profile.profile_picture) {
             const toastId = toast.loading("Preparing editor...");
             try {
-                // Fetch through proxy so the Canvas can load the image without S3 CORS blocks
-                const proxyUrl = `${apiUrl}/api/users/proxy-image?url=${encodeURIComponent(profile.profile_picture)}`;
-                const response = await fetch(proxyUrl);
-                if (!response.ok) throw new Error("Proxy load failed");
+                const baseUrl = apiUrl.replace(/\/$/, '');
+                const proxyUrl = `${baseUrl}/api/users/proxy-image?url=${encodeURIComponent(profile.profile_picture)}`;
+
+                let response = await fetch(proxyUrl);
+
+                // If the backend proxy fails (404/500 in live server), use public proxy fallback!
+                if (!response.ok) {
+                    console.warn("Backend proxy failed. Falling back to public proxy...");
+                    const fallbackProxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(profile.profile_picture)}`;
+                    response = await fetch(fallbackProxyUrl);
+                }
+
+                if (!response.ok) throw new Error("Image load failed completely");
+
                 const blob = await response.blob();
                 const localBlobUrl = URL.createObjectURL(blob);
 
@@ -274,6 +286,7 @@ const UserProfileCom = () => {
                 setEditorTab('crop');
             } catch (error) {
                 console.error("Editor load error:", error);
+                toast.error("Unable to load image. Please upload a new one.", { duration: 3000 });
                 document.getElementById('avatar-upload').click();
             } finally {
                 toast.dismiss(toastId);
@@ -355,9 +368,28 @@ const UserProfileCom = () => {
             const finalBase64Image = await generateFinalCompositedImage(cropImageSrc, croppedAreaPixels);
             const token = getAuthToken();
 
-            // ONLY send the profile picture. Database dynamic query will leave other fields untouched.
+            // CRITICAL FIX: Send the ENTIRE profile payload to prevent your live backend from 
+            // crashing (500 error) or setting missing details to NULL.
             const payload = {
-                profile_picture: finalBase64Image
+                full_name: profile.name,
+                email: profile.email,
+                phone: profile.phone,
+                role: profile.role,
+                status: profile.status,
+                profile_picture: finalBase64Image,
+                pronouns: profile.pronouns,
+                headline: profile.headline,
+                position: profile.position,
+                industry: profile.industry,
+                school: profile.school,
+                country: profile.country,
+                city: profile.city,
+                profile_url: profile.profileUrl,
+                phone_type: profile.phoneType,
+                address: profile.address,
+                birthday: profile.birthday,
+                website_url: profile.websiteUrl,
+                website_link_text: profile.websiteLinkText
             };
 
             const res = await fetch(`${apiUrl}/api/users/${profile.id}`, {
@@ -384,6 +416,7 @@ const UserProfileCom = () => {
             setCropImageSrc(null);
             toast.success('Profile picture updated successfully!', { id: loadingToast });
         } catch (error) {
+            console.error("Save Image Error:", error);
             toast.error("Unable to update profile picture. Please try again.", { id: loadingToast });
         } finally {
             setIsSavingImage(false);
@@ -534,7 +567,7 @@ const UserProfileCom = () => {
     const portfolioLink = profile.websiteUrl || profile.profileUrl;
 
     return (
-        <div className="max-w-[1400px] mx-auto p-4 md:p-8 min-h-screen relative bg-[#F5F6FC]">
+        <div className="max-w-[1200px] mx-auto p-4 md:p-8 min-h-screen relative bg-[#F5F6FC]">
             <Toaster position="top-right" />
 
             {/* INTEGRATE USER EDIT POPUP */}
@@ -550,13 +583,13 @@ const UserProfileCom = () => {
             {/* --- CROPPER MODAL UI --- */}
             {cropImageSrc && isOwnProfile && (
                 <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
-                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl flex flex-col overflow-hidden max-h-[95vh]">
+                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md flex flex-col overflow-hidden max-h-[95vh]">
 
                         <div className="flex items-center justify-between p-5 border-b border-[#E7E9F7] bg-gradient-to-r from-[#141B3C] via-[#2A45C2] to-[#5B4FE0] text-white shrink-0">
                             <h3 className="font-extrabold text-lg flex items-center gap-2"><FaCamera /> Profile Photo Editor</h3>
                             <div className="flex items-center gap-3">
-                                {/* Explicit "Upload New Image" Button */}
-                                <label htmlFor="avatar-upload-editor" className="cursor-pointer px-4 py-1.5 bg-white/20 text-white font-bold rounded-xl hover:bg-white/30 transition-colors text-sm border border-white/40">
+                                {/* Upload New Image Button */}
+                                <label htmlFor="avatar-upload-editor" className="cursor-pointer px-3 py-1.5 bg-white text-[#2A45C2] font-black rounded-lg hover:bg-gray-100 transition-colors text-xs shadow-sm">
                                     Upload New
                                 </label>
                                 <input type="file" id="avatar-upload-editor" accept="image/*" onChange={handleAvatarSelect} className="hidden" />
@@ -638,7 +671,14 @@ const UserProfileCom = () => {
                                             { id: 'grayscale', label: 'B&W', css: 'grayscale(100%)' },
                                             { id: 'sepia', label: 'Sepia', css: 'sepia(100%)' }
                                         ].map(f => (
-                                            <div key={f.id} onClick={() => setImageFilter(f.id)} className={`cursor-pointer flex flex-col items-center gap-2 group`}>
+                                            <div
+                                                key={f.id}
+                                                onClick={() => {
+                                                    setImageFilter(f.id);
+                                                    if (f.id === 'none') setAdjustments({ brightness: 100, contrast: 100, saturation: 100 });
+                                                }}
+                                                className={`cursor-pointer flex flex-col items-center gap-2 group`}
+                                            >
                                                 <div className={`w-14 h-14 rounded-full overflow-hidden border-2 transition-all ${imageFilter === f.id ? 'border-[#2A45C2] shadow-md scale-110' : 'border-gray-200 group-hover:border-[#2A45C2]/50'}`}>
                                                     <img src={cropImageSrc} style={{ filter: f.css, objectFit: 'cover', width: '100%', height: '100%' }} alt="filter preview" />
                                                 </div>
@@ -721,11 +761,11 @@ const UserProfileCom = () => {
                             </button>
                         )}
 
-                        <div className="flex flex-col md:flex-row gap-6 md:gap-8 items-center md:items-start text-center md:text-left">
+                        <div className="flex flex-col md:flex-row gap-6 items-center md:items-start text-center md:text-left">
                             {/* Avatar Section */}
                             <div className="relative group shrink-0">
                                 <div
-                                    className={`w-[140px] h-[140px] bg-white rounded-full p-1 shadow-sm border border-gray-100 ${isOwnProfile ? 'cursor-pointer hover:scale-[1.02] transition-transform' : ''}`}
+                                    className={`w-[130px] h-[130px] md:w-[150px] md:h-[150px] bg-white rounded-full p-1 shadow-sm border border-gray-100 ${isOwnProfile ? 'cursor-pointer hover:scale-[1.02] transition-transform' : ''}`}
                                     onClick={isOwnProfile ? handleEditExistingPhoto : undefined}
                                     title={isOwnProfile ? "Click to edit profile picture" : ""}
                                 >
@@ -748,16 +788,32 @@ const UserProfileCom = () => {
 
                             {/* Info Section */}
                             <div className="flex-1 w-full pt-1">
-                                <h1 className="text-[28px] font-black text-gray-900 mb-1 flex items-center justify-center md:justify-start gap-2 flex-wrap pr-0 md:pr-24">
-                                    {profile.name}
-                                    {profile.pronouns && <span className="text-[15px] font-black text-[#2A45C2]">({profile.pronouns})</span>}
-                                </h1>
+                                <div className="flex justify-between items-start mb-3">
+                                    <div>
+                                        <h1 className="text-2xl md:text-[28px] font-black text-gray-900 mb-1 flex items-center justify-center md:justify-start gap-2 flex-wrap pr-0 md:pr-24">
+                                            {profile.name}
+                                            {profile.pronouns && <span className="text-[15px] font-black text-[#2A45C2]">({profile.pronouns})</span>}
+                                        </h1>
 
-                                {profile.headline && (
-                                    <p className="text-[15px] text-gray-700 font-bold mb-4">
-                                        {profile.headline}
-                                    </p>
-                                )}
+                                        {profile.headline && (
+                                            <p className="text-[15px] text-gray-700 font-bold mb-4">
+                                                {profile.headline}
+                                            </p>
+                                        )}
+                                    </div>
+
+                                    {/* Follow/Message Actions for External View */}
+                                    {!isOwnProfile && (
+                                        <div className="flex gap-2 shrink-0">
+                                            <Button onClick={() => toggleFollow(profile.id)} className={`rounded-xl font-bold flex items-center gap-2 py-2 shadow-sm ${followingMap[profile.id] ? 'bg-blue-50 border border-[#2A45C2] text-[#2A45C2] hover:bg-blue-100' : 'bg-[#2A45C2] text-white hover:bg-[#1a2b7a]'}`}>
+                                                {followingMap[profile.id] ? <FaCheck /> : <FaPlus />} {followingMap[profile.id] ? 'Following' : 'Follow'}
+                                            </Button>
+                                            <Button onClick={() => openChat(profile)} variant="outline" className="rounded-xl border-[#E7E9F7] text-[#2A45C2] font-bold hover:border-[#2A45C2] hover:bg-blue-50 flex items-center gap-2 py-2 shadow-sm">
+                                                <FaEnvelope /> Message
+                                            </Button>
+                                        </div>
+                                    )}
+                                </div>
 
                                 {/* Details Row Grid */}
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-y-3 gap-x-4 mb-6">
