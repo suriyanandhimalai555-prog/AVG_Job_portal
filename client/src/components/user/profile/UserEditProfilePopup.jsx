@@ -35,8 +35,7 @@ const UserEditProfilePopup = ({ isOpen, onClose, profileData, onSave }) => {
     useEffect(() => {
         if (isOpen && profileData) {
             const names = splitName(profileData.name);
-            setFormData(prev => ({
-                ...prev,
+            setFormData({
                 firstName: names.first || '',
                 lastName: names.last || '',
                 email: profileData.email || '',
@@ -48,12 +47,11 @@ const UserEditProfilePopup = ({ isOpen, onClose, profileData, onSave }) => {
                 school: profileData.school || '',
                 country: profileData.country || '',
                 city: profileData.city || '',
-                profileUrl: profileData.profileUrl || '',
                 phoneType: profileData.phoneType || 'Mobile',
                 address: profileData.address || '',
                 birthday: profileData.birthday || '',
                 websiteUrl: profileData.websiteUrl || profileData.profileUrl || ''
-            }));
+            });
         }
     }, [isOpen, profileData]);
 
@@ -80,12 +78,12 @@ const UserEditProfilePopup = ({ isOpen, onClose, profileData, onSave }) => {
             school: formData.school,
             country: formData.country,
             city: formData.city,
-            profileUrl: formData.profileUrl,
+            profileUrl: formData.websiteUrl, // Ensure both are synced to the Portfolio link
             phoneType: formData.phoneType,
             address: formData.address,
             birthday: formData.birthday,
             websiteUrl: formData.websiteUrl,
-            websiteLinkText: '' // Clearing out the old link text feature to safely maintain DB structure
+            websiteLinkText: ''
         });
     };
 
@@ -220,7 +218,6 @@ const UserEditProfilePopup = ({ isOpen, onClose, profileData, onSave }) => {
                     </section>
                 </form>
 
-                {/* Modal Footer */}
                 <div className="p-4 border-t border-[#E7E9F7] bg-white flex justify-end gap-3 shrink-0">
                     <Button variant="outline" onClick={onClose} className="rounded-xl font-bold bg-white border-gray-300 text-gray-700 hover:bg-gray-100">
                         Cancel

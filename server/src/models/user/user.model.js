@@ -61,6 +61,7 @@ export const createUserTable = async () => {
 
 const UserModel = {
     getAll: async () => {
+        // Fetching all fields to keep payload consistent across network
         const query = `
             SELECT id, full_name, email, phone, role, status, profile_picture, created_at, 
             pronouns, headline, position, industry, school, country, city, profile_url, 
@@ -105,44 +106,33 @@ const UserModel = {
     },
 
     update: async (id, data) => {
-        const {
-            full_name, email, phone, role, status, profile_picture,
-            pronouns, headline, position, industry, school, country, city,
-            profile_url, phone_type, address, birthday, website_url, website_link_text
-        } = data;
+        const fields = [];
+        const values = [];
+        let idx = 1;
 
-        // If a field is passed, update it. If it is undefined, fallback to the existing column value using COALESCE.
-        const query = `
-            UPDATE users 
-            SET full_name = COALESCE($1, full_name), 
-                email = COALESCE($2, email), 
-                phone = COALESCE($3, phone), 
-                role = COALESCE($4, role), 
-                status = COALESCE($5, status),
-                profile_picture = COALESCE($6, profile_picture),
-                pronouns = COALESCE($7, pronouns), 
-                headline = COALESCE($8, headline), 
-                position = COALESCE($9, position), 
-                industry = COALESCE($10, industry),
-                school = COALESCE($11, school), 
-                country = COALESCE($12, country), 
-                city = COALESCE($13, city), 
-                profile_url = COALESCE($14, profile_url),
-                phone_type = COALESCE($15, phone_type), 
-                address = COALESCE($16, address), 
-                birthday = COALESCE($17, birthday), 
-                website_url = COALESCE($18, website_url), 
-                website_link_text = COALESCE($19, website_link_text)
-            WHERE id = $20 
-            RETURNING id, full_name, email, phone, role, status, profile_picture;
-        `;
-        
-        const { rows } = await pool.query(query, [
-            full_name, email, phone, role, status, profile_picture || null,
-            pronouns, headline, position, industry, school, country, city,
-            profile_url, phone_type, address, birthday || null, website_url, website_link_text,
-            id
-        ]);
+        // Valid columns mapping to ensure SQL injection protection and clean updates
+        const validColumns = [
+            'full_name', 'email', 'phone', 'role', 'status', 'profile_picture',
+            'pronouns', 'headline', 'position', 'industry', 'school', 'country', 'city',
+            'profile_url', 'phone_type', 'address', 'birthday', 'website_url', 'website_link_text'
+        ];
+
+        // DYNAMIC QUERY BUILDER: Only update fields that exist in the payload!
+        // This ensures saving an Avatar doesn't delete your headline/school data.
+        for (const [key, value] of Object.entries(data)) {
+            if (validColumns.includes(key) && value !== undefined) {
+                fields.push(`${key} = $${idx}`);
+                // Handle empty string mapping to null for dates
+                values.push(value === '' && key === 'birthday' ? null : value);
+                idx++;
+            }
+        }
+
+        if (fields.length === 0) return null; // Prevent crash if empty update payload
+
+        values.push(id);
+        const query = `UPDATE users SET ${fields.join(', ')} WHERE id = $${idx} RETURNING *`;
+        const { rows } = await pool.query(query, values);
         return rows[0];
     },
 
@@ -195,7 +185,6 @@ const UserModel = {
         const followers = await pool.query('SELECT COUNT(*) FROM user_followers WHERE following_id = $1', [userId]);
         const following = await pool.query('SELECT COUNT(*) FROM user_followers WHERE follower_id = $1', [userId]);
         const followingList = await pool.query('SELECT following_id FROM user_followers WHERE follower_id = $1', [userId]);
-
         const followerList = await pool.query('SELECT follower_id FROM user_followers WHERE following_id = $1', [userId]);
 
         return {
