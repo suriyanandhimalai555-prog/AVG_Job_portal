@@ -77,6 +77,17 @@ const UserModel = {
         return rows[0];
     },
 
+    getById: async (id) => {
+        const query = `
+            SELECT id, full_name, email, phone, role, status, profile_picture, created_at,
+            pronouns, headline, position, industry, school, country, city, profile_url,
+            phone_type, address, birthday, website_url, website_link_text
+            FROM users WHERE id = $1
+        `;
+        const { rows } = await pool.query(query, [id]);
+        return rows[0] || null;
+    },
+
     create: async (userData) => {
         const { fullName, email, phone, passwordHash, referralCode, role = 'User', status = 'Active', profile_picture = null } = userData;
 

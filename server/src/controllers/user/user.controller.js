@@ -25,6 +25,9 @@ export const proxyImage = async (req, res) => {
 
 export const getUsers = async (req, res) => {
     try {
+        // Prevent any reverse proxy / CDN in front of the live API from serving a
+        // stale cached copy of this list after a profile update.
+        res.set('Cache-Control', 'no-store');
         const users = await UserModel.getAll();
         res.status(200).json(users);
     } catch (error) {
@@ -33,16 +36,42 @@ export const getUsers = async (req, res) => {
     }
 };
 
+export const getUserById = async (req, res) => {
+    try {
+        res.set('Cache-Control', 'no-store');
+        const { id } = req.params;
+        const user = await UserModel.getById(id);
+        if (!user) return res.status(404).json({ error: 'User not found.' });
+        res.status(200).json(user);
+    } catch (error) {
+        console.error('Fetch User Error:', error);
+        res.status(500).json({ error: 'Failed to fetch user' });
+    }
+};
+
 export const updateUser = async (req, res) => {
     try {
         const { id } = req.params;
         let updateData = { ...req.body };
 
-        // If a new base64 profile picture string is supplied, upload it to S3
+        // If a new base64 profile picture string is supplied, upload it to S3.
+        // This is isolated in its own try/catch so an S3 failure returns a clear
+        // error instead of silently proceeding and letting the rest of the
+        // payload overwrite the user's saved profile with an unresolved image.
         if (updateData.profile_picture && updateData.profile_picture.startsWith('data:image/')) {
-            const imageUrl = await uploadBase64ToS3(updateData.profile_picture);
-            updateData.profile_picture = imageUrl;
+            try {
+                updateData.profile_picture = await uploadBase64ToS3(updateData.profile_picture);
+            } catch (uploadError) {
+                console.error('S3 Upload Error:', uploadError);
+                return res.status(502).json({ error: 'Failed to upload profile picture. Please try again.' });
+            }
         }
+
+        // Debug aid: log exactly which fields this request is writing, so a
+        // request that unexpectedly wipes fields (e.g. an avatar-only save that
+        // accidentally includes blank values for other columns) is visible in
+        // the production logs instead of silently persisting.
+        console.log(`[updateUser] id=${id} fields=${Object.keys(updateData).join(',')}`);
 
         const updatedUser = await UserModel.update(id, updateData);
         if (!updatedUser) return res.status(404).json({ error: 'User not found.' });

@@ -1,6 +1,6 @@
 import express from 'express';
 import {
-    getUsers, updateUser, deleteUser, getUserStats, toggleFollowUser, getFollowData, proxyImage
+    getUsers, getUserById, updateUser, deleteUser, getUserStats, toggleFollowUser, getFollowData, proxyImage
 } from '../../controllers/user/user.controller.js';
 
 const router = express.Router();
@@ -10,6 +10,7 @@ router.get('/proxy-image', proxyImage);
 
 router.get('/', getUsers);
 router.get('/:id/stats', getUserStats);
+router.get('/:id', getUserById);
 router.put('/:id', updateUser);
 router.delete('/:id', deleteUser);
 router.post('/:id/follow', toggleFollowUser);

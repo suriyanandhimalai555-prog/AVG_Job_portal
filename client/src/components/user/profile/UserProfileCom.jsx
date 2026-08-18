@@ -25,6 +25,10 @@ const UserProfileCom = () => {
 
     const [isOwnProfile, setIsOwnProfile] = useState(true);
     const [authUserId, setAuthUserId] = useState(null);
+    // True only once we've confirmed we hold the server's real copy of the
+    // profile. Saving (avatar or edit-popup) is blocked while this is false so
+    // we can never overwrite real DB data with the component's blank initial state.
+    const [profileLoadFailed, setProfileLoadFailed] = useState(false);
 
     const [profile, setProfile] = useState({
         id: null,
@@ -100,6 +104,35 @@ const UserProfileCom = () => {
         }
     }, [userPosts]);
 
+    // Fetches a single user record straight from the DB (no caching, retried on
+    // transient failure). This is the ONLY source that populates `profile`, so
+    // save actions can never fire against blank/stale local state.
+    const fetchUserById = async (id, token, attempt = 1) => {
+        try {
+            const res = await fetch(`${apiUrl}/api/users/${id}`, {
+                headers: { 'Authorization': `Bearer ${token}` },
+                cache: 'no-store'
+            });
+            if (res.status === 404) {
+                const err = new Error('User not found');
+                err.notFound = true;
+                throw err;
+            }
+            if (!res.ok) throw new Error(`Request failed with status ${res.status}`);
+            return await res.json();
+        } catch (error) {
+            if (error.notFound) throw error;
+            // Retry a couple of times with backoff — production hosts (cold
+            // starts, flaky first connection) fail transiently far more often
+            // than a local dev server does.
+            if (attempt < 3) {
+                await new Promise(r => setTimeout(r, 700 * attempt));
+                return fetchUserById(id, token, attempt + 1);
+            }
+            throw error;
+        }
+    };
+
     const fetchInitialData = async () => {
         setIsLoading(true);
         try {
@@ -125,8 +158,68 @@ const UserProfileCom = () => {
             setIsOwnProfile(isSelf);
 
             const headers = { 'Authorization': `Bearer ${token}` };
-            const usersRes = await fetch(`${apiUrl}/api/users`, { headers }).catch(() => null);
             let targetUserName = '';
+
+            let targetUser = null;
+            try {
+                targetUser = await fetchUserById(targetId, token);
+                setProfileLoadFailed(false);
+            } catch (error) {
+                if (error.notFound) {
+                    toast.error("User profile not found.");
+                    navigate('/user-dashboard');
+                    return;
+                }
+                console.error('Failed to load profile from server:', error);
+                setProfileLoadFailed(true);
+                toast.error("Couldn't load your profile from the server. Please refresh — editing is disabled until this succeeds so nothing gets overwritten.");
+            }
+
+            if (targetUser) {
+                targetUserName = targetUser.full_name || '';
+                const formattedBirthday = targetUser.birthday ? targetUser.birthday.split('T')[0] : '';
+
+                setProfile(prev => ({
+                    ...prev,
+                    id: targetUser.id,
+                    name: targetUserName,
+                    email: targetUser.email || '',
+                    phone: targetUser.phone || '',
+                    role: targetUser.role || 'User',
+                    status: targetUser.status || 'Active',
+                    profile_picture: targetUser.profile_picture || '',
+                    pronouns: targetUser.pronouns || '',
+                    headline: targetUser.headline || '',
+                    position: targetUser.position || '',
+                    industry: targetUser.industry || '',
+                    school: targetUser.school || '',
+                    country: targetUser.country || '',
+                    city: targetUser.city || '',
+                    profileUrl: targetUser.profile_url || '',
+                    phoneType: targetUser.phone_type || 'Mobile',
+                    address: targetUser.address || '',
+                    birthday: formattedBirthday,
+                    websiteUrl: targetUser.website_url || ''
+                }));
+
+                if (isSelf) {
+                    const storedUserStr = localStorage.getItem('user');
+                    if (storedUserStr) {
+                        const storedUser = JSON.parse(storedUserStr);
+                        if (storedUser.profile_picture !== targetUser.profile_picture) {
+                            storedUser.profile_picture = targetUser.profile_picture || '';
+                            localStorage.setItem('user', JSON.stringify(storedUser));
+                            window.dispatchEvent(new Event('storage'));
+                        }
+                    }
+                }
+            }
+
+            // Secondary, non-critical data for the sidebar/discovery list & avatar
+            // lookups. This one is fine to fail quietly since it never drives a
+            // save — it only decorates other people's cards.
+            const usersRes = await fetch(`${apiUrl}/api/users`, { headers, cache: 'no-store' })
+                .catch((err) => { console.warn('Failed to load users list:', err); return null; });
 
             if (usersRes && usersRes.ok) {
                 const usersList = await usersRes.json();
@@ -137,52 +230,6 @@ const UserProfileCom = () => {
                     if (u.full_name || u.name) uMap[u.full_name || u.name] = u.profile_picture || '';
                 });
                 setUsersMap(uMap);
-
-                const targetUser = usersList.find(u => String(u.id) === String(targetId));
-
-                if (targetUser) {
-                    targetUserName = targetUser.full_name || targetUser.name || '';
-                    const formattedBirthday = targetUser.birthday ? targetUser.birthday.split('T')[0] : '';
-
-                    setProfile(prev => ({
-                        ...prev,
-                        id: targetUser.id,
-                        name: targetUserName,
-                        email: targetUser.email || '',
-                        phone: targetUser.phone || '',
-                        role: targetUser.role || 'User',
-                        status: targetUser.status || 'Active',
-                        profile_picture: targetUser.profile_picture || '',
-                        pronouns: targetUser.pronouns || '',
-                        headline: targetUser.headline || '',
-                        position: targetUser.position || '',
-                        industry: targetUser.industry || '',
-                        school: targetUser.school || '',
-                        country: targetUser.country || '',
-                        city: targetUser.city || '',
-                        profileUrl: targetUser.profile_url || '',
-                        phoneType: targetUser.phone_type || 'Mobile',
-                        address: targetUser.address || '',
-                        birthday: formattedBirthday,
-                        websiteUrl: targetUser.website_url || ''
-                    }));
-
-                    if (isSelf) {
-                        const storedUserStr = localStorage.getItem('user');
-                        if (storedUserStr) {
-                            const storedUser = JSON.parse(storedUserStr);
-                            if (storedUser.profile_picture !== targetUser.profile_picture) {
-                                storedUser.profile_picture = targetUser.profile_picture || '';
-                                localStorage.setItem('user', JSON.stringify(storedUser));
-                                window.dispatchEvent(new Event('storage'));
-                            }
-                        }
-                    }
-                } else {
-                    toast.error("User profile not found.");
-                    navigate('/user-dashboard');
-                    return;
-                }
 
                 const filteredUsers = usersList.filter(u => String(u.id) !== String(loggedInId) && u.role?.toLowerCase() !== 'admin');
                 setAllUsers(filteredUsers);
@@ -253,8 +300,13 @@ const UserProfileCom = () => {
         e.target.value = '';
     };
 
+    // ROBUST CORS BYPASS: Try Backend Proxy first, fallback to Public CORS Proxy
     const handleEditExistingPhoto = async () => {
         if (!isOwnProfile) return;
+        if (!profile.id || profileLoadFailed) {
+            toast.error("Still loading your profile — please wait a moment.");
+            return;
+        }
         if (profile.profile_picture) {
             const toastId = toast.loading("Preparing editor...");
             try {
@@ -263,6 +315,7 @@ const UserProfileCom = () => {
 
                 let response = await fetch(proxyUrl);
 
+                // If the backend proxy fails (404/500 in live server), use public proxy fallback!
                 if (!response.ok) {
                     console.warn("Backend proxy failed. Falling back to public proxy...");
                     const fallbackProxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(profile.profile_picture)}`;
@@ -359,6 +412,14 @@ const UserProfileCom = () => {
 
     const handleCropSave = async () => {
         if (!cropImageSrc || !croppedAreaPixels) return;
+
+        // Same guard as handleSaveProfile: if we don't yet have a confirmed
+        // profile.id, bail rather than risk a write.
+        if (!profile.id || profileLoadFailed) {
+            toast.error("Your profile hasn't finished loading yet. Please wait a moment and try again.");
+            return;
+        }
+
         setIsSavingImage(true);
         const loadingToast = toast.loading('Saving and applying filters...');
 
@@ -366,11 +427,17 @@ const UserProfileCom = () => {
             const finalBase64Image = await generateFinalCompositedImage(cropImageSrc, croppedAreaPixels);
             const token = getAuthToken();
 
-            // FIX: ONLY send the profile picture! The backend dynamic query builder 
-            // will now update ONLY this field and keep your headline/position data safe.
-            const payload = {
-                profile_picture: finalBase64Image
-            };
+            // FIX: only send the field we're actually changing. The backend's
+            // update() does a full column overwrite for every key it receives,
+            // so previously sending the whole `profile` object here meant that
+            // ANY time this component's local state hadn't yet caught up with
+            // the server (slow/first network request, a transient fetch
+            // failure, etc.) every other profile field — headline, position,
+            // industry, school, address, birthday, and so on — got silently
+            // overwritten with blanks. That's what made saved details
+            // disappear after a refresh. Editing the photo should only ever
+            // touch the photo.
+            const payload = { profile_picture: finalBase64Image };
 
             const res = await fetch(`${apiUrl}/api/users/${profile.id}`, {
                 method: 'PUT',
@@ -410,6 +477,13 @@ const UserProfileCom = () => {
     };
 
     const handleSaveProfile = async (updatedData) => {
+        // Never let a save fire against an unconfirmed/blank profile — that's
+        // exactly what was silently wiping saved fields on refresh.
+        if (!profile.id || profileLoadFailed) {
+            toast.error("Your profile hasn't finished loading yet. Please wait a moment and try again.");
+            return;
+        }
+
         const loadingToast = toast.loading('Updating profile info...');
         try {
             const token = getAuthToken();
@@ -442,19 +516,41 @@ const UserProfileCom = () => {
             });
 
             if (!res.ok) throw new Error('Failed to update profile.');
+            const updatedUser = await res.json();
 
-            setProfile(prev => ({ ...prev, ...updatedData }));
+            // Trust what the server actually persisted, not what we sent —
+            // this is what the UI (and a subsequent refresh) should show.
+            const formattedBirthday = updatedUser.birthday ? updatedUser.birthday.split('T')[0] : '';
+            setProfile(prev => ({
+                ...prev,
+                name: updatedUser.full_name || '',
+                email: updatedUser.email || '',
+                phone: updatedUser.phone || '',
+                pronouns: updatedUser.pronouns || '',
+                headline: updatedUser.headline || '',
+                position: updatedUser.position || '',
+                industry: updatedUser.industry || '',
+                school: updatedUser.school || '',
+                country: updatedUser.country || '',
+                city: updatedUser.city || '',
+                profileUrl: updatedUser.profile_url || '',
+                phoneType: updatedUser.phone_type || 'Mobile',
+                address: updatedUser.address || '',
+                birthday: formattedBirthday,
+                websiteUrl: updatedUser.website_url || ''
+            }));
             setIsEditPopupOpen(false);
             toast.success('Profile updated successfully!', { id: loadingToast });
 
             const storedUserStr = localStorage.getItem('user');
             if (storedUserStr) {
                 const storedUser = JSON.parse(storedUserStr);
-                storedUser.fullName = updatedData.name;
+                storedUser.fullName = updatedUser.full_name;
                 localStorage.setItem('user', JSON.stringify(storedUser));
                 window.dispatchEvent(new Event('storage'));
             }
         } catch (error) {
+            console.error('Update Profile Error:', error);
             toast.error("Failed to update profile.", { id: loadingToast });
         }
     };
@@ -525,7 +621,7 @@ const UserProfileCom = () => {
 
     if (isLoading) {
         return (
-            <div className="max-w-[1200px] mx-auto p-4 md:p-8 min-h-screen">
+            <div className="max-w-[1400px] mx-auto p-4 md:p-8 min-h-screen">
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                     <div className="lg:col-span-8 space-y-6">
                         <Shimmer className="w-full h-[280px] rounded-3xl bg-gray-200" />
@@ -547,9 +643,10 @@ const UserProfileCom = () => {
     const portfolioLink = profile.websiteUrl || profile.profileUrl;
 
     return (
-        <div className="max-w-[1200px] mx-auto p-4 md:p-8 min-h-screen relative bg-[#F5F6FC]">
+        <div className="max-w-[1400px] mx-auto p-4 md:p-8 min-h-screen relative bg-[#F5F6FC]">
             <Toaster position="top-right" />
 
+            {/* INTEGRATE USER EDIT POPUP */}
             {isOwnProfile && (
                 <UserEditProfilePopup
                     isOpen={isEditPopupOpen}
@@ -559,15 +656,16 @@ const UserProfileCom = () => {
                 />
             )}
 
+            {/* --- CROPPER MODAL UI --- */}
             {cropImageSrc && isOwnProfile && (
                 <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
-                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl flex flex-col overflow-hidden max-h-[95vh]">
+                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md flex flex-col overflow-hidden max-h-[95vh]">
 
                         <div className="flex items-center justify-between p-5 border-b border-[#E7E9F7] bg-gradient-to-r from-[#141B3C] via-[#2A45C2] to-[#5B4FE0] text-white shrink-0">
                             <h3 className="font-extrabold text-lg flex items-center gap-2"><FaCamera /> Profile Photo Editor</h3>
                             <div className="flex items-center gap-3">
                                 {/* Upload New Image Button */}
-                                <label htmlFor="avatar-upload-editor" className="cursor-pointer px-4 py-1.5 bg-white text-[#2A45C2] font-black rounded-lg hover:bg-gray-100 transition-colors text-xs shadow-sm">
+                                <label htmlFor="avatar-upload-editor" className="cursor-pointer px-3 py-1.5 bg-white text-[#2A45C2] font-black rounded-lg hover:bg-gray-100 transition-colors text-xs shadow-sm">
                                     Upload New
                                 </label>
                                 <input type="file" id="avatar-upload-editor" accept="image/*" onChange={handleAvatarSelect} className="hidden" />
@@ -720,127 +818,140 @@ const UserProfileCom = () => {
                 </div>
             )}
 
+            {/* MAIN LAYOUT */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+                {/* --- LEFT MAIN COLUMN --- */}
                 <div className="lg:col-span-8 space-y-6">
 
                     {/* REDESIGNED PROFILE CARD MATCHING REFERENCE EXACTLY */}
-                    <div className="bg-white border border-[#E7E9F7] rounded-[24px] p-6 md:p-8 shadow-[0_2px_20px_rgba(30,41,89,0.04)] relative flex flex-col items-center text-center">
+                    <div className="bg-white border border-[#E7E9F7] rounded-[24px] p-6 shadow-sm relative">
 
                         {/* Edit Button */}
                         {isOwnProfile && (
                             <button
-                                onClick={() => setIsEditPopupOpen(true)}
-                                className="absolute top-6 right-6 flex items-center gap-2 px-4 py-1.5 rounded-xl border border-gray-200 text-gray-700 font-bold hover:bg-gray-50 transition-colors text-sm shadow-sm"
+                                onClick={() => {
+                                    if (!profile.id || profileLoadFailed) {
+                                        toast.error("Still loading your profile — please wait a moment.");
+                                        return;
+                                    }
+                                    setIsEditPopupOpen(true);
+                                }}
+                                disabled={!profile.id || profileLoadFailed}
+                                className="absolute top-6 right-6 flex items-center gap-2 px-4 py-1.5 rounded-xl border border-gray-200 text-gray-700 font-bold hover:bg-gray-50 transition-colors text-sm shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 <FaPen size={12} /> Edit
                             </button>
                         )}
 
-                        {/* Avatar Section */}
-                        <div className="relative group shrink-0 mb-4">
-                            <div
-                                className={`w-[130px] h-[130px] md:w-[150px] md:h-[150px] bg-white rounded-full p-1 shadow-sm border border-gray-100 ${isOwnProfile ? 'cursor-pointer hover:scale-[1.02] transition-transform' : ''}`}
-                                onClick={isOwnProfile ? handleEditExistingPhoto : undefined}
-                                title={isOwnProfile ? "Click to edit profile picture" : ""}
-                            >
-                                <div className="w-full h-full rounded-full overflow-hidden bg-gray-100 flex items-center justify-center text-5xl font-extrabold text-[#2A45C2] relative">
-                                    {currentDisplayAvatar ? (
-                                        <img src={`${currentDisplayAvatar}?t=${timestamp}`} alt={profile.name} className="w-full h-full object-cover" />
-                                    ) : (
-                                        <span>{profile.name ? profile.name.charAt(0).toUpperCase() : 'U'}</span>
-                                    )}
-                                    {isOwnProfile && (
-                                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <FaCamera size={24} />
+                        <div className="flex flex-col md:flex-row gap-6 items-center md:items-start text-center md:text-left">
+                            {/* Avatar Section */}
+                            <div className="relative group shrink-0">
+                                <div
+                                    className={`w-[130px] h-[130px] md:w-[150px] md:h-[150px] bg-white rounded-full p-1 shadow-sm border border-gray-100 ${isOwnProfile ? 'cursor-pointer hover:scale-[1.02] transition-transform' : ''}`}
+                                    onClick={isOwnProfile ? handleEditExistingPhoto : undefined}
+                                    title={isOwnProfile ? "Click to edit profile picture" : ""}
+                                >
+                                    <div className="w-full h-full rounded-full overflow-hidden bg-gray-100 flex items-center justify-center text-5xl font-extrabold text-[#2A45C2] relative">
+                                        {currentDisplayAvatar ? (
+                                            /* NO CROSSORIGIN HERE! Prevents S3 CORS errors on normal display */
+                                            <img src={`${currentDisplayAvatar}?t=${timestamp}`} alt={profile.name} className="w-full h-full object-cover" />
+                                        ) : (
+                                            <span>{profile.name ? profile.name.charAt(0).toUpperCase() : 'U'}</span>
+                                        )}
+                                        {isOwnProfile && (
+                                            <div className="absolute inset-0 bg-black/40 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <FaCamera size={24} />
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                                {isOwnProfile && <input type="file" id="avatar-upload" accept="image/*" onChange={handleAvatarSelect} className="hidden" />}
+                            </div>
+
+                            {/* Info Section */}
+                            <div className="flex-1 w-full pt-1">
+                                <div className="flex justify-between items-start mb-3">
+                                    <div>
+                                        <h1 className="text-2xl md:text-[28px] font-black text-gray-900 mb-1 flex items-center justify-center md:justify-start gap-2 flex-wrap pr-0 md:pr-24">
+                                            {profile.name}
+                                            {profile.pronouns && <span className="text-[15px] font-black text-[#2A45C2]">({profile.pronouns})</span>}
+                                        </h1>
+
+                                        {profile.headline && (
+                                            <p className="text-[15px] text-gray-700 font-bold mb-4">
+                                                {profile.headline}
+                                            </p>
+                                        )}
+                                    </div>
+
+                                    {/* Follow/Message Actions for External View */}
+                                    {!isOwnProfile && (
+                                        <div className="flex gap-2 shrink-0">
+                                            <Button onClick={() => toggleFollow(profile.id)} className={`rounded-xl font-bold flex items-center gap-2 py-2 shadow-sm ${followingMap[profile.id] ? 'bg-blue-50 border border-[#2A45C2] text-[#2A45C2] hover:bg-blue-100' : 'bg-[#2A45C2] text-white hover:bg-[#1a2b7a]'}`}>
+                                                {followingMap[profile.id] ? <FaCheck /> : <FaPlus />} {followingMap[profile.id] ? 'Following' : 'Follow'}
+                                            </Button>
+                                            <Button onClick={() => openChat(profile)} variant="outline" className="rounded-xl border-[#E7E9F7] text-[#2A45C2] font-bold hover:border-[#2A45C2] hover:bg-blue-50 flex items-center gap-2 py-2 shadow-sm">
+                                                <FaEnvelope /> Message
+                                            </Button>
                                         </div>
                                     )}
                                 </div>
-                            </div>
-                            {isOwnProfile && <input type="file" id="avatar-upload" accept="image/*" onChange={handleAvatarSelect} className="hidden" />}
-                        </div>
 
-                        {/* Name and Pronouns */}
-                        <h1 className="text-[26px] md:text-[30px] font-black text-gray-900 mb-1 flex items-center justify-center gap-2 flex-wrap">
-                            {profile.name}
-                            {profile.pronouns && <span className="text-[15px] font-black text-[#2A45C2]">({profile.pronouns})</span>}
-                        </h1>
-
-                        {/* Headline/Position */}
-                        {profile.headline ? (
-                            <p className="text-[15px] text-gray-700 font-bold mb-4">
-                                {profile.headline}
-                            </p>
-                        ) : (profile.position && (
-                            <p className="text-[15px] text-gray-700 font-bold mb-4">
-                                {profile.position} {profile.industry ? `@ ${profile.industry}` : ''}
-                            </p>
-                        ))}
-
-                        {/* Details Row Grid */}
-                        <div className="flex flex-col md:flex-row items-center justify-center gap-x-8 gap-y-2 mb-6">
-                            {(profile.city || profile.country) && (
-                                <div className="flex items-center gap-2 text-sm font-semibold text-gray-600">
-                                    <FaMapMarkerAlt className="text-[#2A45C2]" />
-                                    {profile.city ? `${profile.city}, ` : ''}{profile.country}
+                                {/* Details Row Grid */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-y-3 gap-x-4 mb-6">
+                                    {(profile.city || profile.country) && (
+                                        <div className="flex items-center justify-center md:justify-start gap-2 text-sm font-semibold text-gray-600">
+                                            <FaMapMarkerAlt className="text-[#2A45C2]" />
+                                            {profile.city ? `${profile.city}, ` : ''}{profile.country}
+                                        </div>
+                                    )}
+                                    {profile.school && (
+                                        <div className="flex items-center justify-center md:justify-start gap-2 text-sm font-semibold text-gray-600">
+                                            <FaGraduationCap className="text-[#2A45C2]" />
+                                            {profile.school}
+                                        </div>
+                                    )}
+                                    {(profile.position || profile.industry) && (
+                                        <div className="flex items-center justify-center md:justify-start gap-2 text-sm font-semibold text-gray-600">
+                                            <FaBriefcase className="text-[#2A45C2]" />
+                                            {profile.position}{profile.position && profile.industry ? ' · ' : ''}{profile.industry}
+                                        </div>
+                                    )}
                                 </div>
-                            )}
-                            {profile.school && (
-                                <div className="flex items-center gap-2 text-sm font-semibold text-gray-600">
-                                    <FaGraduationCap className="text-[#2A45C2]" />
-                                    {profile.school}
+
+                                {/* Pills Integration */}
+                                <div className="flex flex-wrap items-center justify-center md:justify-start gap-3">
+                                    <div
+                                        className="flex items-center gap-2 border border-gray-200 rounded-full px-4 py-1.5 bg-white hover:bg-gray-50 transition-colors cursor-pointer shadow-sm"
+                                        onClick={() => navigate('/user-dashboard/my-network', { state: { activeTab: 'followers' } })}
+                                    >
+                                        <span className="text-[15px] font-black text-[#2A45C2]">{profile.followers}</span>
+                                        <span className="text-xs font-bold text-gray-500 uppercase">Followers</span>
+                                    </div>
+
+                                    <div
+                                        className="flex items-center gap-2 border border-gray-200 rounded-full px-4 py-1.5 bg-white hover:bg-gray-50 transition-colors cursor-pointer shadow-sm"
+                                        onClick={() => navigate('/user-dashboard/my-network', { state: { activeTab: 'following' } })}
+                                    >
+                                        <span className="text-[15px] font-black text-[#2A45C2]">{profile.following}</span>
+                                        <span className="text-xs font-bold text-gray-500 uppercase">Following</span>
+                                    </div>
+
+                                    {/* Prominent Portfolio Button */}
+                                    {portfolioLink && (
+                                        <a
+                                            href={portfolioLink.startsWith('http') ? portfolioLink : `https://${portfolioLink}`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="bg-[#5B4FE0] text-white hover:bg-[#483bc7] transition-colors rounded-full px-5 py-1.5 flex items-center gap-2 font-bold text-sm shadow-sm"
+                                            title={portfolioLink}
+                                        >
+                                            <FaLink size={12} /> {portfolioLink.replace(/^https?:\/\//, '')}
+                                        </a>
+                                    )}
                                 </div>
-                            )}
-                        </div>
-
-                        {(profile.position || profile.industry) && profile.headline && (
-                            <div className="flex items-center justify-center gap-2 text-sm font-semibold text-gray-600 mb-6">
-                                <FaBriefcase className="text-[#2A45C2]" />
-                                {profile.position}{profile.position && profile.industry ? ' · ' : ''}{profile.industry}
                             </div>
-                        )}
-
-                        {/* Follow/Message Actions for External View */}
-                        {!isOwnProfile && (
-                            <div className="flex justify-center gap-3 mb-6">
-                                <Button onClick={() => toggleFollow(profile.id)} className={`rounded-xl font-bold flex items-center gap-2 py-2 shadow-sm ${followingMap[profile.id] ? 'bg-blue-50 border border-[#2A45C2] text-[#2A45C2] hover:bg-blue-100' : 'bg-[#2A45C2] text-white hover:bg-[#1a2b7a]'}`}>
-                                    {followingMap[profile.id] ? <FaCheck /> : <FaPlus />} {followingMap[profile.id] ? 'Following' : 'Follow'}
-                                </Button>
-                                <Button onClick={() => openChat(profile)} variant="outline" className="rounded-xl border-[#E7E9F7] text-[#2A45C2] font-bold hover:border-[#2A45C2] hover:bg-blue-50 flex items-center gap-2 py-2 shadow-sm">
-                                    <FaEnvelope /> Message
-                                </Button>
-                            </div>
-                        )}
-
-                        {/* Pills Integration */}
-                        <div className="flex flex-wrap items-center justify-center gap-4">
-                            <div
-                                className="flex items-center gap-2 border border-gray-200 rounded-full px-5 py-2 bg-white hover:bg-gray-50 transition-colors cursor-pointer shadow-sm"
-                                onClick={() => navigate('/user-dashboard/my-network', { state: { activeTab: 'followers' } })}
-                            >
-                                <span className="text-[16px] font-black text-[#2A45C2]">{profile.followers}</span>
-                                <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">Followers</span>
-                            </div>
-
-                            <div
-                                className="flex items-center gap-2 border border-gray-200 rounded-full px-5 py-2 bg-white hover:bg-gray-50 transition-colors cursor-pointer shadow-sm"
-                                onClick={() => navigate('/user-dashboard/my-network', { state: { activeTab: 'following' } })}
-                            >
-                                <span className="text-[16px] font-black text-[#2A45C2]">{profile.following}</span>
-                                <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">Following</span>
-                            </div>
-
-                            {/* Prominent Portfolio Button */}
-                            {portfolioLink && (
-                                <a
-                                    href={portfolioLink.startsWith('http') ? portfolioLink : `https://${portfolioLink}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="bg-[#5B4FE0] text-white hover:bg-[#483bc7] transition-colors rounded-full px-6 py-2.5 flex items-center gap-2 font-bold text-sm shadow-md"
-                                    title={portfolioLink}
-                                >
-                                    <FaLink size={12} /> {portfolioLink.replace(/^https?:\/\//, '')}
-                                </a>
-                            )}
                         </div>
                     </div>
 
@@ -852,12 +963,12 @@ const UserProfileCom = () => {
                                 { label: 'SAVED JOBS', value: dashboardStats.saved }
                             ].map((stat, idx) => (
                                 <div key={idx} className="bg-white border border-[#E7E9F7] rounded-3xl p-5 shadow-sm flex items-center gap-5 hover:shadow-md transition-shadow">
-                                    <div className="w-[60px] h-[60px] rounded-full border-2 border-blue-100 flex items-center justify-center font-black text-2xl text-[#2A45C2] bg-blue-50/30">
+                                    <div className="w-[60px] h-[60px] rounded-full border-2 border-blue-100 flex items-center justify-center font-black text-2xl text-[#2A45C2] bg-white">
                                         {stat.value}
                                     </div>
                                     <div>
                                         <p className="text-[11px] font-black text-gray-500 uppercase tracking-wider mb-0.5">{stat.label}</p>
-                                        <p className="text-2xl font-black text-gray-900">{stat.value}</p>
+                                        <p className="text-xl font-black text-gray-900">{stat.value}</p>
                                     </div>
                                 </div>
                             ))}
@@ -880,7 +991,7 @@ const UserProfileCom = () => {
                             {isOwnProfile && (
                                 <button
                                     onClick={() => navigate('/user-dashboard')}
-                                    className="bg-white text-[#2A45C2] hover:bg-gray-50 font-bold rounded-xl px-5 py-2.5 whitespace-nowrap shadow-sm text-sm transition-colors"
+                                    className="bg-white text-[#2A45C2] hover:bg-gray-50 font-bold rounded-xl px-5 py-2 whitespace-nowrap shadow-sm text-sm transition-colors"
                                 >
                                     Create a Post
                                 </button>
@@ -973,19 +1084,19 @@ const UserProfileCom = () => {
                 <div className="lg:col-span-4 space-y-6">
 
                     {/* Discover Network Card matching reference */}
-                    <div className="bg-white border border-[#E7E9F7] rounded-[24px] shadow-[0_2px_20px_rgba(30,41,89,0.04)] overflow-hidden">
+                    <div className="bg-white border border-[#E7E9F7] rounded-[24px] shadow-sm overflow-hidden">
                         <div className="bg-[#2A45C2] px-5 py-4 flex justify-between items-center">
                             <h3 className="text-[17px] font-black text-white flex items-center gap-2">
                                 <FaUsers /> Build Network
                             </h3>
                         </div>
 
-                        <div className="p-5 space-y-3 max-h-[450px] overflow-y-auto pr-2 custom-scrollbar">
+                        <div className="p-5 space-y-3 max-h-[450px] overflow-y-auto pr-2 custom-scrollbar bg-white">
                             {allUsers.length > 0 ? allUsers.slice(0, 6).map(user => (
-                                <div key={user.id} className="flex items-center justify-between p-3 rounded-2xl border border-transparent hover:border-[#E7E9F7] hover:bg-gray-50 transition-colors group">
+                                <div key={user.id} className="flex items-center justify-between p-3 rounded-2xl border border-gray-100 bg-white hover:border-[#E7E9F7] hover:bg-gray-50 transition-colors shadow-sm group">
                                     <div className="flex items-center gap-3">
                                         <div
-                                            className="w-11 h-11 rounded-full bg-gradient-to-tr from-[#2A45C2] to-[#8B5CF6] flex items-center justify-center font-bold text-white shadow-sm overflow-hidden shrink-0 cursor-pointer"
+                                            className="w-11 h-11 rounded-full bg-gradient-to-tr from-[#2A45C2] to-[#8B5CF6] flex items-center justify-center font-bold text-white shadow-sm overflow-hidden shrink-0 cursor-pointer border border-gray-100"
                                             onClick={() => navigate(`/user-dashboard/profile/${user.id}`)}
                                         >
                                             {user.profile_picture ? (
@@ -1008,7 +1119,7 @@ const UserProfileCom = () => {
                                         <button onClick={() => openChat(user)} className="w-8 h-8 rounded-full bg-white border border-gray-200 text-gray-500 flex items-center justify-center hover:text-[#2A45C2] hover:border-[#2A45C2] transition-colors shadow-sm" title="Message">
                                             <FaEnvelope size={12} />
                                         </button>
-                                        <button onClick={() => toggleFollow(user.id)} className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors shadow-sm ${followingMap[user.id] ? 'bg-[#EEF1FE] text-[#2A45C2] border border-[#2A45C2]/30' : 'bg-white border border-gray-200 text-gray-500 hover:text-[#2A45C2] hover:border-[#2A45C2]'}`} title={followingMap[user.id] ? "Unfollow" : "Follow"}>
+                                        <button onClick={() => toggleFollow(user.id)} className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors shadow-sm ${followingMap[user.id] ? 'bg-blue-50 border border-[#2A45C2] text-[#2A45C2]' : 'bg-white border border-gray-200 text-gray-500 hover:text-[#2A45C2] hover:border-[#2A45C2]'}`} title={followingMap[user.id] ? "Unfollow" : "Follow"}>
                                             {followingMap[user.id] ? <FaCheck size={10} /> : <FaPlus size={10} />}
                                         </button>
                                     </div>
