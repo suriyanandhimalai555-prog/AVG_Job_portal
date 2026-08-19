@@ -1,13 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
     FaCommentDots, FaTimes, FaChevronLeft, FaPaperPlane,
-    FaSearch, FaLock, FaBell, FaMicrophone, FaStopCircle, FaCircle
+    FaSearch, FaLock, FaMicrophone, FaStopCircle, FaCircle
 } from 'react-icons/fa';
 import { io } from 'socket.io-client';
 import CryptoJS from 'crypto-js';
-import { toast, Toaster } from 'react-hot-toast';
+import { toast } from 'react-hot-toast';
 
-// --- LocalStorage Helpers for Persistent Unread Counts ---
 const getUnreadCounts = (userId) => {
     try {
         return JSON.parse(localStorage.getItem(`unread_msgs_${userId}`)) || {};
@@ -42,6 +41,9 @@ const GlobalChatWidget = () => {
     const [isLoadingHistory, setIsLoadingHistory] = useState(false);
     const [isRecording, setIsRecording] = useState(false);
 
+    // DYNAMIC CLOCK: Re-evaluates presence timestamps every 60 seconds
+    const [currentTime, setCurrentTime] = useState(Date.now());
+
     const [currentUser, setCurrentUser] = useState(null);
     const [socket, setSocket] = useState(null);
 
@@ -52,9 +54,11 @@ const GlobalChatWidget = () => {
     const mediaRecorderRef = useRef(null);
     const audioChunksRef = useRef([]);
 
+    // Global tracker to ensure status persists across renders & new chat instances
+    const onlineStatusMapRef = useRef({});
+
     const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5001';
 
-    // Keep refs updated for socket callbacks to prevent stale closures
     useEffect(() => {
         activeChatRef.current = activeChat;
     }, [activeChat]);
@@ -67,7 +71,12 @@ const GlobalChatWidget = () => {
         isOpenRef.current = isOpen;
     }, [isOpen]);
 
-    // 1. Encryption / Decryption Handlers
+    // Timer trigger for real-time offline status calculations
+    useEffect(() => {
+        const interval = setInterval(() => setCurrentTime(Date.now()), 60000);
+        return () => clearInterval(interval);
+    }, []);
+
     const generateSharedKey = (id1, id2) => {
         return [id1, id2].sort().join('-') + '-avg-secret-salt';
     };
@@ -87,20 +96,57 @@ const GlobalChatWidget = () => {
         }
     };
 
-    // --- Format messages for notifications / previews ---
     const formatPreviewText = (text) => {
         if (text.startsWith('data:audio')) return '🎤 Voice Message';
         return text;
     };
 
-    // --- Request Browser Notification Permission on Mount ---
+    // --- Dynamic Time Formatting Helpers ---
+    const getActiveStatusShort = (isOnline, lastSeen) => {
+        if (isOnline) return <span className="text-green-500 font-bold tracking-wide">Active now</span>;
+        if (!lastSeen) return '';
+
+        const diffMs = currentTime - new Date(lastSeen).getTime();
+        if (diffMs < 0) return 'Just now'; // Handle clock sync overlaps
+
+        const diffMins = Math.floor(diffMs / 60000);
+        if (diffMins < 1) return 'Just now';
+        if (diffMins < 60) return `${diffMins}m`;
+
+        const diffHours = Math.floor(diffMins / 60);
+        if (diffHours < 24) return `${diffHours}h`;
+
+        const diffDays = Math.floor(diffHours / 24);
+        if (diffDays === 1) return '1d';
+        return `${diffDays}d`;
+    };
+
+    const getActiveStatusLong = (isOnline, lastSeen) => {
+        if (isOnline) return 'Active now';
+        if (!lastSeen) return 'Offline';
+
+        const diffMs = currentTime - new Date(lastSeen).getTime();
+        if (diffMs < 0) return 'Active just now';
+
+        const diffMins = Math.floor(diffMs / 60000);
+        if (diffMins < 1) return 'Active just now';
+        if (diffMins < 60) return `Active ${diffMins}m ago`;
+
+        const diffHours = Math.floor(diffMins / 60);
+        if (diffHours < 24) return `Active ${diffHours}h ago`;
+
+        const diffDays = Math.floor(diffHours / 24);
+        if (diffDays === 1) return 'Active yesterday';
+        return `Active ${diffDays}d ago`;
+    };
+
     useEffect(() => {
         if ('Notification' in window && Notification.permission !== 'granted' && Notification.permission !== 'denied') {
             Notification.requestPermission();
         }
     }, []);
 
-    // 2. Initialize User & Socket Connection
+    // Initialize Socket & Sync Real-Time Statuses
     useEffect(() => {
         const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
         if (!token) return;
@@ -112,10 +158,38 @@ const GlobalChatWidget = () => {
             const newSocket = io(apiUrl, { auth: { token } });
             setSocket(newSocket);
 
+            // Fetch initial bulk online users
+            newSocket.on('online_users', (onlineUserIds) => {
+                onlineUserIds.forEach(id => {
+                    onlineStatusMapRef.current[id] = { online: true, lastSeen: null };
+                });
+
+                setContacts(prev => prev.map(c =>
+                    onlineUserIds.includes(String(c.id)) || onlineUserIds.includes(Number(c.id))
+                        ? { ...c, online: true, lastSeen: null }
+                        : c
+                ));
+            });
+
+            // Live status toggle
+            newSocket.on('user_status', ({ userId, online, lastSeen }) => {
+                onlineStatusMapRef.current[userId] = { online, lastSeen };
+
+                setContacts(prev => prev.map(c =>
+                    String(c.id) === String(userId) ? { ...c, online, lastSeen } : c
+                ));
+
+                setActiveChat(prev => {
+                    if (prev && String(prev.id) === String(userId)) {
+                        return { ...prev, online, lastSeen };
+                    }
+                    return prev;
+                });
+            });
+
             newSocket.on('receive_message', (encryptedPayload) => {
                 const { senderId, senderName, senderRole, text, time } = encryptedPayload;
 
-                // Prevent echoing your own messages
                 if (senderId === payload.id) return;
 
                 const decryptedText = decryptMessage(text, payload.id, senderId);
@@ -127,7 +201,8 @@ const GlobalChatWidget = () => {
                 if (!isCurrentlyActive) {
                     newUnreadCount = incrementUnreadCount(payload.id, senderId);
 
-                    // --- OUT-OF-APP BACKGROUND NOTIFICATION ---
+                    const senderGlobalStatus = onlineStatusMapRef.current[senderId] || { online: true, lastSeen: null };
+
                     if (document.hidden && 'Notification' in window && Notification.permission === 'granted') {
                         const notification = new Notification(`New message from ${senderName}`, {
                             body: previewText,
@@ -137,25 +212,39 @@ const GlobalChatWidget = () => {
                         notification.onclick = () => {
                             window.focus();
                             setIsOpen(true);
-                            const incomingContact = { id: senderId, name: senderName, role: senderRole, online: true, unreadCount: 0, lastMsg: previewText };
-                            setActiveChat(incomingContact);
+                            setContacts(prev => {
+                                const exist = prev.find(c => String(c.id) === String(senderId));
+                                const userState = {
+                                    id: senderId, name: senderName, role: senderRole,
+                                    online: exist ? exist.online : senderGlobalStatus.online,
+                                    lastSeen: exist ? exist.lastSeen : senderGlobalStatus.lastSeen,
+                                    unreadCount: 0, lastMsg: previewText
+                                };
+                                setActiveChat(userState);
+                                return prev.map(c => c.id === senderId ? { ...c, unreadCount: 0 } : c);
+                            });
                             setUnreadCount(payload.id, senderId, 0);
-                            setContacts(prev => prev.map(c => c.id === senderId ? { ...c, unreadCount: 0 } : c));
                             notification.close();
                         };
-                    }
-                    // --- IN-APP TOAST NOTIFICATION ---
-                    else {
+                    } else {
                         toast.custom((t) => (
                             <div
                                 className={`${t.visible ? 'animate-fade-in-up' : 'opacity-0'} max-w-sm w-full bg-white shadow-xl rounded-2xl pointer-events-auto flex border border-[#E7E9F7] cursor-pointer hover:border-[#2A45C2]/30 transition-all`}
                                 onClick={() => {
                                     toast.dismiss(t.id);
                                     setIsOpen(true);
-                                    const incomingContact = { id: senderId, name: senderName, role: senderRole, online: true, unreadCount: 0, lastMsg: previewText };
-                                    setActiveChat(incomingContact);
+                                    setContacts(prev => {
+                                        const exist = prev.find(c => String(c.id) === String(senderId));
+                                        const userState = {
+                                            id: senderId, name: senderName, role: senderRole,
+                                            online: exist ? exist.online : senderGlobalStatus.online,
+                                            lastSeen: exist ? exist.lastSeen : senderGlobalStatus.lastSeen,
+                                            unreadCount: 0, lastMsg: previewText
+                                        };
+                                        setActiveChat(userState);
+                                        return prev.map(c => c.id === senderId ? { ...c, unreadCount: 0 } : c);
+                                    });
                                     setUnreadCount(payload.id, senderId, 0);
-                                    setContacts(prev => prev.map(c => c.id === senderId ? { ...c, unreadCount: 0 } : c));
                                 }}
                             >
                                 <div className="flex-1 w-0 p-4">
@@ -183,22 +272,23 @@ const GlobalChatWidget = () => {
                     let updatedContacts = [];
 
                     if (!exists) {
+                        const senderGlobalStatus = onlineStatusMapRef.current[senderId] || { online: true, lastSeen: null };
                         updatedContacts = [{
                             id: senderId,
                             name: senderName,
                             role: senderRole,
-                            online: true,
+                            online: senderGlobalStatus.online,
+                            lastSeen: senderGlobalStatus.lastSeen,
                             lastMsg: previewText,
                             unreadCount: newUnreadCount
                         }, ...prev];
                     } else {
                         const otherContacts = prev.filter(c => c.id !== senderId);
-                        const updatedContact = {
+                        updatedContacts = [{
                             ...exists,
                             lastMsg: previewText,
                             unreadCount: newUnreadCount
-                        };
-                        updatedContacts = [updatedContact, ...otherContacts];
+                        }, ...otherContacts];
                     }
                     return updatedContacts;
                 });
@@ -221,7 +311,7 @@ const GlobalChatWidget = () => {
         }
     }, [apiUrl]);
 
-    // 3. Fetch Initial Contacts List on Load
+    // Initial Fetch & Merge with Live Map
     useEffect(() => {
         const fetchInitialContacts = async () => {
             if (!currentUser) return;
@@ -245,11 +335,15 @@ const GlobalChatWidget = () => {
                             lastMessageText = formatPreviewText(decrypted);
                         }
 
+                        // Merge DB data with live socket statuses
+                        const liveStatus = onlineStatusMapRef.current[cid];
+
                         return {
                             id: cid,
                             name: contact.full_name || contact.name || 'Unknown User',
                             role: contact.role || 'Member',
-                            online: false,
+                            online: liveStatus ? liveStatus.online : false,
+                            lastSeen: liveStatus && liveStatus.lastSeen !== undefined ? liveStatus.lastSeen : contact.last_seen,
                             unreadCount: unreadMap[cid] || 0,
                             lastMsg: lastMessageText
                         };
@@ -265,7 +359,7 @@ const GlobalChatWidget = () => {
         fetchInitialContacts();
     }, [currentUser, apiUrl]);
 
-    // 4. Fetch Chat History When Active Chat Changes
+    // Fetch History
     useEffect(() => {
         const fetchHistory = async () => {
             if (!activeChat || !currentUser) return;
@@ -302,45 +396,49 @@ const GlobalChatWidget = () => {
         fetchHistory();
     }, [activeChat, currentUser, apiUrl]);
 
-    // 5. Listen for Profile Page Custom Events
+    // Profile Page Trigger Listener
     useEffect(() => {
         const handleOpenChat = (event) => {
             const user = event.detail;
-            const formattedUser = {
-                id: user.id,
-                name: user.full_name || user.name || 'Unknown User',
-                role: user.role || 'Member',
-                online: true,
-                unreadCount: 0,
-                lastMsg: 'Click to view history'
-            };
+
+            setContacts(prev => {
+                const exists = prev.find(c => String(c.id) === String(user.id));
+                if (exists) {
+                    const updatedChat = { ...exists, unreadCount: 0 };
+                    setActiveChat(updatedChat);
+                    return prev.map(c => String(c.id) === String(user.id) ? updatedChat : c);
+                } else {
+                    const globalStatus = onlineStatusMapRef.current[user.id] || {};
+                    const formattedUser = {
+                        id: user.id,
+                        name: user.full_name || user.name || 'Unknown User',
+                        role: user.role || 'Member',
+                        online: globalStatus.online || false,
+                        lastSeen: globalStatus.lastSeen !== undefined ? globalStatus.lastSeen : (user.last_seen || null),
+                        unreadCount: 0,
+                        lastMsg: 'Start a conversation'
+                    };
+                    setActiveChat(formattedUser);
+                    return [formattedUser, ...prev];
+                }
+            });
 
             if (currentUserRef.current) {
                 setUnreadCount(currentUserRef.current.id, user.id, 0);
             }
-
-            setContacts(prev => {
-                const exists = prev.find(c => c.id === formattedUser.id);
-                if (!exists) return [formattedUser, ...prev];
-                return prev.map(c => c.id === formattedUser.id ? { ...c, unreadCount: 0 } : c);
-            });
-
             setIsOpen(true);
-            setActiveChat(formattedUser);
         };
 
         window.addEventListener('open-global-chat', handleOpenChat);
         return () => window.removeEventListener('open-global-chat', handleOpenChat);
     }, []);
 
-    // 6. Auto-scroll
     useEffect(() => {
         if (messagesEndRef.current) {
             messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
         }
     }, [messages, activeChat, isOpen]);
 
-    // 7. Send Message Helper
     const transmitMessage = (messagePayload) => {
         const timeString = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
@@ -375,7 +473,6 @@ const GlobalChatWidget = () => {
         setMessageInput('');
     };
 
-    // --- VOICE RECORDING LOGIC ---
     const startRecording = async () => {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -399,7 +496,6 @@ const GlobalChatWidget = () => {
                         transmitMessage(base64Audio);
                     }
                 };
-                // Turn off microphone after capturing
                 stream.getTracks().forEach(track => track.stop());
             };
 
@@ -485,7 +581,9 @@ const GlobalChatWidget = () => {
                                     </div>
                                     <div>
                                         <h3 className="font-bold text-sm leading-tight truncate max-w-[150px] sm:max-w-[200px]">{activeChat.name}</h3>
-                                        <p className="text-[10px] text-white/80 font-medium truncate max-w-[150px]">{activeChat.role}</p>
+                                        <p className="text-[10px] text-white/80 font-medium truncate max-w-[150px]">
+                                            {activeChat.role} • {getActiveStatusLong(activeChat.online, activeChat.lastSeen)}
+                                        </p>
                                     </div>
                                 </div>
                             </div>
@@ -532,6 +630,9 @@ const GlobalChatWidget = () => {
                                             <div className="flex-1 min-w-0 pr-6">
                                                 <div className="flex justify-between items-center mb-0.5">
                                                     <h4 className={`text-sm truncate ${contact.unreadCount > 0 ? 'font-black text-gray-900' : 'font-bold text-gray-900'}`}>{contact.name}</h4>
+                                                    <span className="text-[9px] text-gray-400 whitespace-nowrap ml-2 font-semibold">
+                                                        {getActiveStatusShort(contact.online, contact.lastSeen)}
+                                                    </span>
                                                 </div>
                                                 <p className={`text-xs truncate ${contact.unreadCount > 0 ? 'font-bold text-gray-800' : 'text-gray-500'}`}>{contact.lastMsg}</p>
                                             </div>

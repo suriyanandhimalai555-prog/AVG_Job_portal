@@ -8,11 +8,14 @@ export const initializeSocket = (server) => {
             origin: "*",
             methods: ["GET", "POST"]
         },
-        // IMPORTANT: Increase buffer size to handle base64 audio strings (default is 1MB, set to 100MB)
         maxHttpBufferSize: 1e8
     });
 
-    const userSockets = new Map();
+    // Maps socket.id -> userId to safely handle multiple tabs/devices per user
+    const activeSockets = new Map();
+
+    // Auto-migrate database to support last_seen tracking
+    pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_seen TIMESTAMP;`).catch(console.error);
 
     io.use((socket, next) => {
         const token = socket.handshake.auth.token;
@@ -27,9 +30,23 @@ export const initializeSocket = (server) => {
         }
     });
 
-    io.on('connection', (socket) => {
-        console.log(`User connected to socket: ${socket.userId}`);
-        userSockets.set(socket.userId, socket.id);
+    io.on('connection', async (socket) => {
+        const userId = socket.userId;
+        activeSockets.set(socket.id, userId);
+
+        console.log(`Socket connected: ${socket.id} for User: ${userId}`);
+
+        // Get unique online users across all connected sockets
+        const getOnlineUsers = () => [...new Set(Array.from(activeSockets.values()))];
+
+        // 1. Give the newly connected user a list of EVERYONE currently online
+        socket.emit('online_users', getOnlineUsers());
+
+        // 2. Broadcast to others that this user is online (Only if this is their first active socket)
+        const userSocketCount = Array.from(activeSockets.values()).filter(id => id === userId).length;
+        if (userSocketCount === 1) {
+            socket.broadcast.emit('user_status', { userId, online: true, lastSeen: null });
+        }
 
         socket.on('send_message', async (data) => {
             const { receiverId, senderId, senderName, senderRole, text, time } = data;
@@ -40,20 +57,39 @@ export const initializeSocket = (server) => {
                     [senderId, receiverId, text]
                 );
 
-                const receiverSocketId = userSockets.get(receiverId);
-                if (receiverSocketId) {
-                    io.to(receiverSocketId).emit('receive_message', {
-                        senderId, senderName, senderRole, text, time
-                    });
+                // Find ALL active sockets for the receiver and emit to them
+                for (const [socketId, activeUserId] of activeSockets.entries()) {
+                    if (String(activeUserId) === String(receiverId)) {
+                        io.to(socketId).emit('receive_message', {
+                            senderId, senderName, senderRole, text, time
+                        });
+                    }
                 }
             } catch (err) {
                 console.error("Failed to save chat message:", err);
             }
         });
 
-        socket.on('disconnect', () => {
-            console.log(`User disconnected from socket: ${socket.userId}`);
-            userSockets.delete(socket.userId);
+        socket.on('disconnect', async () => {
+            console.log(`Socket disconnected: ${socket.id}`);
+            activeSockets.delete(socket.id);
+
+            // Check if the user completely closed the app (no other tabs open)
+            const isStillOnline = Array.from(activeSockets.values()).includes(userId);
+
+            if (!isStillOnline) {
+                const lastSeen = new Date().toISOString();
+
+                try {
+                    // Update persistent database record so the offline time is saved globally
+                    await pool.query('UPDATE users SET last_seen = $1 WHERE id = $2', [lastSeen, userId]);
+
+                    // Broadcast to everyone that the user is now completely offline
+                    io.emit('user_status', { userId, online: false, lastSeen });
+                } catch (err) {
+                    console.error("Error updating last seen status:", err);
+                }
+            }
         });
     });
 };
