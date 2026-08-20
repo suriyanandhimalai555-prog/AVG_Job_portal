@@ -1,17 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-    FaBuilding,
-    FaBriefcase,
-    FaGraduationCap,
-    FaGift,
-    FaChevronRight,
-    FaCoins,
-    FaMapMarkerAlt,
-    FaBookmark,
-    FaStar,
-    FaUsers,
-    FaPlayCircle
+    FaBuilding, FaBriefcase, FaGraduationCap, FaGift,
+    FaChevronRight, FaCoins, FaMapMarkerAlt, FaBookmark,
+    FaStar, FaUsers, FaPlayCircle
 } from 'react-icons/fa';
 import Shimmer from '../../ui/Shimmer';
 import PostCom from './PostCom';
@@ -20,6 +12,7 @@ const UserDashboardCom = () => {
     const navigate = useNavigate();
     const [isLoading, setIsLoading] = useState(true);
     const [userName, setUserName] = useState('User');
+    const [userProfilePic, setUserProfilePic] = useState(null);
     const [userIdState, setUserIdState] = useState(1);
 
     const [metrics, setMetrics] = useState({
@@ -47,6 +40,9 @@ const UserDashboardCom = () => {
                     if (storedUser.fullName || storedUser.name) {
                         setUserName(storedUser.fullName || storedUser.name);
                     }
+                    if (storedUser.profile_picture) {
+                        setUserProfilePic(storedUser.profile_picture);
+                    }
                     userId = storedUser.id;
                 } catch (e) { }
             }
@@ -56,6 +52,7 @@ const UserDashboardCom = () => {
                     const payload = JSON.parse(atob(token.split('.')[1]));
                     const name = payload.fullName || payload.name || payload.email?.split('@')[0] || 'User';
                     setUserName(name);
+                    setUserProfilePic(payload.profile_picture || null);
                     userId = payload.id;
                 } catch (e) { }
             }
@@ -64,13 +61,16 @@ const UserDashboardCom = () => {
 
             try {
                 const targetCourseUserId = userId ? (parseInt(userId) || 1) : 1;
-                const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+                const headers = token ? {
+                    'Authorization': `Bearer ${token}`,
+                    'Cache-Control': 'no-store'
+                } : {};
 
                 const [jobsRes, referralRes, allJobsRes, allCoursesRes] = await Promise.all([
-                    fetch(`${apiUrl}/api/applications/my-applications`, { headers }).catch(() => ({ ok: false })),
-                    fetch(`${apiUrl}/api/users/${targetCourseUserId}/stats`, { headers }).catch(() => ({ ok: false })),
-                    fetch(`${apiUrl}/api/jobs`).catch(() => ({ ok: false })),
-                    fetch(`${apiUrl}/api/courses`).catch(() => ({ ok: false }))
+                    fetch(`${apiUrl}/api/applications/my-applications?_t=${Date.now()}`, { headers }).catch(() => ({ ok: false })),
+                    fetch(`${apiUrl}/api/users/${targetCourseUserId}/stats?_t=${Date.now()}`, { headers }).catch(() => ({ ok: false })),
+                    fetch(`${apiUrl}/api/jobs?_t=${Date.now()}`).catch(() => ({ ok: false })),
+                    fetch(`${apiUrl}/api/courses?_t=${Date.now()}`).catch(() => ({ ok: false }))
                 ]);
 
                 let jobsAppliedCount = 0;
@@ -91,10 +91,7 @@ const UserDashboardCom = () => {
                 }
 
                 if (isMounted) {
-                    setMetrics({
-                        jobsApplied: jobsAppliedCount,
-                        referralEarnings: refEarnings
-                    });
+                    setMetrics({ jobsApplied: jobsAppliedCount, referralEarnings: refEarnings });
                 }
 
                 const relevanceKeywords = ['bioinformatics', 'biotechnology', 'laboratory', 'hplc', 'pcr', 'graphic design', 'branding', 'logo', 'alphafold', 'benchling', 'computer'];
@@ -132,21 +129,29 @@ const UserDashboardCom = () => {
                         }
                     } catch (e) { }
                 }
-
             } catch (error) {
             } finally {
-                setTimeout(() => {
-                    if (isMounted) {
-                        setIsLoading(false);
-                    }
-                }, 500);
+                setTimeout(() => { if (isMounted) setIsLoading(false); }, 500);
             }
         };
 
         fetchDashboardData();
 
+        // REAL-TIME SYNC LISTENER
+        const handleProfileUpdate = (e) => {
+            const data = e.detail;
+            if (data?.fullName || data?.full_name || data?.name) {
+                setUserName(data.fullName || data.full_name || data.name);
+            }
+            if (data?.profile_picture) {
+                setUserProfilePic(data.profile_picture);
+            }
+        };
+
+        window.addEventListener('profile-updated', handleProfileUpdate);
         return () => {
             isMounted = false;
+            window.removeEventListener('profile-updated', handleProfileUpdate);
         };
     }, [apiUrl]);
 
@@ -173,179 +178,49 @@ const UserDashboardCom = () => {
 
     const ecosystemLinks = [
         {
-            icon: FaBuilding,
-            title: 'Business Directory',
-            desc: 'Find trusted businesses',
-            path: '/user-dashboard/directory',
-            grad: 'from-blue-600 to-indigo-600'
+            icon: FaBuilding, title: 'Business Directory', desc: 'Find trusted businesses', path: '/user-dashboard/directory', grad: 'from-blue-600 to-indigo-600'
         },
         {
-            icon: FaBriefcase,
-            title: 'Job Portal',
-            desc: 'Openings across UAE',
-            path: '/user-dashboard/jobs',
-            grad: 'from-indigo-600 to-purple-600'
+            icon: FaBriefcase, title: 'Job Portal', desc: 'Openings across UAE', path: '/user-dashboard/jobs', grad: 'from-indigo-600 to-purple-600'
         },
         {
-            icon: FaGraduationCap,
-            title: 'Training Academy',
-            desc: 'Courses & certificates',
-            path: '/user-dashboard/academy',
-            grad: 'from-teal-500 to-emerald-500'
+            icon: FaGraduationCap, title: 'Training Academy', desc: 'Courses & certificates', path: '/user-dashboard/academy', grad: 'from-teal-500 to-emerald-500'
         },
         {
-            icon: FaGift,
-            title: 'Refer & Earn',
-            desc: 'Invite friends, earn rewards',
-            path: '/user-dashboard/refer',
-            grad: 'from-amber-500 to-orange-500'
+            icon: FaGift, title: 'Refer & Earn', desc: 'Invite friends, earn rewards', path: '/user-dashboard/refer', grad: 'from-amber-500 to-orange-500'
         }
     ];
 
     const getMockRating = (id) => (4.0 + (id % 10) / 10).toFixed(1);
     const getMockReviews = (id) => 40 + (id * 47) % 1500;
 
-    // --- NEW UPDATED SHIMMER ---
     if (isLoading) {
         return (
             <div className="max-w-[1400px] mx-auto px-4 py-4 bg-gradient-to-b from-[#F7F8FB] to-[#EFF1FA] min-h-screen overflow-x-hidden relative">
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-
-                    {/* Left Column Shimmer */}
                     <div className="lg:col-span-7 xl:col-span-7 space-y-6">
-                        {/* Profile Active Banner Shimmer */}
                         <Shimmer className="w-full h-[140px] md:h-[180px] rounded-2xl bg-gray-200" />
-
-                        {/* Your Overview Shimmer */}
                         <div>
                             <Shimmer className="w-32 h-5 rounded mb-3 bg-gray-200" />
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
                                 {[1, 2].map(i => (
                                     <div key={i} className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
-                                        <div className="flex justify-between items-start mb-2">
-                                            <Shimmer className="w-10 h-10 rounded-lg bg-gray-200" />
-                                            <Shimmer className="w-16 h-8 rounded bg-gray-200" />
-                                        </div>
+                                        <Shimmer className="w-10 h-10 rounded-lg bg-gray-200 mb-2" />
                                         <Shimmer className="w-24 h-3 rounded mb-3 bg-gray-200" />
                                         <Shimmer className="w-full h-1.5 rounded-full bg-gray-200" />
                                     </div>
                                 ))}
                             </div>
                         </div>
-
-                        {/* Recommended Jobs Shimmer */}
-                        <div>
-                            <div className="mb-3">
-                                <Shimmer className="w-40 h-5 rounded mb-1.5 bg-gray-200" />
-                                <Shimmer className="w-56 h-3 rounded bg-gray-200" />
-                            </div>
-                            <div className="flex gap-3 md:gap-4 overflow-hidden">
-                                {[1, 2, 3].map(i => (
-                                    <div key={i} className="min-w-[260px] md:min-w-[300px] bg-white border border-gray-100 rounded-xl p-4 flex flex-col shadow-sm">
-                                        <div className="flex justify-between items-start mb-3">
-                                            <Shimmer className="w-10 h-10 rounded-lg bg-gray-200" />
-                                            <Shimmer className="w-6 h-5 rounded bg-gray-200" />
-                                        </div>
-                                        <Shimmer className="w-3/4 h-4 rounded mb-2 bg-gray-200" />
-                                        <Shimmer className="w-1/2 h-3 rounded mb-4 bg-gray-200" />
-
-                                        <div className="flex gap-2 mb-4">
-                                            <Shimmer className="w-16 h-5 rounded bg-gray-200" />
-                                            <Shimmer className="w-20 h-5 rounded bg-gray-200" />
-                                        </div>
-
-                                        <div className="mt-auto flex justify-between items-end pt-3 border-t border-gray-50">
-                                            <Shimmer className="w-20 h-5 rounded bg-gray-200" />
-                                            <Shimmer className="w-24 h-8 rounded-lg bg-gray-200" />
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Featured Courses Shimmer */}
-                        <div>
-                            <div className="mb-3">
-                                <Shimmer className="w-36 h-5 rounded mb-1.5 bg-gray-200" />
-                                <Shimmer className="w-48 h-3 rounded bg-gray-200" />
-                            </div>
-                            <div className="flex gap-3 md:gap-4 overflow-hidden">
-                                {[1, 2, 3].map(i => (
-                                    <div key={i} className="min-w-[240px] md:min-w-[280px] bg-white border border-gray-100 rounded-xl overflow-hidden flex flex-col shadow-sm">
-                                        <Shimmer className="w-full h-24 bg-gray-200" />
-                                        <div className="p-4 flex flex-col flex-1">
-                                            <Shimmer className="w-16 h-4 rounded mb-3 bg-gray-200" />
-                                            <Shimmer className="w-full h-4 rounded mb-1.5 bg-gray-200" />
-                                            <Shimmer className="w-2/3 h-4 rounded mb-3 bg-gray-200" />
-                                            <Shimmer className="w-1/2 h-3 rounded mb-4 bg-gray-200" />
-
-                                            <div className="mt-auto flex justify-between items-center">
-                                                <div className="flex gap-2">
-                                                    <Shimmer className="w-10 h-4 rounded bg-gray-200" />
-                                                    <Shimmer className="w-10 h-4 rounded bg-gray-200" />
-                                                </div>
-                                                <Shimmer className="w-12 h-5 rounded bg-gray-200" />
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Explore Ecosystem Shimmer */}
-                        <div>
-                            <Shimmer className="w-40 h-5 rounded mb-3 bg-gray-200" />
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                                {[1, 2, 3, 4].map(i => (
-                                    <div key={i} className="bg-white border border-gray-100 rounded-xl p-4 flex flex-row lg:flex-col gap-3 shadow-sm items-center lg:items-start relative">
-                                        <Shimmer className="w-11 h-11 shrink-0 rounded-lg bg-gray-200" />
-                                        <div className="flex-1 w-full">
-                                            <Shimmer className="w-3/4 h-4 rounded mb-1.5 bg-gray-200" />
-                                            <Shimmer className="w-full h-3 rounded bg-gray-200" />
-                                        </div>
-                                        <Shimmer className="w-7 h-7 rounded-full bg-gray-200 hidden lg:block absolute top-4 right-4" />
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
                     </div>
-
-                    {/* Right Column Shimmer (Placeholder for PostCom) */}
                     <div className="hidden lg:block lg:col-span-5 space-y-6">
-                        {/* Fake Create Post Input */}
-                        <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
-                            <div className="flex gap-3 mb-4">
-                                <Shimmer className="w-10 h-10 rounded-full bg-gray-200" />
-                                <Shimmer className="flex-1 h-10 rounded-full bg-gray-200" />
-                            </div>
-                            <div className="flex justify-between border-t border-gray-50 pt-3">
-                                <Shimmer className="w-20 h-8 rounded-lg bg-gray-200" />
-                                <Shimmer className="w-20 h-8 rounded-lg bg-gray-200" />
-                                <Shimmer className="w-20 h-8 rounded-lg bg-gray-200" />
-                            </div>
-                        </div>
-                        {/* Fake Feed Posts */}
-                        {[1, 2].map(i => (
-                            <div key={i} className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
-                                <div className="flex gap-3 mb-4 items-center">
-                                    <Shimmer className="w-10 h-10 rounded-full bg-gray-200" />
-                                    <div className="flex-1">
-                                        <Shimmer className="w-32 h-4 rounded mb-1.5 bg-gray-200" />
-                                        <Shimmer className="w-20 h-3 rounded bg-gray-200" />
-                                    </div>
-                                </div>
-                                <Shimmer className="w-full h-4 rounded mb-1.5 bg-gray-200" />
-                                <Shimmer className="w-5/6 h-4 rounded mb-4 bg-gray-200" />
-                                <Shimmer className="w-full h-56 rounded-xl bg-gray-200" />
-                            </div>
-                        ))}
+                        <Shimmer className="w-full h-32 rounded-xl bg-gray-200" />
+                        <Shimmer className="w-full h-64 rounded-xl bg-gray-200" />
                     </div>
-
                 </div>
             </div>
         );
     }
-    // --- END NEW UPDATED SHIMMER ---
 
     return (
         <div className="max-w-[1400px] mx-auto px-4 py-4 bg-gradient-to-b from-[#F7F8FB] to-[#EFF1FA] min-h-screen overflow-x-hidden relative">
@@ -480,9 +355,6 @@ const UserDashboardCom = () => {
                                 <div
                                     key={course.id}
                                     onClick={() => navigate('/user-dashboard/academy')}
-                                    role="button"
-                                    tabIndex={0}
-                                    onKeyDown={(e) => { if (e.key === 'Enter') navigate('/user-dashboard/academy'); }}
                                     className="min-w-[240px] md:min-w-[280px] bg-white border border-gray-100 rounded-xl overflow-hidden shadow-[0_2px_12px_rgba(15,23,42,0.04)] hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 snap-start flex flex-col group cursor-pointer">
 
                                     <div className="h-24 bg-gray-100 relative overflow-hidden">
@@ -561,32 +433,13 @@ const UserDashboardCom = () => {
                 </div>
 
                 {/* Dashboard Right Column (Post Component) */}
-                <PostCom userName={userName} userIdState={userIdState} apiUrl={apiUrl} />
+                <PostCom userName={userName} userIdState={userIdState} apiUrl={apiUrl} userProfilePic={userProfilePic} />
 
             </div>
 
             <style>{`
-                .hidden-scrollbar::-webkit-scrollbar {
-                    display: none;
-                }
-                .hidden-scrollbar {
-                    -ms-overflow-style: none;
-                    scrollbar-width: none;
-                }
-                .animate-fade-in-up {
-                    animation: fadeInUp 0.2s ease-out forwards;
-                }
-                .animate-fade-in {
-                    animation: fadeIn 0.2s ease-out forwards;
-                }
-                @keyframes fadeInUp {
-                    from { opacity: 0; transform: translateY(10px) translateX(0); }
-                    to { opacity: 1; transform: translateY(0) translateX(0); }
-                }
-                @keyframes fadeIn {
-                    from { opacity: 0; }
-                    to { opacity: 1; }
-                }
+                .hidden-scrollbar::-webkit-scrollbar { display: none; }
+                .hidden-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
             `}</style>
         </div>
     );
