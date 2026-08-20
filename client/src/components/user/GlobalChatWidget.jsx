@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
     FaCommentDots, FaTimes, FaChevronLeft, FaPaperPlane,
-    FaSearch, FaLock, FaMicrophone, FaStopCircle, FaCircle
+    FaSearch, FaLock, FaBell, FaMicrophone, FaStopCircle, FaCircle, FaSmile
 } from 'react-icons/fa';
 import { io } from 'socket.io-client';
 import CryptoJS from 'crypto-js';
-import { toast } from 'react-hot-toast';
+import { toast, Toaster } from 'react-hot-toast';
+import EmojiPicker from 'emoji-picker-react';
 
+// --- LocalStorage Helpers for Persistent Unread Counts ---
 const getUnreadCounts = (userId) => {
     try {
         return JSON.parse(localStorage.getItem(`unread_msgs_${userId}`)) || {};
@@ -41,7 +43,10 @@ const GlobalChatWidget = () => {
     const [isLoadingHistory, setIsLoadingHistory] = useState(false);
     const [isRecording, setIsRecording] = useState(false);
 
-    // DYNAMIC CLOCK: Re-evaluates presence timestamps every 60 seconds
+    // Emoji Picker State
+    const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+
+    // Dynamic Clock to auto-update "Active 10 mins ago" without refreshing
     const [currentTime, setCurrentTime] = useState(Date.now());
 
     const [currentUser, setCurrentUser] = useState(null);
@@ -59,6 +64,7 @@ const GlobalChatWidget = () => {
 
     const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5001';
 
+    // Keep refs updated for socket callbacks to prevent stale closures
     useEffect(() => {
         activeChatRef.current = activeChat;
     }, [activeChat]);
@@ -77,6 +83,7 @@ const GlobalChatWidget = () => {
         return () => clearInterval(interval);
     }, []);
 
+    // 1. Encryption / Decryption Handlers
     const generateSharedKey = (id1, id2) => {
         return [id1, id2].sort().join('-') + '-avg-secret-salt';
     };
@@ -146,7 +153,7 @@ const GlobalChatWidget = () => {
         }
     }, []);
 
-    // Initialize Socket & Sync Real-Time Statuses
+    // 2. Initialize User & Socket Connection
     useEffect(() => {
         const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
         if (!token) return;
@@ -158,7 +165,7 @@ const GlobalChatWidget = () => {
             const newSocket = io(apiUrl, { auth: { token } });
             setSocket(newSocket);
 
-            // Fetch initial bulk online users
+            // --- PRESENCE LISTENERS ---
             newSocket.on('online_users', (onlineUserIds) => {
                 onlineUserIds.forEach(id => {
                     onlineStatusMapRef.current[id] = { online: true, lastSeen: null };
@@ -311,7 +318,7 @@ const GlobalChatWidget = () => {
         }
     }, [apiUrl]);
 
-    // Initial Fetch & Merge with Live Map
+    // 3. Fetch Initial Contacts List on Load
     useEffect(() => {
         const fetchInitialContacts = async () => {
             if (!currentUser) return;
@@ -359,7 +366,7 @@ const GlobalChatWidget = () => {
         fetchInitialContacts();
     }, [currentUser, apiUrl]);
 
-    // Fetch History
+    // 4. Fetch Chat History When Active Chat Changes
     useEffect(() => {
         const fetchHistory = async () => {
             if (!activeChat || !currentUser) return;
@@ -396,7 +403,7 @@ const GlobalChatWidget = () => {
         fetchHistory();
     }, [activeChat, currentUser, apiUrl]);
 
-    // Profile Page Trigger Listener
+    // 5. Listen for Profile Page Custom Events
     useEffect(() => {
         const handleOpenChat = (event) => {
             const user = event.detail;
@@ -433,12 +440,14 @@ const GlobalChatWidget = () => {
         return () => window.removeEventListener('open-global-chat', handleOpenChat);
     }, []);
 
+    // 6. Auto-scroll
     useEffect(() => {
         if (messagesEndRef.current) {
             messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
         }
     }, [messages, activeChat, isOpen]);
 
+    // 7. Handlers
     const transmitMessage = (messagePayload) => {
         const timeString = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
@@ -471,8 +480,14 @@ const GlobalChatWidget = () => {
         if (!messageInput.trim() || !socket || !currentUser || !activeChat) return;
         transmitMessage(messageInput);
         setMessageInput('');
+        setShowEmojiPicker(false); // Close emoji picker after sending
     };
 
+    const handleEmojiClick = (emojiObject) => {
+        setMessageInput(prev => prev + emojiObject.emoji);
+    };
+
+    // --- VOICE RECORDING LOGIC ---
     const startRecording = async () => {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -501,6 +516,7 @@ const GlobalChatWidget = () => {
 
             mediaRecorder.start();
             setIsRecording(true);
+            setShowEmojiPicker(false); // Close emoji picker if recording starts
         } catch (error) {
             console.error("Error accessing microphone:", error);
             toast.error("Microphone access denied or unavailable.");
@@ -520,6 +536,7 @@ const GlobalChatWidget = () => {
             setUnreadCount(currentUser.id, contact.id, 0);
         }
         setContacts(prev => prev.map(c => c.id === contact.id ? { ...c, unreadCount: 0 } : c));
+        setShowEmojiPicker(false);
     };
 
     const handleOpenWidget = () => {
@@ -532,6 +549,7 @@ const GlobalChatWidget = () => {
 
     const handleCloseWidget = () => {
         setIsOpen(false);
+        setShowEmojiPicker(false);
     };
 
     const filteredContacts = contacts.filter(contact =>
@@ -567,11 +585,11 @@ const GlobalChatWidget = () => {
             )}
 
             {isOpen && (
-                <div className="w-full h-[100dvh] sm:h-full bg-white sm:rounded-2xl shadow-none sm:shadow-[0_10px_40px_rgba(30,41,89,0.2)] border-0 sm:border border-[#E7E9F7] flex flex-col overflow-hidden sm:animate-fade-in-up">
+                <div className="w-full h-[100dvh] sm:h-full bg-white sm:rounded-2xl shadow-none sm:shadow-[0_10px_40px_rgba(30,41,89,0.2)] border-0 sm:border border-[#E7E9F7] flex flex-col overflow-hidden sm:animate-fade-in-up relative">
                     <div className="bg-gradient-to-r from-[#2A45C2] to-[#5B4FE0] px-4 py-3.5 flex justify-between items-center text-white shrink-0 shadow-sm z-10">
                         {activeChat ? (
                             <div className="flex items-center gap-3">
-                                <button onClick={() => setActiveChat(null)} className="p-1.5 hover:bg-white/20 rounded-full transition-colors">
+                                <button onClick={() => { setActiveChat(null); setShowEmojiPicker(false); }} className="p-1.5 hover:bg-white/20 rounded-full transition-colors">
                                     <FaChevronLeft size={14} />
                                 </button>
                                 <div className="flex items-center gap-2.5">
@@ -598,7 +616,7 @@ const GlobalChatWidget = () => {
                         </button>
                     </div>
 
-                    <div className="flex-1 overflow-hidden flex flex-col bg-[#F5F6FC]">
+                    <div className="flex-1 overflow-hidden flex flex-col bg-[#F5F6FC] relative">
                         {!activeChat ? (
                             <div className="flex flex-col h-full">
                                 <div className="bg-[#EEF1FE] px-3 py-2 flex items-center justify-center gap-1.5 text-[10px] font-bold text-[#2A45C2] border-b border-[#E7E9F7] shrink-0">
@@ -651,7 +669,7 @@ const GlobalChatWidget = () => {
                                 </div>
                             </div>
                         ) : (
-                            <div className="flex flex-col h-full">
+                            <div className="flex flex-col h-full relative">
                                 <div className="bg-[#FFF9E6] px-3 py-1.5 flex items-center justify-center gap-1.5 text-[9px] font-bold text-[#D4A017] border-b border-[#F2C14E]/30 text-center shrink-0">
                                     <FaLock /> Messages are end-to-end encrypted. Nobody outside of this chat can read them.
                                 </div>
@@ -671,7 +689,6 @@ const GlobalChatWidget = () => {
                                                     ? 'bg-gradient-to-r from-[#2A45C2] to-[#5B4FE0] text-white rounded-2xl rounded-tr-sm'
                                                     : 'bg-white border border-[#E7E9F7] text-gray-800 rounded-2xl rounded-tl-sm'
                                                     }`}>
-                                                    {/* Detect if the message is a base64 audio string or standard text */}
                                                     {msg.text.startsWith('data:audio') ? (
                                                         <audio src={msg.text} controls className="max-w-full h-10 outline-none" />
                                                     ) : (
@@ -685,12 +702,28 @@ const GlobalChatWidget = () => {
                                     <div ref={messagesEndRef} />
                                 </div>
 
-                                {/* Form Layout Adjusted for Voice and Text Input */}
+                                {/* Emoji Picker Overlay */}
+                                {showEmojiPicker && !isRecording && (
+                                    <div className="absolute bottom-[75px] left-2 z-[60] shadow-2xl rounded-xl overflow-hidden border border-[#E7E9F7] bg-white">
+                                        <EmojiPicker onEmojiClick={handleEmojiClick} width={300} height={350} />
+                                    </div>
+                                )}
+
                                 <form
                                     onSubmit={handleSendText}
-                                    className="p-3 bg-white border-t border-[#E7E9F7] flex gap-2 items-center shrink-0"
+                                    className="p-3 bg-white border-t border-[#E7E9F7] flex gap-2 items-center shrink-0 z-50 relative"
                                     style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))' }}
                                 >
+                                    {!isRecording && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                                            className="text-gray-400 hover:text-[#2A45C2] transition-colors p-1.5 shrink-0"
+                                        >
+                                            <FaSmile size={20} />
+                                        </button>
+                                    )}
+
                                     {isRecording ? (
                                         <div className="flex-1 bg-red-50 border border-red-200 rounded-xl px-4 py-2.5 flex items-center justify-center gap-2 text-red-500 font-bold text-sm shadow-inner animate-pulse">
                                             <FaCircle size={10} /> Recording Voice Note...
@@ -705,7 +738,6 @@ const GlobalChatWidget = () => {
                                         />
                                     )}
 
-                                    {/* Toggle between Send Text and Voice Recording actions */}
                                     {messageInput.trim() ? (
                                         <button
                                             type="submit"

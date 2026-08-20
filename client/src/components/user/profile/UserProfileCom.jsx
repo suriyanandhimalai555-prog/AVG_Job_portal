@@ -567,7 +567,7 @@ const UserProfileCom = () => {
     const portfolioLink = profile.websiteUrl || profile.profileUrl;
 
     return (
-        <div className="max-w-[1400px] mx-auto p-4 md:p-8 min-h-screen relative bg-[#F5F6FC]">
+        <div className="max-w-[1400px] mx-auto p-2 md:p-3 min-h-screen relative bg-[#F5F6FC]">
             <Toaster position="top-right" />
 
             {/* INTEGRATE USER EDIT POPUP */}
