@@ -40,6 +40,7 @@ const app = express();
 const server = http.createServer(app);
 
 const allowedOrigins = [
+    process.env.FRONTEND_URL,
     process.env.FRONTENDURL,
     'https://avgjobportal.avgprimetech.com/',
     'http://localhost:5173'
