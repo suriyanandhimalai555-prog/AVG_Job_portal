@@ -1,4 +1,4 @@
-import pool from '../../config/db.js'; // Adjust based on your actual DB config
+import pool from '../../config/db.js';
 
 export const createChatTable = async () => {
     const query = `
