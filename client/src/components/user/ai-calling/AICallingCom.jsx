@@ -376,10 +376,10 @@ const AICallingCom = () => {
                         Automate inbound and outbound calls with AI voice agents that verify leads, engage customers, book appointments, handle support conversations, perform follow-ups, and provide complete call analytics.
                     </p>
                     <div className="flex flex-col sm:flex-row gap-3 justify-center md:justify-start">
-                        <Button className="bg-white text-[#1C2D88] hover:bg-gray-50 font-black shadow-xl border-none px-6 py-3" onClick={() => document.getElementById('pricing').scrollIntoView({ behavior: 'smooth' })}>
+                        <Button variant='secondary' onClick={() => document.getElementById('pricing').scrollIntoView({ behavior: 'smooth' })}>
                             Explore AI Calling
                         </Button>
-                        <Button variant="outline" className="border-white/30 text-white hover:bg-white/10 font-bold px-6 py-3 backdrop-blur-sm" onClick={() => setShowSampleModal(true)}>
+                        <Button variant="secondary" onClick={() => setShowSampleModal(true)}>
                             <FaVolumeUp className="mr-2" /> Listen to Sample Call
                         </Button>
                     </div>
